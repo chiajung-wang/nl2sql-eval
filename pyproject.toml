@@ -8,6 +8,8 @@ requires-python = ">=3.11"
 # dependency pinned now (PRD §7); SQLAlchemy/Anthropic/Jinja arrive with the
 # issues that first use them (Step 1 issues 2 and 4).
 dependencies = [
+    "psycopg2-binary>=2.9",
+    "sqlalchemy>=2.0",
     "sqlglot>=25.0",
 ]
 
