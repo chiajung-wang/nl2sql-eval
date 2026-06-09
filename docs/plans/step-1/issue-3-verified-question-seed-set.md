@@ -24,6 +24,10 @@ Includes:
 - [ ] Questions span a range from simple lookups to at least one join and one aggregation.
 - [ ] **Human review:** each gold answer has been eyeballed against the seeded data and confirmed correct.
 
+## Notes / gotchas from the seed (Issue 2)
+
+- **Ledger running balance is `id`-ordered, not time-ordered.** `ledger.balance_after_cents` only coheres when rows are read in `id` order; the seed's `created_at` timestamps are *not* monotonic with `id` (e.g. id 2 at `12:00:05` precedes id 3 at `09:05:05`). A gold query that computes a running balance with `ORDER BY created_at` will **not** reproduce the stored `balance_after_cents`. Author any ledger-balance gold against `ORDER BY id`, or avoid relying on `balance_after_cents` for time-ordered questions.
+
 ## Blocked by
 
 - Issue 2 — Payments Postgres database (gold answers depend on the seed).

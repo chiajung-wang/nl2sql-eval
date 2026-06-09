@@ -65,10 +65,13 @@ def verify(engine: Engine) -> None:
             print(f"  {table:<16} {count:>4}")
 
         print("\nSample join (transactions → users → merchants), first 5 captured:")
+        # Select user id + country, never the PII columns (email/full_name/phone):
+        # this bootstrap output stands in for a log sink, and raw PII must never
+        # reach logs/traces (CLAUDE.md §5.3). Redaction lands in Step 8.
         rows = conn.execute(
             text(
                 """
-                SELECT t.id, u.full_name, m.name AS merchant,
+                SELECT t.id, u.id AS user_id, u.country, m.name AS merchant,
                        t.amount_cents, t.currency, t.status
                 FROM transactions t
                 JOIN users u     ON u.id = t.user_id
@@ -81,8 +84,9 @@ def verify(engine: Engine) -> None:
         ).all()
         for row in rows:
             print(
-                f"  {row.id:>2}  {row.full_name:<14} {row.merchant:<22} "
-                f"{row.amount_cents:>6} {row.currency}  {row.status}"
+                f"  {row.id:>2}  user#{row.user_id} {row.country}  "
+                f"{row.merchant:<22} {row.amount_cents:>6} {row.currency}  "
+                f"{row.status}"
             )
 
 
