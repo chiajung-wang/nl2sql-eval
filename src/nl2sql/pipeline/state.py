@@ -1,0 +1,50 @@
+"""Shared pipeline run state and the terminal-state enum.
+
+Per the architecture rules, this module holds the run-state dataclass and the
+*full* terminal-state enum only. The classifier that decides which terminal
+state a run lands in lives in the harness, never here.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import StrEnum
+from typing import Any
+
+
+class TerminalState(StrEnum):
+    """Every run buckets into exactly one of these.
+
+    Only ``SUCCESS`` and ``EXECUTION_ERROR_FINAL`` are reachable in Step 1; the
+    full set is defined now so later steps never reshape this module.
+    """
+
+    SUCCESS = "success"
+    WRONG_ANSWER = "wrong_answer"
+    RETRY_EXHAUSTED = "retry_exhausted"
+    EXECUTION_ERROR_FINAL = "execution_error_final"
+    GUARDRAIL_REJECTED = "guardrail_rejected"
+    RETRIEVAL_EMPTY = "retrieval_empty"
+
+
+@dataclass
+class RunState:
+    """Mutable state threaded through the pipeline for a single question.
+
+    The db identity is an input (single-db per run); fields below are populated
+    as the run advances through retrieve → generate → guard → execute → correct.
+    """
+
+    question: str
+    db_id: str
+
+    # Populated as the run progresses.
+    candidate_sql: str | None = None
+    result_rows: list[tuple[Any, ...]] | None = None
+    result_columns: list[str] | None = None
+    error: str | None = None
+    attempts: int = 0
+    terminal_state: TerminalState | None = None
+
+    # Free-form per-stage diagnostics; cost/latency/tokens land here later.
+    meta: dict[str, Any] = field(default_factory=dict)
