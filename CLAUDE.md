@@ -65,6 +65,7 @@ The pipeline is an instrumented state machine wrapped by a harness that treats i
 - Report an eval number **without** a corresponding `RESULTS.md` entry and commit.
 - Build an explicit **non-goal**: cross-db routing, open-ended generation eval, LLM-as-judge-as-primary-scorer (PRD §11).
 - Let **BigQuery** integration block the README/blog — it is quarantined optional reach.
+- Add **Claude / Claude Code as co-author or author** on commits or PRs. Never include `Co-Authored-By: Claude` trailers or "Generated with Claude Code" lines in commit messages or PR bodies.
 
 ## 8. Testing
 
