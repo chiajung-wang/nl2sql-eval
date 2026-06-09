@@ -1,0 +1,38 @@
+[project]
+name = "nl2sql-eval"
+version = "0.1.0"
+description = "Guardrailed Agentic NL-to-SQL system, presented as a case study in rigorously evaluating and operating an LLM system."
+readme = "README.md"
+requires-python = ">=3.11"
+# Runtime deps stay minimal in Step 1 (skeleton). sqlglot is the one stable
+# dependency pinned now (PRD §7); SQLAlchemy/Anthropic/Jinja arrive with the
+# issues that first use them (Step 1 issues 2 and 4).
+dependencies = [
+    "sqlglot>=25.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6",
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nl2sql"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Repo root on the path so the eval/ and apps/ peer packages import (nl2sql is
+# installed from src/ via the wheel).
+pythonpath = ["."]
