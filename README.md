@@ -1,0 +1,185 @@
+# nl2sql-eval
+
+**A Guardrailed Agentic NL-to-SQL system — presented as a case study in rigorously evaluating and operating an LLM system.**
+
+The natural-language-to-SQL agent is the *workload*; the eval harness, observability, and prompt-CI/CD wrapper around it is the *product*. Anyone can wire an LLM to a database — the goal here is to **prove the system works, catch when it breaks, and operate it day to day**. Guardrails and self-correction are not claimed features; they are *measured* features, scored against frozen benchmarks and red-team fixtures, with every reported number traceable to its config and commit.
+
+> Open-sourced with a technical blog post, running against at least one cloud warehouse.
+
+## Assumptions
+
+The PRD (`docs/prd.md`) does not specify everything needed to run a project end-to-end. The following are inferred defaults; they will be replaced by real values as the implementation lands:
+
+- **Tooling:** `uv` + `pyproject.toml` are mandated; exact command names (`uv run pytest`, etc.) are inferred.
+- **Lint/format:** Assumed `ruff`. Confirm in `pyproject.toml`.
+- **Python version:** Floor assumed at 3.11.
+- **License:** Not specified in the PRD — placeholder below.
+- **Environment variable names:** Inferred placeholder conventions, not PRD-specified.
+
+## Features
+
+- **Instrumented NL-to-SQL pipeline** modeled as a state machine with conditional edges: retrieve → generate → guard → execute → correct → redact.
+- **Schema-RAG** over table/column metadata and sample values (retrieval over *schema*, not documents), loop-aware and re-triggered on not-found errors.
+- **Deterministic guardrails** (sqlglot AST, not regex/LLM): read-only enforcement, dangerous-op blocking, cost/complexity heuristic, and per-db table-scope checks.
+- **Self-correction loop** with a capped retry budget, feeding execution errors and retrieval misses back into regeneration.
+- **Column-aware PII redaction** that runs *after* scoring, so raw PII never reaches logs or traces.
+- **A first-class eval harness** reporting execution accuracy via canonicalized result-set comparison, `pass@1` vs `pass@k`, retrieval recall, and accuracy by difficulty/failure-type.
+- **A proven comparator** validated against a golden fixture of `(gold, candidate, expected_verdict)` triples.
+- **Measured guardrails** scored against a red-team fixture of injected dangerous queries.
+- **Observability** with a Langfuse span per stage and trace per run (redacted logging only).
+- **Prompt-CI/CD** via GitHub Actions: a prompt change runs the harness on a frozen, seeded, stratified BIRD slice and posts `pass@1`/`pass@k` deltas.
+- **Multi-provider** model comparison through LiteLLM (cost/latency/quality trade-offs).
+- **A committed running results log** (`RESULTS.md`) where every reported number links to the model, slice, prompt version, date, and commit that produced it.
+
+## Prerequisites
+
+- **Python 3.11+**
+- **[uv](https://github.com/astral-sh/uv)** — package and project manager
+- **SQLite** — for the BIRD benchmark (bundled with Python)
+- **PostgreSQL** — for the payments demo database
+- **An LLM provider API key** — accessed through LiteLLM (e.g. Anthropic / OpenAI). Multi-provider runs land in Step 7.
+- **A Langfuse account / keys** — for observability (Step 8 onward)
+- **(Optional, Phase 3 reach)** Google Cloud project with BigQuery access
+- **BIRD benchmark data** — downloaded separately (see `eval/datasets/bird/`)
+
+## Installation
+
+```bash
+# 1. Clone the repository
+git clone <repo-url> nl2sql-eval
+cd nl2sql-eval
+
+# 2. Install dependencies (uv reads pyproject.toml and creates the virtualenv)
+uv sync
+
+# 3. Provide configuration (see Configuration below)
+cp .env.example .env     # then edit .env with your keys and DB URLs
+
+# 4. (Optional) start a local Postgres for the payments demo, then load its schema
+#    DDL and verified questions live under eval/datasets/payments/
+
+# 5. (Optional) download the BIRD benchmark data into eval/datasets/bird/
+
+# 6. Verify the deterministic cores pass
+uv run pytest tests/test_compare.py tests/test_guard.py
+```
+
+> Exact `.env` keys and dataset-loading commands depend on the implementation; follow the loaders under `eval/datasets/`.
+
+## Usage
+
+Run the eval harness against a dataset slice — this is the centerpiece. It runs the pipeline per question, scores against gold via result-set comparison, buckets the terminal state, and records cost/latency/attempts.
+
+```bash
+# Run the harness on a frozen BIRD slice
+uv run python -m eval.harness --dataset bird --slice <frozen-slice-id>
+
+# Run against the payments demo set
+uv run python -m eval.harness --dataset payments
+```
+
+Launch the demo UI — built to *reveal the wrapper* (guardrail decision, retry count, cost), not to hide a chatbot:
+
+```bash
+uv run streamlit run apps/demo/app.py
+```
+
+**Every run buckets into exactly one terminal state:** `success`, `wrong_answer`, `retry_exhausted`, `execution_error_final`, `guardrail_rejected`, or `retrieval_empty`. The harness aggregates overall accuracy, accuracy by difficulty/failure-type, `pass@1`/`pass@k`, and retrieval recall.
+
+> Note: actual CLI flags are defined by `eval/harness.py`; the above shows the intended interface.
+
+## Configuration
+
+Configuration is supplied via environment variables (e.g. an `.env` file). Names below are inferred placeholders — confirm against the implementation.
+
+| Variable | Description | Required | Example |
+|---|---|---|---|
+| `LLM_PROVIDER` | LiteLLM provider/model identifier | Yes | `anthropic/claude-opus-4-8` |
+| `LLM_API_KEY` | API key for the selected provider | Yes | `sk-...` |
+| `PAYMENTS_DB_URL` | SQLAlchemy URL for the Postgres demo db | Demo only | `postgresql://user:pass@localhost:5432/payments` |
+| `BIRD_DATA_DIR` | Path to downloaded BIRD SQLite databases | BIRD runs | `./eval/datasets/bird/data` |
+| `LANGFUSE_PUBLIC_KEY` | Langfuse public key (observability) | Step 8+ | `pk-lf-...` |
+| `LANGFUSE_SECRET_KEY` | Langfuse secret key | Step 8+ | `sk-lf-...` |
+| `LANGFUSE_HOST` | Langfuse host URL | Step 8+ | `https://cloud.langfuse.com` |
+| `RETRY_BUDGET` | Max self-correction attempts per question | No | `3` |
+| `BIGQUERY_PROJECT` | GCP project for BigQuery (Phase 3 reach) | No | `my-gcp-project` |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service-account JSON | No | `./gcp-key.json` |
+
+## Project Structure
+
+```
+nl2sql-eval/
+├── pyproject.toml            # uv-managed project + dependencies
+├── README.md                 # this file — the portfolio front door
+├── RESULTS.md                # committed running results log (every number → config + commit)
+├── docs/
+│   ├── prd.md                # product requirements document
+│   └── plans/                # per-step detail, one folder per step
+│       ├── step-1/           #   plan-step-1.md + its broken-down issue-*.md slices
+│       ├── step-2/ … step-10/#   plan-step-N.md per step
+│       └── …
+├── src/nl2sql/
+│   ├── pipeline/             # the system-under-test (import-shared by harness + demo)
+│   │   ├── graph.py          #   state machine (LangGraph after Step 7; hand-rolled before)
+│   │   ├── state.py          #   shared run state + terminal-state ENUM (enum only)
+│   │   ├── retrieve.py       #   schema-RAG, loop-aware
+│   │   ├── generate.py       #   LLM SQL generation
+│   │   ├── guard.py          #   deterministic sqlglot AST guardrails, heuristic-first cost
+│   │   ├── execute.py        #   SQLAlchemy execution, multi-engine
+│   │   ├── correct.py        #   error / retrieval feedback loop (capped retries)
+│   │   └── redact.py         #   column-aware PII masking (post-scoring)
+│   ├── schema_index/         # retrievable schema-metadata store
+│   ├── llm/                  # LiteLLM provider abstraction
+│   └── obs/                  # Langfuse instrumentation helpers (thin seams)
+├── eval/                     # CENTERPIECE — peer of src/, imports the pipeline
+│   ├── harness.py            #   batch runner; pass@1 + pass@k; terminal-state classifier
+│   ├── compare.py            #   canonicalization + result-set comparison (heavily tested)
+│   ├── metrics.py            #   accuracy, retrieval-recall, cost/latency aggregation
+│   └── datasets/
+│       ├── bird/             #   benchmark backbone; frozen slice ID list lives here
+│       └── payments/         #   verified domain set + schema DDL
+├── fixtures/
+│   ├── golden_compare/       # (gold, candidate, expected_verdict) triples — DELIVERABLE
+│   └── redteam_guard/        # injected dangerous queries — DELIVERABLE
+├── prompts/                  # version-controlled Jinja-style templates (CI diffs these)
+├── apps/demo/                # thin Streamlit UI (built late; isolated dep group)
+├── tests/                    # esp. compare.py and guard.py — the deterministic cores
+└── .github/workflows/
+    └── eval.yml              # prompt-CI: run frozen slice on change, post deltas
+```
+
+## Testing
+
+Tests concentrate on the **deterministic, correctness-critical cores**: the comparator (`eval/compare.py`) and the guardrails (`src/nl2sql/pipeline/guard.py`). A comparator bug silently invalidates every reported number, so the comparator must pass its **entire** golden fixture, and guardrails are measured against the red-team fixture.
+
+```bash
+# Full suite
+uv run pytest
+
+# The deterministic cores
+uv run pytest tests/test_compare.py tests/test_guard.py
+```
+
+- **Comparator:** validated against `fixtures/golden_compare/` — `(gold, candidate, expected_verdict)` triples. Add a fixture case for every new comparison edge case.
+- **Guardrails:** unit-test green plus a reported catch rate against `fixtures/redteam_guard/`. Add a fixture case for every new dangerous-query pattern.
+
+## Configuration & Data Sources
+
+- **BIRD** — hard, realistic public benchmark; the quantitative backbone. Provides large-N comparable accuracy and leaderboard anchoring.
+- **Payments-platform schema (Postgres)** — hand-built qualitative showcase (users, merchants, transactions, payment_methods, refunds, disputes, ledger/balances) with ~30–60 verified gold answers. Drives the demo and the guardrail/PII exercise.
+- **BigQuery** — optional Phase 3 reach; the cloud-warehouse checkbox. Quarantined so it never blocks the README/blog.
+
+## Contributing
+
+> Inferred conventions — adjust to project norms once established.
+
+- **Branch strategy:** feature branches off `main`; open a pull request for review. Do not commit directly to `main`.
+- **Prompts:** edit templates in `prompts/` (never inline prompt strings). Prompt-CI diffs this directory and posts `pass@1`/`pass@k` deltas — a delta means a real regression, not sampling noise.
+- **Results discipline:** from Step 3 onward, any eval number you report must be appended to `RESULTS.md` with **model, slice ID, prompt version, date, the number, and the commit**.
+- **Code style:** Python 3.11+, formatted/linted with `ruff` (assumed). Run `uv run ruff check .` and `uv run ruff format .` before opening a PR.
+- **Tests:** `uv run pytest` must pass; extend the golden and red-team fixtures when touching the comparator or guardrails.
+- **Out of scope** (do not submit): cross-database routing, open-ended generation eval, and LLM-as-judge as the primary scorer.
+
+## License
+
+License not specified in the PRD. **TBD** — add a `LICENSE` file (e.g. MIT or Apache-2.0) before open-sourcing.
