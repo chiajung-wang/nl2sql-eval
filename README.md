@@ -57,6 +57,8 @@ cp .env.example .env     # then edit .env with your keys and DB URLs
 
 # 4. (Optional) start a local Postgres for the payments demo, then load its schema
 #    DDL and verified questions live under eval/datasets/payments/
+docker compose up -d                              # local Postgres on :5432
+uv run python -m eval.datasets.payments.load      # apply DDL + seed, then verify
 
 # 5. (Optional) download the BIRD benchmark data into eval/datasets/bird/
 
@@ -96,7 +98,7 @@ Configuration is supplied via environment variables (e.g. an `.env` file). Names
 |---|---|---|---|
 | `LLM_PROVIDER` | LiteLLM provider/model identifier | Yes | `anthropic/claude-opus-4-8` |
 | `LLM_API_KEY` | API key for the selected provider | Yes | `sk-...` |
-| `PAYMENTS_DB_URL` | SQLAlchemy URL for the Postgres demo db | Demo only | `postgresql://user:pass@localhost:5432/payments` |
+| `PAYMENTS_DB_URL` | SQLAlchemy URL for the Postgres demo db | Demo only | `postgresql://payments:payments@localhost:5432/payments` |
 | `BIRD_DATA_DIR` | Path to downloaded BIRD SQLite databases | BIRD runs | `./eval/datasets/bird/data` |
 | `LANGFUSE_PUBLIC_KEY` | Langfuse public key (observability) | Step 8+ | `pk-lf-...` |
 | `LANGFUSE_SECRET_KEY` | Langfuse secret key | Step 8+ | `sk-lf-...` |
@@ -110,6 +112,8 @@ Configuration is supplied via environment variables (e.g. an `.env` file). Names
 ```
 nl2sql-eval/
 ├── pyproject.toml            # uv-managed project + dependencies
+├── docker-compose.yml        # local Postgres for the payments demo db
+├── .env.example              # template for .env (PAYMENTS_DB_URL, keys, …)
 ├── README.md                 # this file — the portfolio front door
 ├── RESULTS.md                # committed running results log (every number → config + commit)
 ├── docs/
@@ -137,7 +141,7 @@ nl2sql-eval/
 │   ├── metrics.py            #   accuracy, retrieval-recall, cost/latency aggregation
 │   └── datasets/
 │       ├── bird/             #   benchmark backbone; frozen slice ID list lives here
-│       └── payments/         #   verified domain set + schema DDL
+│       └── payments/         #   schema.sql + seed.sql + load.py; verified domain set
 ├── fixtures/
 │   ├── golden_compare/       # (gold, candidate, expected_verdict) triples — DELIVERABLE
 │   └── redteam_guard/        # injected dangerous queries — DELIVERABLE

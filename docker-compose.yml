@@ -1,0 +1,27 @@
+# Local Postgres for the payments demo database.
+#
+#   docker compose up -d            # bring the db up
+#   uv run python -m eval.datasets.payments.load   # apply DDL + seed
+#
+# Credentials match the PAYMENTS_DB_URL example in README / .env.example:
+#   postgresql://payments:payments@localhost:5432/payments
+services:
+  payments-db:
+    image: postgres:16
+    container_name: nl2sql-payments-db
+    environment:
+      POSTGRES_USER: payments
+      POSTGRES_PASSWORD: payments
+      POSTGRES_DB: payments
+    ports:
+      - "5432:5432"
+    volumes:
+      - payments_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payments -d payments"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  payments_pgdata:
