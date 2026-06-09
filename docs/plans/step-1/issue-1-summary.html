@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PR #1 — Step 1 / Issue 1: Skeleton &amp; tooling</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #243047;
+    --ink: #e2e8f0;
+    --muted: #94a3b8;
+    --line: #334155;
+    --accent: #38bdf8;
+    --accent-2: #818cf8;
+    --add: #34d399;
+    --add-bg: rgba(52, 211, 153, 0.12);
+    --mod: #fbbf24;
+    --del: #f87171;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(180deg, #0b1120 0%, #0f172a 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    padding: 0 0 4rem;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 1.25rem; }
+
+  header.hero {
+    background: radial-gradient(1200px 400px at 20% -10%, rgba(56,189,248,0.18), transparent),
+                radial-gradient(900px 350px at 90% 0%, rgba(129,140,248,0.16), transparent),
+                var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 2.5rem 0 2rem;
+    margin-bottom: 2rem;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid rgba(56,189,248,0.35);
+    background: rgba(56,189,248,0.08);
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  h1 { font-size: clamp(1.5rem, 3vw, 2.2rem); margin: 0.8rem 0 0.3rem; line-height: 1.2; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem;
+    color: var(--muted); font-size: 0.92rem; margin-top: 0.75rem;
+  }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .meta code {
+    background: var(--panel-2); padding: 0.1rem 0.4rem; border-radius: 5px;
+    color: var(--accent-2); font-size: 0.85em;
+  }
+
+  section { margin: 2.5rem 0; }
+  h2 {
+    font-size: 1.25rem; margin: 0 0 1rem;
+    padding-bottom: 0.5rem; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 0.6rem;
+  }
+  h2 .num {
+    font-size: 0.8rem; color: var(--bg); background: var(--accent);
+    width: 1.6rem; height: 1.6rem; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  p.lead { color: var(--ink); margin-top: 0; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 1.25rem 1.4rem; box-shadow: var(--shadow);
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .group {
+    background: var(--panel); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); border-radius: 10px; padding: 1rem 1.1rem;
+  }
+  .group.eval { border-left-color: var(--accent-2); }
+  .group.tool { border-left-color: var(--add); }
+  .group.test { border-left-color: var(--mod); }
+  .group h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+  .group h3 .tag {
+    font-size: 0.7rem; color: var(--muted); font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.05em; margin-left: 0.4rem;
+  }
+  .group ul { margin: 0; padding-left: 1.1rem; }
+  .group li { margin: 0.25rem 0; font-size: 0.92rem; color: var(--ink); }
+  .group li code { color: var(--accent); background: var(--panel-2); padding: 0 0.3rem; border-radius: 4px; font-size: 0.85em; }
+  .group li .note { color: var(--muted); }
+
+  .diagram-wrap {
+    background: #f8fafc; border-radius: 12px; padding: 1.5rem; overflow-x: auto;
+    border: 1px solid var(--line);
+  }
+  .diagram-caption { color: var(--muted); font-size: 0.86rem; margin-top: 0.75rem; text-align: center; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  thead th {
+    text-align: left; color: var(--muted); font-weight: 600; text-transform: uppercase;
+    font-size: 0.72rem; letter-spacing: 0.05em; padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--line);
+  }
+  tbody td { padding: 0.55rem 0.75rem; border-bottom: 1px solid rgba(51,65,85,0.5); vertical-align: top; }
+  tbody tr:hover { background: rgba(56,189,248,0.05); }
+  td.file code { color: var(--accent); background: var(--panel-2); padding: 0.1rem 0.4rem; border-radius: 5px; font-size: 0.88em; }
+  .status {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 0.12rem 0.5rem; border-radius: 5px; white-space: nowrap;
+  }
+  .status.added { color: var(--add); background: var(--add-bg); border: 1px solid rgba(52,211,153,0.3); }
+  .note { color: var(--muted); }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.25rem; }
+  .stat {
+    flex: 1 1 140px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 0.9rem 1rem;
+  }
+  .stat .n { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+  .stat .l { color: var(--muted); font-size: 0.82rem; }
+
+  .scope { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .scope .col h4 { margin: 0 0 0.5rem; font-size: 0.95rem; }
+  .scope .in h4 { color: var(--add); }
+  .scope .out h4 { color: var(--muted); }
+  .scope ul { margin: 0; padding-left: 1.1rem; font-size: 0.9rem; }
+  .scope li { margin: 0.2rem 0; }
+
+  footer { color: var(--muted); font-size: 0.82rem; text-align: center; margin-top: 3rem; border-top: 1px solid var(--line); padding-top: 1.5rem; }
+  a { color: var(--accent); }
+  @media (max-width: 640px) { .scope { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <span class="badge">Pull Request #1 · Merged</span>
+      <h1>Step 1 / Issue 1: Skeleton &amp; tooling</h1>
+      <div class="meta">
+        <span><b>Author:</b> chiajung-wang</span>
+        <span><b>Merged:</b> 2026-06-09 08:42 UTC</span>
+        <span><b>Merge commit:</b> <code>3e0b99e</code></span>
+        <span><b>Base:</b> <code>main</code></span>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <!-- 1. OVERVIEW -->
+    <section id="overview">
+      <h2><span class="num">1</span> Overview</h2>
+      <div class="card">
+        <p class="lead">
+          This PR stands up the foundation slice of <b>nl2sql-eval</b> — a guardrailed agentic
+          NL-to-SQL system whose centerpiece is the evaluation harness, not the agent. It commits
+          the <code>uv</code>-managed project and the complete PRD §8 module tree as importable
+          stubs, so every later slice has a home and all imports resolve.
+        </p>
+        <p>
+          The only modules with real content are <code>state.py</code> (the <code>RunState</code>
+          dataclass plus the full six-value <code>TerminalState</code> enum, defined up front so the
+          module never needs reshaping) and the thin <code>obs</code> structured-logging seam. No
+          pipeline behavior, retrieval, guarding, LLM calls, or UI ship here — those are deliberately
+          out of scope for the skeleton.
+        </p>
+        <div class="stats">
+          <div class="stat"><div class="n">28</div><div class="l">files added</div></div>
+          <div class="stat"><div class="n">+482</div><div class="l">lines inserted</div></div>
+          <div class="stat"><div class="n">18</div><div class="l">importable modules</div></div>
+          <div class="stat"><div class="n">24</div><div class="l">tests passing</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. KEY CHANGES -->
+    <section id="changes">
+      <h2><span class="num">2</span> Key changes</h2>
+      <p class="lead">All changes are additions — this is a greenfield skeleton. Grouped by concern:</p>
+      <div class="grid">
+        <div class="group tool">
+          <h3>Project &amp; tooling <span class="tag">added</span></h3>
+          <ul>
+            <li><code>pyproject.toml</code> — <span class="note">uv project, Python ≥3.11, <code>sqlglot</code> as the one pinned runtime dep, ruff + pytest dev group, hatchling src-layout build.</span></li>
+            <li><code>uv.lock</code> — <span class="note">resolved, committed lockfile.</span></li>
+          </ul>
+        </div>
+
+        <div class="group">
+          <h3>Pipeline (system-under-test) <span class="tag">added</span></h3>
+          <ul>
+            <li><code>state.py</code> — <span class="note"><b>real:</b> <code>RunState</code> + full 6-value <code>TerminalState</code> enum (no classifier — that lives in the harness).</span></li>
+            <li><code>graph.py</code>, <code>retrieve.py</code>, <code>generate.py</code>, <code>guard.py</code>, <code>execute.py</code>, <code>correct.py</code>, <code>redact.py</code> — <span class="note">one stage per module, stubbed.</span></li>
+          </ul>
+        </div>
+
+        <div class="group">
+          <h3>Supporting modules <span class="tag">added</span></h3>
+          <ul>
+            <li><code>obs/</code> — <span class="note"><b>real:</b> <code>log_stage</code> / <code>stage_span</code> structured-logging seam (not Langfuse yet).</span></li>
+            <li><code>schema_index/</code>, <code>llm/</code> — <span class="note">stubs for retrieval store &amp; LiteLLM abstraction.</span></li>
+          </ul>
+        </div>
+
+        <div class="group eval">
+          <h3>Eval harness (centerpiece) <span class="tag">added</span></h3>
+          <ul>
+            <li><code>eval/harness.py</code>, <code>compare.py</code>, <code>metrics.py</code> — <span class="note">peer of <code>src/</code>; stubs for batch runner, result-set comparator, and aggregation.</span></li>
+            <li><code>eval/datasets/{bird,payments}/</code> — <span class="note">dataset homes; frozen BIRD slice list lands here.</span></li>
+          </ul>
+        </div>
+
+        <div class="group eval">
+          <h3>Fixtures &amp; prompts <span class="tag">added</span></h3>
+          <ul>
+            <li><code>fixtures/golden_compare/</code> — <span class="note">comparator proof triples (placeholder).</span></li>
+            <li><code>fixtures/redteam_guard/</code> — <span class="note">dangerous-query catch-rate set (placeholder).</span></li>
+            <li><code>prompts/</code> — <span class="note">version-controlled template home (CI diffs this).</span></li>
+          </ul>
+        </div>
+
+        <div class="group test">
+          <h3>Tests, app &amp; results <span class="tag">added</span></h3>
+          <ul>
+            <li><code>tests/test_imports.py</code> — <span class="note">locks the acceptance criteria: every module imports, enum frozen, obs span works.</span></li>
+            <li><code>apps/demo/</code> — <span class="note">Streamlit UI placeholder (imports the same pipeline).</span></li>
+            <li><code>RESULTS.md</code> — <span class="note">running results log scaffold; first numbers land in Step 3.</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. DIAGRAM -->
+    <section id="diagram">
+      <h2><span class="num">3</span> Architecture established</h2>
+      <p class="lead">
+        The skeleton wires the target architecture as stubs: a single import-shared pipeline
+        consumed by both the eval harness and the demo, with the two critical exits
+        (raw verified result for scoring, presented result for display) and the capped
+        self-correction loop in place for later steps to fill in.
+      </p>
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+flowchart TB
+  Q["Question + db id"]:::io
+
+  subgraph SUT["src/nl2sql · pipeline (import-shared system-under-test)"]
+    direction LR
+    RET["retrieve"] --> GEN["generate"] --> GRD["guard"] --> EXE["execute"] --> COR["correct"]
+    COR -. "capped retry" .-> GEN
+    GRD -. "reject / feedback" .-> COR
+  end
+
+  Q --> RET
+  EXE --> RAW{{"Raw verified result"}}:::exit
+  RAW --> RED["redact"]
+  RED --> PRES{{"Presented result"}}:::exit
+
+  RAW -. "scored upstream of redaction" .-> HARNESS["eval/harness · compare · metrics<br/>(terminal-state classifier here)"]:::eval
+  PRES --> LOGS["logs / traces / demo UI<br/>(redacted only)"]:::sink
+
+  HARNESS -. imports .-> SUT
+  DEMO["apps/demo"]:::sink -. imports .-> SUT
+
+  classDef io fill:#0ea5e9,stroke:#0369a1,color:#fff;
+  classDef exit fill:#fde68a,stroke:#d97706,color:#7c2d12;
+  classDef eval fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  classDef sink fill:#e2e8f0,stroke:#64748b,color:#0f172a;
+        </pre>
+      </div>
+      <p class="diagram-caption">
+        Architecture diagram — the structure committed as stubs (no behavior yet). Solid arrows = data flow; dashed = control/feedback or import relationships.
+      </p>
+    </section>
+
+    <!-- 4. FILES CHANGED -->
+    <section id="files">
+      <h2><span class="num">4</span> Files changed</h2>
+      <div class="card" style="padding:0.4rem 0.4rem;">
+        <table>
+          <thead>
+            <tr><th>File</th><th>Status</th><th>Note</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="file"><code>pyproject.toml</code></td><td><span class="status added">Added</span></td><td class="note">uv project, Python ≥3.11, sqlglot dep, ruff + pytest, hatchling build.</td></tr>
+            <tr><td class="file"><code>uv.lock</code></td><td><span class="status added">Added</span></td><td class="note">Resolved dependency lockfile.</td></tr>
+            <tr><td class="file"><code>RESULTS.md</code></td><td><span class="status added">Added</span></td><td class="note">Running results-log scaffold with the §6 column contract.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/__init__.py</code></td><td><span class="status added">Added</span></td><td class="note">Top-level package marker.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/pipeline/__init__.py</code></td><td><span class="status added">Added</span></td><td class="note">Pipeline package marker.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/pipeline/state.py</code></td><td><span class="status added">Added</span></td><td class="note"><b>Real:</b> RunState dataclass + full 6-value TerminalState enum (no classifier).</td></tr>
+            <tr><td class="file"><code>src/nl2sql/pipeline/graph.py</code></td><td><span class="status added">Added</span></td><td class="note">State-machine orchestration stub.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/pipeline/retrieve.py</code></td><td><span class="status added">Added</span></td><td class="note">Schema-RAG retrieval stub.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/pipeline/generate.py</code></td><td><span class="status added">Added</span></td><td class="note">SQL generation stub.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/pipeline/guard.py</code></td><td><span class="status added">Added</span></td><td class="note">Deterministic sqlglot AST guardrail stub.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/pipeline/execute.py</code></td><td><span class="status added">Added</span></td><td class="note">SQLAlchemy execution stub.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/pipeline/correct.py</code></td><td><span class="status added">Added</span></td><td class="note">Capped self-correction feedback stub.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/pipeline/redact.py</code></td><td><span class="status added">Added</span></td><td class="note">Column-aware PII redaction stub (post-scoring exit).</td></tr>
+            <tr><td class="file"><code>src/nl2sql/obs/__init__.py</code></td><td><span class="status added">Added</span></td><td class="note"><b>Real:</b> structured-logging seam (log_stage, stage_span); PII/Langfuse deferred.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/schema_index/__init__.py</code></td><td><span class="status added">Added</span></td><td class="note">Schema-metadata store stub.</td></tr>
+            <tr><td class="file"><code>src/nl2sql/llm/__init__.py</code></td><td><span class="status added">Added</span></td><td class="note">LiteLLM provider-abstraction stub.</td></tr>
+            <tr><td class="file"><code>eval/__init__.py</code></td><td><span class="status added">Added</span></td><td class="note">Eval package marker (peer of src/).</td></tr>
+            <tr><td class="file"><code>eval/harness.py</code></td><td><span class="status added">Added</span></td><td class="note">Batch runner + terminal-state classifier home (stub).</td></tr>
+            <tr><td class="file"><code>eval/compare.py</code></td><td><span class="status added">Added</span></td><td class="note">Result-set comparator stub (heavily tested later).</td></tr>
+            <tr><td class="file"><code>eval/metrics.py</code></td><td><span class="status added">Added</span></td><td class="note">pass@1 / pass@k / recall aggregation stub.</td></tr>
+            <tr><td class="file"><code>eval/datasets/__init__.py</code></td><td><span class="status added">Added</span></td><td class="note">Datasets package marker.</td></tr>
+            <tr><td class="file"><code>eval/datasets/bird/__init__.py</code></td><td><span class="status added">Added</span></td><td class="note">BIRD benchmark home; frozen slice IDs live here.</td></tr>
+            <tr><td class="file"><code>eval/datasets/payments/__init__.py</code></td><td><span class="status added">Added</span></td><td class="note">Payments demo dataset home.</td></tr>
+            <tr><td class="file"><code>fixtures/golden_compare/README.md</code></td><td><span class="status added">Added</span></td><td class="note">Comparator golden-fixture placeholder.</td></tr>
+            <tr><td class="file"><code>fixtures/redteam_guard/README.md</code></td><td><span class="status added">Added</span></td><td class="note">Red-team guardrail fixture placeholder.</td></tr>
+            <tr><td class="file"><code>prompts/README.md</code></td><td><span class="status added">Added</span></td><td class="note">Version-controlled prompt-template home.</td></tr>
+            <tr><td class="file"><code>apps/demo/__init__.py</code></td><td><span class="status added">Added</span></td><td class="note">Streamlit demo placeholder (imports same pipeline).</td></tr>
+            <tr><td class="file"><code>tests/test_imports.py</code></td><td><span class="status added">Added</span></td><td class="note">Locks acceptance criteria: imports resolve, enum frozen, obs span works.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SCOPE GUARD -->
+    <section id="scope">
+      <h2><span class="num">5</span> Scope</h2>
+      <div class="card">
+        <div class="scope">
+          <div class="col in">
+            <h4>In this PR</h4>
+            <ul>
+              <li>uv project + pinned tooling</li>
+              <li>Full §8 module tree as stubs</li>
+              <li>RunState + complete TerminalState enum</li>
+              <li>Thin obs structured-logging seam</li>
+              <li>Import-resolution test suite</li>
+            </ul>
+          </div>
+          <div class="col out">
+            <h4>Deliberately deferred</h4>
+            <ul>
+              <li>sqlglot guarding, retrieval, correction loop</li>
+              <li>LangGraph, LiteLLM, Langfuse wiring</li>
+              <li>Harness scoring logic + classifier</li>
+              <li>Streamlit demo UI</li>
+              <li>Any reported eval numbers (Step 3+)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Generated summary of PR #1 · nl2sql-eval · base <code>main</code> · merge <code>3e0b99e</code>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "default",
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: "basis" }
+    });
+  </script>
+</body>
+</html>
