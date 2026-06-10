@@ -55,7 +55,12 @@ def render_prompt(schema: str, question: str) -> str:
 
 
 def _extract_sql(text: str) -> str:
-    """Pull the SQL out of a model response, stripping any markdown fence."""
+    """Unwrap a markdown fence from the model response (presentation only).
+
+    NOT semantic SQL handling — no parsing of meaning here. The "no regex for
+    SQL" rule (CLAUDE.md §4) governs semantics (table scope, write detection),
+    which is sqlglot's job downstream in guard/.
+    """
     match = _FENCE_RE.match(text)
     return (match.group("body") if match else text).strip()
 
