@@ -81,6 +81,8 @@ uv run python -m eval.harness --dataset bird --slice <frozen-slice-id>
 uv run python -m eval.harness --dataset payments
 ```
 
+> Note: the harness CLI flags above (`--dataset`, `--slice`) show the intended interface; the batch runner lands from Step 3 onward.
+
 Launch the demo UI — built to *reveal the wrapper* (guardrail decision, retry count, cost), not to hide a chatbot:
 
 ```bash
@@ -108,8 +110,6 @@ uv run python -m eval.prove_step1 pay-004    # any verified seed question id
 ```
 
 **Every run buckets into exactly one terminal state:** `success`, `wrong_answer`, `retry_exhausted`, `execution_error_final`, `guardrail_rejected`, or `retrieval_empty`. The harness aggregates overall accuracy, accuracy by difficulty/failure-type, `pass@1`/`pass@k`, and retrieval recall.
-
-> Note: actual CLI flags are defined by `eval/harness.py`; the above shows the intended interface.
 
 ## Configuration
 

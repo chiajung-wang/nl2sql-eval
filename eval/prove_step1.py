@@ -32,6 +32,9 @@ from eval.datasets.payments.questions import load_questions
 
 # Reuse the gold-verification normalizer so driver-type coercion (Postgres
 # returns Decimal for SUM(); gold stores plain int cents) has a single source.
+# TODO(step-2): this is a private symbol from another package — promote the
+# shared coercion to a public home (e.g. eval/compare.py's canonicalization)
+# when the comparator lands, rather than reaching across into ``_normalize``.
 from eval.datasets.payments.verify_gold import _normalize
 from eval.harness import classify_terminal_state
 from nl2sql.pipeline.execute import get_engine
@@ -60,6 +63,12 @@ def gold_matches(state: RunState, gold: dict[str, Any]) -> bool:
     Step-1 stand-in only. The canonicalized comparator that also adds
     order-insensitivity for unordered queries and fuller type canonicalization
     is ``eval/compare.py`` at Step 2.
+
+    Reads ``state.result_rows`` directly, which is the *raw verified result* —
+    correct, but only because the pipeline has no ``redact`` stage yet. CLAUDE.md
+    §3/§5.2 require scoring upstream of redaction; once ``redact`` lands the two
+    exits split and this must score the raw exit, never the presented one.
+    TODO(step-2): score the explicit raw-result exit, not ``state.result_rows``.
     """
     expected_rows = gold["gold_result"]["rows"]
     got_rows = [[_normalize(v) for v in row] for row in (state.result_rows or [])]

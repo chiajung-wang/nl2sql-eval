@@ -25,6 +25,13 @@ def classify_terminal_state(state: RunState) -> TerminalState:
     states become reachable only as those stages and the scorer land (Step 2+);
     this function grows to cover them then. The classifier lives in the harness,
     never in ``state.py`` (CLAUDE.md §3).
+
+    Step-1 caveat: a *generation* gap (``execute`` sets ``state.error`` to
+    "no candidate SQL to execute" when no SQL was produced) also buckets here,
+    since ``generate`` is the only upstream stage and has no retry budget yet.
+    A retry/generation-failure state splits this out when self-correction lands
+    (Step 5); until then ``EXECUTION_ERROR_FINAL`` is the catch-all for any
+    captured error.
     """
     if state.error is not None:
         return TerminalState.EXECUTION_ERROR_FINAL
