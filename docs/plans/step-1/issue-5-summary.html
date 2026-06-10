@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PR #5 — End-to-end proof (seed question vs gold)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  .stats{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.1rem}
+  .stat{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:.45rem .8rem;font-size:.85rem;color:var(--muted)}
+  .stat b{color:var(--ink);font-size:1.05rem}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p{margin:.5rem 0}
+  .card code,p code{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group h3{margin:0 0 .5rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .group.tests{border-left-color:var(--accent-2)}
+  .group.docs{border-left-color:var(--mod)}
+  .note{color:var(--muted)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  .pill{display:inline-block;font-size:.74rem;font-weight:700;padding:.12rem .5rem;border-radius:5px;margin-left:.4rem}
+  .pill.ok{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3)}
+  .pill.err{color:var(--del);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3)}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.file code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .status{font-size:.72rem;font-weight:700;text-transform:uppercase;padding:.12rem .5rem;border-radius:5px;white-space:nowrap}
+  .status.added{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3)}
+  .status.modified{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3)}
+  .status.deleted{color:var(--del);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">Pull Request #5 · Merged</span>
+    <h1>End-to-end proof — seed question vs gold (issue 5)</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang</span>
+      <span><b>Merged:</b> 2026-06-10</span>
+      <span><b>Merge commit:</b> <code class="k">8f97629</code></span>
+      <span><b>Base:</b> <code class="k">main</code></span>
+      <span><b>Head:</b> <code class="k">step-1/issue-5-end-to-end-proof</code></span>
+    </div>
+    <div class="stats">
+      <span class="stat"><b>4</b> files changed</span>
+      <span class="stat"><b>+229</b> insertions</span>
+      <span class="stat"><b>-3</b> deletions</span>
+      <span class="stat"><b>2</b> commits</span>
+    </div>
+  </div></header>
+
+  <div class="wrap">
+
+    <section>
+      <h2><span class="num">1</span> Overview</h2>
+      <div class="card">
+        <p>Closes the <b>Step-1 Definition of Done</b>: prove the machine runs end to end. A hand-verified
+        payments seed question is fed through the <em>import-shared</em> pipeline
+        (<code>graph.run_pipeline</code>: <code>generate → execute → return</code>) — the same loop the
+        harness and demo use — its terminal state is classified, and the returned result is checked against
+        the question's verified gold answer.</p>
+        <p>The gold check is deliberately <b>value-level, not string-match</b>: <code>gold_matches</code>
+        compares row values and ignores column aliases, because two equally-correct queries can label the
+        same value differently (CLAUDE.md domain rule 1). It is a Step-1 stand-in — the canonicalized,
+        order-insensitive comparator lands in <code>eval/compare.py</code> at Step 2, so no competing
+        comparator is built here.</p>
+        <p>Live-proven against seeded Postgres + a real model: <code>pay-001</code>/<code>004</code>/<code>006</code>
+        PASS as terminal <span class="pill ok">success</span>; a bad query buckets as
+        <span class="pill err">execution_error_final</span>. A follow-up commit (from code review) documents
+        the terminal-state caveats and defers two cleanups to Step 2 — no logic change. No <code>RESULTS.md</code>
+        entry: that discipline starts at Step 3.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">2</span> Key changes</h2>
+      <div class="grid">
+        <div class="group">
+          <h3>Eval harness &amp; proof <span class="note">(real logic)</span></h3>
+          <ul>
+            <li><code>eval/prove_step1.py</code> <b>(new)</b> — proof entrypoint; CLI over the Issue 3 seed set. Runs one question through <code>run_pipeline</code>, prints per-stage obs logs, SQL, result, terminal state, PASS/FAIL; exits non-zero on mismatch.</li>
+            <li><code>gold_matches()</code> — value-level row comparison, aliases ignored, driver Decimals normalized to match gold ints.</li>
+            <li><code>eval/harness.py</code> — minimal <code>classify_terminal_state</code> covering the two reachable states (<code>success</code> / <code>execution_error_final</code>). Classifier lives in the harness, never in <code>state.py</code> (CLAUDE.md §3).</li>
+          </ul>
+        </div>
+        <div class="group tests">
+          <h3>Tests <span class="note">(deterministic cores)</span></h3>
+          <ul>
+            <li><code>tests/test_terminal_classify.py</code> <b>(new)</b> — CI-safe (no db, no network): exercises the classifier and <code>gold_matches</code> over hand-built <code>RunState</code>s.</li>
+            <li>Covers alias-ignoring, Postgres <code>Decimal</code>→int normalization, and wrong-value rejection.</li>
+          </ul>
+        </div>
+        <div class="group docs">
+          <h3>Docs &amp; review follow-up</h3>
+          <ul>
+            <li><code>README.md</code> — proof command added to <em>Usage</em>; <code>prove_step1.py</code> added to <em>Project Structure</em>; harness-CLI "intended interface" caveat rescoped.</li>
+            <li>Review follow-up: harness docstring now notes a generation gap also buckets as <code>execution_error_final</code> at Step 1; <code>TODO(step-2)</code>s for the redaction-exit split and a shared normalizer.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">3</span> The proof pipeline</h2>
+      <div class="diagram-wrap"><pre class="mermaid">
+flowchart TB
+  Q["verified seed question<br/>(e.g. pay-001)"]:::input --> RP
+  subgraph RP["run_pipeline · import-shared graph"]
+    direction LR
+    G["generate<br/>(NL → SQL, real model)"] --> E["execute<br/>(SQLAlchemy → Postgres)"]
+  end
+  RP --> C{"classify_terminal_state<br/>(harness, not state.py)"}
+  C -- "state.error set" --> EEF["execution_error_final"]:::err
+  C -- "clean run" --> S["success"]:::ok
+  EEF --> FAIL["exit 1 — FAIL"]:::fail
+  S --> GM{"gold_matches?<br/>value-level rows,<br/>aliases ignored"}
+  GM -- "rows match gold" --> PASS["exit 0 — PASS"]:::pass
+  GM -- "mismatch" --> FAIL
+  classDef input fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#052e16;
+  classDef err fill:#fecaca,stroke:#dc2626,color:#450a0a;
+  classDef pass fill:#86efac,stroke:#15803d,color:#052e16;
+  classDef fail fill:#fca5a5,stroke:#b91c1c,color:#450a0a;
+      </pre></div>
+      <p class="diagram-caption">One seed question traverses the shared <code>generate → execute → return</code> loop;
+      the harness classifies the terminal state, then the Step-1 value-level gold check decides PASS/FAIL.</p>
+    </section>
+
+    <section>
+      <h2><span class="num">4</span> Files changed</h2>
+      <div class="card" style="padding:.4rem">
+        <table>
+          <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="file"><code>eval/prove_step1.py</code></td>
+              <td><span class="status added">Added</span></td>
+              <td class="note">Step-1 proof entrypoint + <code>gold_matches</code> value-level comparison; CLI over the seed set, exits non-zero on mismatch.</td>
+            </tr>
+            <tr>
+              <td class="file"><code>eval/harness.py</code></td>
+              <td><span class="status modified">Modified</span></td>
+              <td class="note">Replaced the stub with <code>classify_terminal_state</code> (success / execution_error_final); docstrings note Step-1 scope and the generation-gap caveat.</td>
+            </tr>
+            <tr>
+              <td class="file"><code>tests/test_terminal_classify.py</code></td>
+              <td><span class="status added">Added</span></td>
+              <td class="note">CI-safe unit coverage for the classifier and gold match (aliases, Decimal normalization, wrong-value rejection).</td>
+            </tr>
+            <tr>
+              <td class="file"><code>README.md</code></td>
+              <td><span class="status modified">Modified</span></td>
+              <td class="note">Documented the <code>prove_step1</code> command in Usage and Project Structure; rescoped the harness-CLI "intended interface" caveat.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>Generated summary of PR #5 · merge commit <code class="k">8f97629</code> · diff range <code class="k">1fe2873..5fcd1bf</code></footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
