@@ -14,10 +14,13 @@ automatically**, no test edits required.
 
 - `baseline.json` — Issue 11: the trivial rules. Exact value equality, a plainly
   different result, and the empty result handled as its own correct-able case.
+- `order_sensitivity.json` — Issue 12: the `ORDER BY` conditional. Row order is
+  normalized away unless the gold SQL declares it significant via a top-level
+  `ORDER BY` (detected from the sqlglot AST, never regex).
 
-Later Step-2 issues add their own files for the subtle rules (order-sensitivity
-gated on `ORDER BY`, NULL/float/column canonicalization, multiset semantics,
-BIRD-evaluator alignment).
+Later Step-2 issues add their own files for the remaining subtle rules
+(NULL/float/column canonicalization, multiset semantics, BIRD-evaluator
+alignment).
 
 ## Case format
 
