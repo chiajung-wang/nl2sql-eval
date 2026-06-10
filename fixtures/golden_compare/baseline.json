@@ -1,0 +1,74 @@
+{
+  "_meta": {
+    "fixture": "golden_compare/baseline",
+    "purpose": "The named deliverable that proves eval/compare.py is trustworthy. Each case is a (gold_result, candidate_result, expected_verdict) triple the comparator must reproduce. This file holds the Issue-11 baseline (the trivial rules: exact value equality and the distinct empty-result case). The subtle rules — order-sensitivity gated on ORDER BY, NULL/float/column canonicalization, multiset semantics, BIRD alignment — get their own fixture files in Issues 12-14.",
+    "format": "Each case: {id, description, gold_sql, gold_result:{columns,rows}, candidate_result:{columns,rows}, expected_verdict} where expected_verdict is 'correct' | 'incorrect'. Optional 'rules' (list of canonicalization-rule names) overrides eval.compare.DEFAULT_RULES for that case. Adding a case here is exercised automatically by tests/test_compare.py.",
+    "rule": "Comparison is on result-set VALUES, never the SQL string and (in this slice) not the column labels — a correct value under a different alias is still correct (CLAUDE.md domain rule 1)."
+  },
+  "cases": [
+    {
+      "id": "identical-rows",
+      "description": "Same values in the same order → correct.",
+      "gold_sql": "SELECT count(*) AS n FROM users WHERE country = 'US';",
+      "gold_result": {"columns": ["n"], "rows": [[3]]},
+      "candidate_result": {"columns": ["n"], "rows": [[3]]},
+      "expected_verdict": "correct"
+    },
+    {
+      "id": "plainly-different-value",
+      "description": "A plainly wrong scalar value → incorrect.",
+      "gold_sql": "SELECT count(*) AS n FROM users WHERE country = 'US';",
+      "gold_result": {"columns": ["n"], "rows": [[3]]},
+      "candidate_result": {"columns": ["n"], "rows": [[2]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "correct-value-different-alias",
+      "description": "Same value under a different column label is still correct — comparison is on values, not column names (CLAUDE.md domain rule 1).",
+      "gold_sql": "SELECT count(*) AS n FROM users WHERE country = 'US';",
+      "gold_result": {"columns": ["n"], "rows": [[3]]},
+      "candidate_result": {"columns": ["us_user_count"], "rows": [[3]]},
+      "expected_verdict": "correct"
+    },
+    {
+      "id": "multi-row-identical",
+      "description": "Multi-row result, identical rows in identical order → correct.",
+      "gold_sql": "SELECT name FROM merchants WHERE category = 'software' ORDER BY name;",
+      "gold_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "expected_verdict": "correct"
+    },
+    {
+      "id": "missing-row",
+      "description": "Candidate drops a row the gold has → incorrect.",
+      "gold_sql": "SELECT name FROM merchants WHERE category = 'software' ORDER BY name;",
+      "gold_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["CloudNine SaaS"]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "both-empty",
+      "description": "Two empty result sets → correct. Empty is a distinct, correct-able case (a legitimately empty answer), not an error.",
+      "gold_sql": "SELECT id FROM users WHERE country = 'ZZ';",
+      "gold_result": {"columns": ["id"], "rows": []},
+      "candidate_result": {"columns": ["id"], "rows": []},
+      "expected_verdict": "correct"
+    },
+    {
+      "id": "empty-vs-nonempty",
+      "description": "Empty gold vs a non-empty candidate → incorrect. Empty is never auto-correct; it must match.",
+      "gold_sql": "SELECT id FROM users WHERE country = 'ZZ';",
+      "gold_result": {"columns": ["id"], "rows": []},
+      "candidate_result": {"columns": ["id"], "rows": [[7]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "nonempty-vs-empty",
+      "description": "Non-empty gold vs an empty candidate → incorrect (the symmetric case).",
+      "gold_sql": "SELECT count(*) AS n FROM users WHERE country = 'US';",
+      "gold_result": {"columns": ["n"], "rows": [[3]]},
+      "candidate_result": {"columns": ["n"], "rows": []},
+      "expected_verdict": "incorrect"
+    }
+  ]
+}
