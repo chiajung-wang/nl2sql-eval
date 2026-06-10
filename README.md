@@ -96,6 +96,17 @@ Postgres and `ANTHROPIC_API_KEY`):
 uv run python -m nl2sql.pipeline.graph "How many users are based in the US?"
 ```
 
+The Step-1 end-to-end proof goes one further: it runs a *verified seed question*
+through the same loop, classifies the terminal state (`success` /
+`execution_error_final`), and asserts the result reproduces the question's gold
+answer (value-level match, column aliases ignored — the canonicalized comparator
+lands at Step 2). Same prerequisites; exits non-zero on a mismatch:
+
+```bash
+uv run python -m eval.prove_step1            # defaults to pay-001
+uv run python -m eval.prove_step1 pay-004    # any verified seed question id
+```
+
 **Every run buckets into exactly one terminal state:** `success`, `wrong_answer`, `retry_exhausted`, `execution_error_final`, `guardrail_rejected`, or `retrieval_empty`. The harness aggregates overall accuracy, accuracy by difficulty/failure-type, `pass@1`/`pass@k`, and retrieval recall.
 
 > Note: actual CLI flags are defined by `eval/harness.py`; the above shows the intended interface.
@@ -148,6 +159,7 @@ nl2sql-eval/
 │   └── obs/                  # Langfuse instrumentation helpers (thin seams)
 ├── eval/                     # CENTERPIECE — peer of src/, imports the pipeline
 │   ├── harness.py            #   batch runner; pass@1 + pass@k; terminal-state classifier
+│   ├── prove_step1.py        #   Step-1 end-to-end proof: one seed question → result vs gold
 │   ├── compare.py            #   canonicalization + result-set comparison (heavily tested)
 │   ├── metrics.py            #   accuracy, retrieval-recall, cost/latency aggregation
 │   └── datasets/
