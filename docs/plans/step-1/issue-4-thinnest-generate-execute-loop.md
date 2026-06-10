@@ -12,7 +12,7 @@
 The thinnest possible hand-rolled pipeline: a linear `question → generate → execute → return` path. No guardrails, no retrieval, no self-correction, no framework, one provider called directly.
 
 Includes:
-- `generate.py`: a single **direct Anthropic SDK** call producing candidate SQL. The full payments schema is dumped **inline** in the prompt (retrieval is Step 6). Default to a current Claude model (Opus/Sonnet 4.x).
+- `generate.py`: a single **direct Anthropic SDK** call producing candidate SQL. The full payments schema is dumped **inline** in the prompt (retrieval is Step 6). Default to a current Claude model (Sonnet 4.x).
 - The generation prompt **externalized** as a versioned template in `prompts/` — never inlined in Python (CI diffs `prompts/`).
 - `execute.py`: SQLAlchemy execution of the candidate SQL against the payments Postgres db.
 - `graph.py`: hand-rolled plain-Python linear wiring `generate → execute → return` — **no loop, no conditional edges yet**.
