@@ -1,0 +1,82 @@
+{
+  "_meta": {
+    "fixture": "golden_compare/value_shape",
+    "purpose": "Proves the Issue-13 value- and shape-level canonicalization rules in eval/compare.py: column matching by position (not name), NULL-sentinel normalization, float tolerance, and multiset (duplicate) semantics by default. Each case pins the exact 'rules' it exercises so the triple proves which canonicalization is responsible for the verdict — both the relaxations that must let an equally-correct query pass AND the boundaries that must still catch a real semantic error.",
+    "format": "Each case: {id, description, gold_sql, gold_result:{columns,rows}, candidate_result:{columns,rows}, expected_verdict, rules:[...]} where expected_verdict is 'correct' | 'incorrect'. 'rules' overrides eval.compare.DEFAULT_RULES so each rule is proven in isolation. Loaded automatically by tests/test_compare.py.",
+    "scope": "Row ordering is Issue 12 and is NOT exercised here. BIRD reconciliation and whole-fixture sign-off are Issue 14."
+  },
+  "cases": [
+    {
+      "id": "column-rename-positional-match",
+      "description": "Same values under renamed column labels → correct. Columns are matched by position, not name (CLAUDE.md domain rule 1); an alias/rename of a correct query must not fail it.",
+      "gold_sql": "SELECT name AS customer, total FROM orders ORDER BY name;",
+      "gold_result": {"columns": ["customer", "total"], "rows": [["Alice", 100], ["Bob", 50]]},
+      "candidate_result": {"columns": ["name", "amount"], "rows": [["Alice", 100], ["Bob", 50]]},
+      "expected_verdict": "correct",
+      "rules": ["column_position", "exact"]
+    },
+    {
+      "id": "column-values-transposed-is-wrong",
+      "description": "Values swapped between column positions → incorrect. Position-based matching ignores labels but must still catch a genuine column-order error; it does not blindly pass everything.",
+      "gold_sql": "SELECT name, amount FROM orders WHERE id = 1;",
+      "gold_result": {"columns": ["name", "amount"], "rows": [["Alice", 100]]},
+      "candidate_result": {"columns": ["amount", "name"], "rows": [[100, "Alice"]]},
+      "expected_verdict": "incorrect",
+      "rules": ["column_position", "exact"]
+    },
+    {
+      "id": "null-sentinel-matches",
+      "description": "Both sides return a NULL in the same position → correct. NULLs normalize to one sentinel and compare consistently.",
+      "gold_sql": "SELECT phone FROM users WHERE id = 5;",
+      "gold_result": {"columns": ["phone"], "rows": [[null]]},
+      "candidate_result": {"columns": ["phone"], "rows": [[null]]},
+      "expected_verdict": "correct",
+      "rules": ["null_sentinel", "exact"]
+    },
+    {
+      "id": "null-is-not-zero",
+      "description": "Gold NULL vs candidate 0 → incorrect. The sentinel is distinct from any real value, so a NULL never silently equals 0 (or '' or the string 'None').",
+      "gold_sql": "SELECT balance FROM accounts WHERE id = 9;",
+      "gold_result": {"columns": ["balance"], "rows": [[null]]},
+      "candidate_result": {"columns": ["balance"], "rows": [[0]]},
+      "expected_verdict": "incorrect",
+      "rules": ["null_sentinel", "exact"]
+    },
+    {
+      "id": "float-within-tolerance",
+      "description": "Floats differing below the rounding tolerance (here in the 9th decimal) → correct. Insignificant precision noise from an AVG must not register as a wrong answer.",
+      "gold_sql": "SELECT avg(amount) AS avg_amount FROM payments;",
+      "gold_result": {"columns": ["avg_amount"], "rows": [[42.66666667]]},
+      "candidate_result": {"columns": ["avg_amount"], "rows": [[42.666666673]]},
+      "expected_verdict": "correct",
+      "rules": ["float_tolerance", "exact"]
+    },
+    {
+      "id": "float-out-of-tolerance",
+      "description": "Floats differing above the rounding tolerance → incorrect. A genuinely different number must still be caught even with float tolerance applied.",
+      "gold_sql": "SELECT avg(amount) AS avg_amount FROM payments;",
+      "gold_result": {"columns": ["avg_amount"], "rows": [[42.66666667]]},
+      "candidate_result": {"columns": ["avg_amount"], "rows": [[42.67]]},
+      "expected_verdict": "incorrect",
+      "rules": ["float_tolerance", "exact"]
+    },
+    {
+      "id": "multiset-count-vs-count-distinct",
+      "description": "Gold keeps duplicate rows (COUNT-style), candidate collapsed them (COUNT DISTINCT-style) → incorrect. Multiset is the default by omission of a de-dup rule, so a row-multiplicity difference is a real error. Under set semantics this pair would wrongly pass.",
+      "gold_sql": "SELECT status FROM payments;",
+      "gold_result": {"columns": ["status"], "rows": [["paid"], ["paid"], ["failed"]]},
+      "candidate_result": {"columns": ["status"], "rows": [["paid"], ["failed"]]},
+      "expected_verdict": "incorrect",
+      "rules": ["exact"]
+    },
+    {
+      "id": "multiset-duplicates-preserved",
+      "description": "Both sides carry the same duplicate multiplicities → correct. Multiset semantics keep duplicates rather than collapsing them, so equal multiplicities compare equal.",
+      "gold_sql": "SELECT status FROM payments;",
+      "gold_result": {"columns": ["status"], "rows": [["paid"], ["paid"], ["failed"]]},
+      "candidate_result": {"columns": ["status"], "rows": [["paid"], ["paid"], ["failed"]]},
+      "expected_verdict": "correct",
+      "rules": ["exact"]
+    }
+  ]
+}

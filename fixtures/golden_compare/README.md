@@ -14,10 +14,14 @@ automatically**, no test edits required.
 
 - `baseline.json` — Issue 11: the trivial rules. Exact value equality, a plainly
   different result, and the empty result handled as its own correct-able case.
+- `value_shape.json` — Issue 13: value- & shape-level canonicalization. Column
+  matching by position (rename passes, transposed values still fail), NULL
+  sentinel (NULL matches NULL, never equals `0`), float tolerance (within
+  passes, out-of-tolerance fails), and multiset semantics (`COUNT` vs
+  `COUNT DISTINCT` row-multiplicity difference is **wrong**).
 
-Later Step-2 issues add their own files for the subtle rules (order-sensitivity
-gated on `ORDER BY`, NULL/float/column canonicalization, multiset semantics,
-BIRD-evaluator alignment).
+Later Step-2 issues add their own files for the remaining rules (order-sensitivity
+gated on `ORDER BY`, BIRD-evaluator alignment).
 
 ## Case format
 
