@@ -87,6 +87,15 @@ Launch the demo UI — built to *reveal the wrapper* (guardrail decision, retry 
 uv run streamlit run apps/demo/app.py
 ```
 
+While the harness and demo are still being built, the thinnest pipeline loop
+(Step 1) is runnable directly as a smoke check — it feeds one question through
+`generate → execute → return` against the payments db (needs a live, seeded
+Postgres and `ANTHROPIC_API_KEY`):
+
+```bash
+uv run python -m nl2sql.pipeline.graph "How many users are based in the US?"
+```
+
 **Every run buckets into exactly one terminal state:** `success`, `wrong_answer`, `retry_exhausted`, `execution_error_final`, `guardrail_rejected`, or `retrieval_empty`. The harness aggregates overall accuracy, accuracy by difficulty/failure-type, `pass@1`/`pass@k`, and retrieval recall.
 
 > Note: actual CLI flags are defined by `eval/harness.py`; the above shows the intended interface.
@@ -97,8 +106,9 @@ Configuration is supplied via environment variables (e.g. an `.env` file). Names
 
 | Variable | Description | Required | Example |
 |---|---|---|---|
-| `LLM_PROVIDER` | LiteLLM provider/model identifier | Yes | `anthropic/claude-opus-4-8` |
-| `LLM_API_KEY` | API key for the selected provider | Yes | `sk-...` |
+| `ANTHROPIC_API_KEY` | Anthropic key for the direct-SDK generate stage (Step 1) | Generate stage | `sk-ant-...` |
+| `LLM_PROVIDER` | LiteLLM provider/model identifier (supersedes the above at Step 7) | Step 7+ | `anthropic/claude-opus-4-8` |
+| `LLM_API_KEY` | API key for the LiteLLM-selected provider | Step 7+ | `sk-...` |
 | `PAYMENTS_DB_URL` | SQLAlchemy URL for the Postgres demo db | Demo only | `postgresql://payments:payments@localhost:5432/payments` |
 | `BIRD_DATA_DIR` | Path to downloaded BIRD SQLite databases | BIRD runs | `./eval/datasets/bird/data` |
 | `LANGFUSE_PUBLIC_KEY` | Langfuse public key (observability) | Step 8+ | `pk-lf-...` |

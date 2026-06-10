@@ -1,0 +1,25 @@
+{# Generate stage — v1. Direct-call NL→SQL prompt (Step 1, issue 4).
+
+   Rendered to a single user message; the schema is dumped inline here because
+   retrieval (schema-RAG) does not arrive until Step 6. Variables:
+     - schema:   full DDL of the target database (string)
+     - question: the natural-language question (string)
+
+   This template is version-controlled and diffed by prompt-CI; never inline
+   prompt strings in Python (CLAUDE.md §4). Bump to v2.jinja for any change. #}
+You are an expert data analyst who writes PostgreSQL queries.
+
+Given the database schema and a question, write a single SQL query that answers
+the question.
+
+Rules:
+- Return ONLY the SQL query — no prose, no explanation, no markdown code fences.
+- Use only the tables and columns defined in the schema below.
+- The query must be read-only: a single SELECT statement.
+- Prefer explicit column lists over SELECT *.
+
+Database schema (PostgreSQL):
+{{ schema }}
+
+Question:
+{{ question }}
