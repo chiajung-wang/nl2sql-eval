@@ -1,0 +1,169 @@
+{
+  "_meta": {
+    "dataset": "payments",
+    "description": "Hand-authored verified question set over the payments demo schema. The trusted ground that Step 3 validates the harness against before it is ever pointed at BIRD; gold correctness matters more than quantity. Single-db per run (CLAUDE.md domain rule 8) — every question is over the payments db.",
+    "schema": "eval/datasets/payments/schema.sql",
+    "seed": "eval/datasets/payments/seed.sql",
+    "gold_result_format": "Each gold_result is {columns, rows}; rows preserve the gold_sql's ORDER BY where one is given. Monetary values are integer cents; SQL SUM()/aggregate numerics are stored as integers. Scoring is canonicalized result-set comparison, never SQL string-match (CLAUDE.md domain rule 1) — gold_sql is one correct query, not the only one.",
+    "gold_tables_note": "gold_tables lists the base tables the gold query reads, for retrieval-recall scoring (CLAUDE.md domain rule 7) against what RAG retrieves.",
+    "currency_note": "transactions/refunds mix currencies (USD/EUR/GBP/JPY). Aggregations that would otherwise sum across currencies are scoped to a single currency so the gold answer is semantically meaningful.",
+    "verification": "Every gold_result was produced by executing gold_sql against the Issue 2 seed loaded into Postgres 16 (docker-compose.yml) on 2026-06-09. machine_verified=true means the stored gold_sql reproduces the stored gold_result against that seed. human_reviewed is the separate AFK sign-off: a human eyeballs the question intent and gold against the seeded rows and flips it to true — the agent never self-ticks it.",
+    "machine_verified": true,
+    "human_reviewed": true
+  },
+  "questions": [
+    {
+      "id": "pay-001",
+      "question": "How many users are based in the United States (country code 'US')?",
+      "difficulty": "easy",
+      "category": "lookup",
+      "gold_sql": "SELECT count(*) AS n FROM users WHERE country = 'US';",
+      "gold_tables": ["users"],
+      "gold_result": {
+        "columns": ["n"],
+        "rows": [[3]]
+      },
+      "notes": "Users 1 (Alice), 2 (Bob), 6 (Farah) are US.",
+      "machine_verified": true,
+      "human_reviewed": true
+    },
+    {
+      "id": "pay-002",
+      "question": "What are the names of the merchants in the 'software' category?",
+      "difficulty": "easy",
+      "category": "lookup",
+      "gold_sql": "SELECT name FROM merchants WHERE category = 'software' ORDER BY name;",
+      "gold_tables": ["merchants"],
+      "gold_result": {
+        "columns": ["name"],
+        "rows": [["CloudNine SaaS"]]
+      },
+      "notes": "Only merchant 2 (CloudNine SaaS) is category 'software'.",
+      "machine_verified": true,
+      "human_reviewed": true
+    },
+    {
+      "id": "pay-003",
+      "question": "Which transaction has the highest amount? Return its id, amount in cents, currency, and status.",
+      "difficulty": "easy",
+      "category": "lookup",
+      "gold_sql": "SELECT id, amount_cents, currency, status FROM transactions ORDER BY amount_cents DESC LIMIT 1;",
+      "gold_tables": ["transactions"],
+      "gold_result": {
+        "columns": ["id", "amount_cents", "currency", "status"],
+        "rows": [[4, 12500, "USD", "refunded"]]
+      },
+      "notes": "Ranked by amount_cents regardless of currency; transaction 4 (12500) is the max and is a refunded transaction.",
+      "machine_verified": true,
+      "human_reviewed": true
+    },
+    {
+      "id": "pay-004",
+      "question": "What is the total amount, in cents, of all captured transactions denominated in USD?",
+      "difficulty": "medium",
+      "category": "aggregation",
+      "gold_sql": "SELECT sum(amount_cents) AS total_cents FROM transactions WHERE status = 'captured' AND currency = 'USD';",
+      "gold_tables": ["transactions"],
+      "gold_result": {
+        "columns": ["total_cents"],
+        "rows": [[5798]]
+      },
+      "notes": "USD captured: tx 1 (550) + 2 (1999) + 3 (750) + 9 (1999) + 12 (500) = 5798. Scoped to USD so the sum is not mixing currencies.",
+      "machine_verified": true,
+      "human_reviewed": true
+    },
+    {
+      "id": "pay-005",
+      "question": "How many transactions have a 'failed' status?",
+      "difficulty": "easy",
+      "category": "aggregation",
+      "gold_sql": "SELECT count(*) AS n FROM transactions WHERE status = 'failed';",
+      "gold_tables": ["transactions"],
+      "gold_result": {
+        "columns": ["n"],
+        "rows": [[2]]
+      },
+      "notes": "Transactions 6 and 14 are failed.",
+      "machine_verified": true,
+      "human_reviewed": true
+    },
+    {
+      "id": "pay-006",
+      "question": "Which merchant did transaction 7 go to? Return the merchant's name and category.",
+      "difficulty": "medium",
+      "category": "join",
+      "gold_sql": "SELECT m.name, m.category FROM transactions t JOIN merchants m ON m.id = t.merchant_id WHERE t.id = 7;",
+      "gold_tables": ["transactions", "merchants"],
+      "gold_result": {
+        "columns": ["name", "category"],
+        "rows": [["Trailhead Outfitters", "retail"]]
+      },
+      "notes": "Transaction 7 has merchant_id 3 (Trailhead Outfitters, retail).",
+      "machine_verified": true,
+      "human_reviewed": true
+    },
+    {
+      "id": "pay-007",
+      "question": "For each merchant, what is the total amount in cents of their USD captured transactions? Return the merchant name and total, highest first, for merchants with at least one such transaction.",
+      "difficulty": "medium",
+      "category": "join_aggregation",
+      "gold_sql": "SELECT m.name AS merchant, sum(t.amount_cents) AS total_cents FROM transactions t JOIN merchants m ON m.id = t.merchant_id WHERE t.status = 'captured' AND t.currency = 'USD' GROUP BY m.name ORDER BY total_cents DESC;",
+      "gold_tables": ["transactions", "merchants"],
+      "gold_result": {
+        "columns": ["merchant", "total_cents"],
+        "rows": [
+          ["CloudNine SaaS", 3998],
+          ["BrewHaus Coffee", 1800]
+        ]
+      },
+      "notes": "USD captured per merchant: CloudNine (tx 2+9 = 3998), BrewHaus (tx 1+3+12 = 1800). Trailhead's captured tx 7 is GBP and LumaBooks' captured tx 5/10 are EUR/JPY, so they are excluded by the USD scope.",
+      "machine_verified": true,
+      "human_reviewed": true
+    },
+    {
+      "id": "pay-008",
+      "question": "Which user spent the most across their USD captured transactions? Return the user id and their total amount in cents.",
+      "difficulty": "medium",
+      "category": "aggregation",
+      "gold_sql": "SELECT user_id, sum(amount_cents) AS total_cents FROM transactions WHERE status = 'captured' AND currency = 'USD' GROUP BY user_id ORDER BY total_cents DESC LIMIT 1;",
+      "gold_tables": ["transactions"],
+      "gold_result": {
+        "columns": ["user_id", "total_cents"],
+        "rows": [[1, 2549]]
+      },
+      "notes": "USD captured per user: user 1 (tx 1+2 = 2549), user 5 (1999), user 2 (750), user 6 (500). User 1 is top. Keyed on user_id, not full_name, to keep PII out of committed gold (CLAUDE.md domain rule 3).",
+      "machine_verified": true,
+      "human_reviewed": true
+    },
+    {
+      "id": "pay-009",
+      "question": "What is the total amount, in cents, of all succeeded refunds?",
+      "difficulty": "easy",
+      "category": "aggregation",
+      "gold_sql": "SELECT sum(amount_cents) AS total_cents FROM refunds WHERE status = 'succeeded';",
+      "gold_tables": ["refunds"],
+      "gold_result": {
+        "columns": ["total_cents"],
+        "rows": [[15700]]
+      },
+      "notes": "Both refunds succeeded: 12500 (tx 4) + 3200 (tx 11) = 15700.",
+      "machine_verified": true,
+      "human_reviewed": true
+    },
+    {
+      "id": "pay-010",
+      "question": "What is the latest running balance on the platform_clearing account, in cents?",
+      "difficulty": "medium",
+      "category": "lookup",
+      "gold_sql": "SELECT balance_after_cents FROM ledger WHERE account = 'platform_clearing' ORDER BY id DESC LIMIT 1;",
+      "gold_tables": ["ledger"],
+      "gold_result": {
+        "columns": ["balance_after_cents"],
+        "rows": [[23697]]
+      },
+      "notes": "GOTCHA (from Issue 2): ledger.balance_after_cents is consistent only in id order, not created_at order — the seed's created_at is not monotonic with id. The 'latest' running balance is the last row by id (id 12, 23697), NOT by created_at. A gold authored with ORDER BY created_at would return the wrong balance.",
+      "machine_verified": true,
+      "human_reviewed": true
+    }
+  ]
+}

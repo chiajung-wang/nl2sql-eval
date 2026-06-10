@@ -57,8 +57,9 @@ cp .env.example .env     # then edit .env with your keys and DB URLs
 
 # 4. (Optional) start a local Postgres for the payments demo, then load its schema
 #    DDL and verified questions live under eval/datasets/payments/
-docker compose up -d                              # local Postgres on :5432
-uv run python -m eval.datasets.payments.load      # apply DDL + seed, then verify
+docker compose up -d                                # local Postgres on :5432
+uv run python -m eval.datasets.payments.load        # apply DDL + seed, then verify
+uv run python -m eval.datasets.payments.verify_gold # check gold_sql reproduces gold_result
 
 # 5. (Optional) download the BIRD benchmark data into eval/datasets/bird/
 
@@ -141,7 +142,7 @@ nl2sql-eval/
 │   ├── metrics.py            #   accuracy, retrieval-recall, cost/latency aggregation
 │   └── datasets/
 │       ├── bird/             #   benchmark backbone; frozen slice ID list lives here
-│       └── payments/         #   schema.sql + seed.sql + load.py; verified domain set
+│       └── payments/         #   schema.sql + seed.sql + load.py; questions.json + questions.py + verify_gold.py
 ├── fixtures/
 │   ├── golden_compare/       # (gold, candidate, expected_verdict) triples — DELIVERABLE
 │   └── redteam_guard/        # injected dangerous queries — DELIVERABLE
@@ -166,6 +167,15 @@ uv run pytest tests/test_compare.py tests/test_guard.py
 
 - **Comparator:** validated against `fixtures/golden_compare/` — `(gold, candidate, expected_verdict)` triples. Add a fixture case for every new comparison edge case.
 - **Guardrails:** unit-test green plus a reported catch rate against `fixtures/redteam_guard/`. Add a fixture case for every new dangerous-query pattern.
+- **Payments gold set** (`eval/datasets/payments/questions.json`) carries two distinct, independent flags:
+  - `machine_verified` — the agent's claim that `gold_sql` reproduces the stored `gold_result` against the seed. Reproduce it (needs a live, seeded db):
+    ```bash
+    docker compose up -d
+    uv run python -m eval.datasets.payments.load
+    uv run python -m eval.datasets.payments.verify_gold   # exits non-zero on any mismatch
+    ```
+    `tests/test_payments_questions.py` is the CI-safe (no-db) structural guard for the same file.
+  - `human_reviewed` — a human's separate sign-off that each question's wording matches intent. The agent never self-ticks it; flip it to `true` only after eyeballing the questions against the seeded rows.
 
 ## Configuration & Data Sources
 
