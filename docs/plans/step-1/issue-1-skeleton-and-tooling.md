@@ -31,3 +31,7 @@ Includes:
 ## Blocked by
 
 None — can start immediately.
+
+---
+
+**Tracked on GitHub:** [#6](https://github.com/chiajung-wang/nl2sql-eval/issues/6) — _closed (completed)_

@@ -29,3 +29,7 @@ No results-log entry yet — `RESULTS.md` discipline starts at Step 3. You may i
 
 - Issue 3 — Verified question seed set
 - Issue 4 — Thinnest generate→execute loop
+
+---
+
+**Tracked on GitHub:** [#10](https://github.com/chiajung-wang/nl2sql-eval/issues/10) — _closed (completed)_

@@ -31,3 +31,7 @@ Includes:
 ## Blocked by
 
 - Issue 2 — Payments Postgres database (gold answers depend on the seed).
+
+---
+
+**Tracked on GitHub:** [#8](https://github.com/chiajung-wang/nl2sql-eval/issues/8) — _closed (completed)_

@@ -33,3 +33,7 @@ Scope guard: do not add sqlglot guarding, retrieval, correction, LangGraph, Lite
 
 - Issue 1 — Skeleton & tooling
 - Issue 2 — Payments Postgres database
+
+---
+
+**Tracked on GitHub:** [#9](https://github.com/chiajung-wang/nl2sql-eval/issues/9) — _closed (completed)_
