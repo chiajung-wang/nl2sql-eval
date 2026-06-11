@@ -17,9 +17,13 @@ automatically**, no test edits required.
 - `order_sensitivity.json` — Issue 12: the `ORDER BY` conditional. Row order is
   normalized away unless the gold SQL declares it significant via a top-level
   `ORDER BY` (detected from the sqlglot AST, never regex).
+- `value_shape.json` — Issue 13: value- & shape-level canonicalization. Column
+  matching by position (rename passes, transposed values still fail), NULL
+  sentinel (NULL matches NULL, never equals `0`), float tolerance (within
+  passes, out-of-tolerance fails), and multiset semantics (`COUNT` vs
+  `COUNT DISTINCT` row-multiplicity difference is **wrong**).
 
-Later Step-2 issues add their own files for the remaining subtle rules
-(NULL/float/column canonicalization, multiset semantics, BIRD-evaluator
+Later Step-2 issues add their own files for the remaining work (BIRD-evaluator
 alignment).
 
 ## Case format

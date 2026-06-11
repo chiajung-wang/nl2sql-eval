@@ -28,6 +28,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
@@ -178,11 +179,107 @@ def _order_insensitive(result: ResultSet, ctx: RuleContext) -> ResultSet:
     )
 
 
-# The default rule set. Order-insensitivity gated on the gold's ``ORDER BY``
-# (Issue 12) is the baseline correctness rule; the value-level rules (Issue 13+)
-# join it here. Kept explicit (not implicit) so every reported verdict names the
-# exact canonicalization it was produced under.
-DEFAULT_RULES: tuple[str, ...] = ("order_insensitive",)
+# --- Issue 13: value- & shape-level canonicalization ------------------------
+#
+# Each rule is a transform applied to BOTH sides (see :data:`CanonRule`), so it
+# can only let equally-correct queries compare equal — it can never make a wrong
+# answer look right. None of these touches row *order*: ordering is gated on the
+# gold SQL's ``ORDER BY`` and lives in its own rule (Issue 12). **Multiset
+# (duplicate) semantics are the default by omission** — there is deliberately no
+# de-dup rule, so two results that differ only in row multiplicity (the classic
+# ``COUNT`` vs ``COUNT DISTINCT`` bug) stay distinct and compare *incorrect*. A
+# future ``set`` rule would be the canonicalization; its absence is what makes
+# the comparator multiset.
+#
+# These rules ignore ``ctx`` but take it to satisfy the :data:`CanonRule`
+# signature, so every rule in the pipeline is invoked uniformly.
+
+# The single normal form every SQL NULL collapses to, so NULLs compare
+# consistently regardless of how a driver spells them and so they are hashable /
+# orderable for later rules. Distinct from any real value (e.g. the string
+# "None" or 0), so NULL never silently equals a non-NULL.
+NULL_SENTINEL = "\x00__NULL__\x00"
+
+# Floats are rounded to this many decimal places before comparison, so
+# insignificant precision noise (e.g. an ``AVG`` differing in the 9th digit)
+# does not register as a wrong answer, while a genuinely different number still
+# does. A fixed, logged constant — not a per-call knob — keeps every verdict
+# reproducible.
+FLOAT_DECIMALS = 6
+
+
+def _map_cells(result: ResultSet, fn: Callable[[Any], Any]) -> ResultSet:
+    """Apply ``fn`` to every cell, preserving row/column shape and order."""
+    rows = tuple(tuple(fn(cell) for cell in row) for row in result.rows)
+    return ResultSet(columns=result.columns, rows=rows)
+
+
+@register_rule("column_position")
+def _column_position(result: ResultSet, ctx: RuleContext) -> ResultSet:
+    """Match columns by position, not by name (CLAUDE.md domain rule 1).
+
+    Replaces the column *labels* with positional placeholders so an alias,
+    rename, or relabel of an otherwise-correct query cannot fail it. The verdict
+    is computed from row *values* in positional order; a genuine column-order
+    error (values transposed between positions) still differs and is caught.
+
+    This rule **cannot change a verdict on its own**: ``compare()`` already
+    compares row *values* positionally and never looks at column labels, so
+    rows are matched by position regardless. Its job is to *name and log* that
+    contract — making the value-only, position-based matching explicit — and to
+    serve as the seam where a stricter label-aware rule could later be swapped
+    in. It is intentionally inert against the current row-only comparison.
+    """
+    columns = tuple(f"col_{i}" for i in range(len(result.columns)))
+    return ResultSet(columns=columns, rows=result.rows)
+
+
+@register_rule("null_sentinel")
+def _null_sentinel(result: ResultSet, ctx: RuleContext) -> ResultSet:
+    """Normalize every SQL NULL (``None``) to a single sentinel.
+
+    NULLs then compare consistently across both sides and become hashable /
+    orderable for downstream rules. The sentinel is distinct from any real value,
+    so a NULL never collapses into ``0``, ``""``, or the string ``"None"``.
+    """
+    return _map_cells(result, lambda c: NULL_SENTINEL if c is None else c)
+
+
+@register_rule("float_tolerance")
+def _float_tolerance(result: ResultSet, ctx: RuleContext) -> ResultSet:
+    """Round floats/decimals to :data:`FLOAT_DECIMALS` places before comparing.
+
+    Within-tolerance precision differences then compare equal; an
+    out-of-tolerance difference still differs and is judged wrong. ``bool`` is an
+    ``int`` subclass but is left untouched; non-numeric cells pass through.
+    """
+
+    def _round(cell: Any) -> Any:
+        if isinstance(cell, bool):
+            return cell
+        if isinstance(cell, (float, Decimal)):
+            return round(cell, FLOAT_DECIMALS)
+        return cell
+
+    return _map_cells(result, _round)
+
+
+# The default rule set. Value-level canonicalization runs first — position-based
+# column matching, NULL normalization, float tolerance (Issue 13) — *then*
+# order-insensitivity gated on the gold's ``ORDER BY`` (Issue 12), and finally
+# ``exact`` names the value-equality comparison. The value rules precede the
+# order rule deliberately: ``order_insensitive`` sorts rows by their stringified
+# cells, so floats must already be rounded (and NULLs normalized) or the same
+# logical rows could sort differently on the two sides. Kept explicit (not
+# implicit) so every reported verdict names the exact canonicalization it was
+# produced under. BIRD reconciliation (Issue 14) extends this tuple.
+DEFAULT_RULES: tuple[str, ...] = (
+    "column_position",
+    "null_sentinel",
+    "float_tolerance",
+    "order_insensitive",
+    "exact",
+)
 
 
 @dataclass(frozen=True)
