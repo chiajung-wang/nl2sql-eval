@@ -70,6 +70,18 @@
       "description": "A column projection with no WHERE and no LIMIT (not a star) is a normal answer — the unbounded check targets SELECT *, not every unfiltered query, so this passes (8 of the 50 gold queries have no WHERE).",
       "sql": "SELECT name FROM users",
       "expected_verdict": "allow"
+    },
+    {
+      "id": "star-over-bounded-subquery-allowed",
+      "description": "SELECT * over a derived table whose inner query is filtered is bounded by that subquery — the outer star is not a raw full-table dump and must not be rejected.",
+      "sql": "SELECT * FROM (SELECT id, amount FROM transactions WHERE amount > 100) z",
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "star-with-group-by-allowed",
+      "description": "A top-level star with a GROUP BY is aggregated — the grouping bounds cardinality, so it is not an unbounded full-table dump.",
+      "sql": "SELECT * FROM transactions GROUP BY user_id",
+      "expected_verdict": "allow"
     }
   ]
 }

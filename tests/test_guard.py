@@ -218,6 +218,18 @@ def test_count_star_is_not_an_unbounded_scan():
     assert guard_sql("SELECT COUNT(*) FROM t", dialect="sqlite").allowed
 
 
+def test_star_over_bounded_subquery_is_not_unbounded():
+    # The inner query is filtered, so the outer star is bounded — must not be
+    # mistaken for a raw full-table dump (this would silently drop pass@1).
+    sql = "SELECT * FROM (SELECT id, amount FROM t WHERE amount > 100) z"
+    assert guard_sql(sql, dialect="sqlite").allowed
+
+
+def test_star_with_group_by_is_not_unbounded():
+    # GROUP BY aggregates — cardinality is bounded, not a full dump.
+    assert guard_sql("SELECT * FROM t GROUP BY user_id", dialect="sqlite").allowed
+
+
 def test_cost_budget_clears_every_bird_slice_gold_query():
     # The thresholds are calibrated against the frozen slice: if any legitimate
     # gold query tripped the cost gate, the live BIRD pass@1 would silently drop.

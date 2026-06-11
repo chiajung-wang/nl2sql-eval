@@ -232,13 +232,29 @@ MAX_JOINS: int = 4
 
 
 def _is_unbounded_star_scan(select: exp.Select, statement: exp.Expression) -> bool:
-    """A ``SELECT *`` that dumps a whole table: star projection, no WHERE filter,
-    no LIMIT. ``COUNT(*)`` does not count — its star is nested in the function, not
-    a top-level projection."""
+    """A ``SELECT *`` that dumps a whole *base table*: star projection over a
+    single table, with no WHERE filter and no LIMIT.
+
+    Deliberately narrow, to avoid false-rejecting a bounded query (which, pre
+    self-correction, would silently drop pass@1):
+
+    - ``COUNT(*)`` does not count — its star is nested in the function, not a
+      top-level projection.
+    - a star over a **subquery / derived table** is excluded — the inner query may
+      already be bounded (``SELECT * FROM (SELECT ... WHERE ...) z``).
+    - a star with a **GROUP BY** is excluded — aggregation bounds the cardinality.
+    - a star with a **join** is excluded — the join/cartesian checks own that shape.
+    """
     has_star = any(isinstance(proj, exp.Star) for proj in select.expressions)
+    if not has_star or select.args.get("joins") or select.args.get("group"):
+        return False
+    from_ = select.args.get("from_")
+    source = from_.this if from_ is not None else None
+    if not isinstance(source, exp.Table):
+        return False
     no_where = select.args.get("where") is None
     no_limit = statement.args.get("limit") is None and select.args.get("limit") is None
-    return has_star and no_where and no_limit
+    return no_where and no_limit
 
 
 def _check_cost(statements: Sequence[exp.Expression], dialect: str) -> str | None:
@@ -249,6 +265,9 @@ def _check_cost(statements: Sequence[exp.Expression], dialect: str) -> str | Non
     - **Cartesian product** — a join with no ``ON``/``USING`` predicate *and* no
       ``WHERE`` to constrain it (a true cross product). Old-style
       ``FROM a, b WHERE a.id = b.id`` joins keep their WHERE and are not flagged.
+      A *present-but-non-joining* WHERE (``FROM a, b WHERE a.x > 0``) is a
+      deliberate accepted gap: proving a WHERE actually correlates the tables is
+      beyond a cheap deterministic AST check, and we favor not false-rejecting.
     - **Join explosion** — more joins than :data:`MAX_JOINS` (calibrated headroom
       over the BIRD gold).
     - **Unbounded ``SELECT *`` scan** — a star projection with neither WHERE nor
