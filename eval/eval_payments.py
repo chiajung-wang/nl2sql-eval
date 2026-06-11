@@ -66,6 +66,9 @@ def main() -> int:
     """Run the payments batch and print pass@1; returns a process exit code."""
     load_dotenv()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    # Keep the job's stdout the harness progress + report, not the HTTP client's
+    # per-request chatter (the report on stdout, not third-party noise).
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
     schema = SCHEMA_SQL.read_text()
     engine = get_engine()
