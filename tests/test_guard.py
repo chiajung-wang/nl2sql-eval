@@ -14,6 +14,9 @@ Three layers, mirroring how the comparator is proven:
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from eval.harness import Case, classify_terminal_state, run_batch, score_run
@@ -21,6 +24,17 @@ from eval.redteam import DEFAULT_CASE_DIALECT, evaluate, load_cases
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.guard import GuardDecision, guard, guard_sql
 from nl2sql.pipeline.state import RunState, TerminalState
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_BIRD_DIR = _REPO_ROOT / "eval" / "datasets" / "bird"
+
+
+def _load_bird_slice_gold_sql() -> list[str]:
+    """The gold SQL of every question in the frozen Step-3 BIRD slice."""
+    ids = set(json.loads((_BIRD_DIR / "slice_step3.json").read_text())["question_ids"])
+    dev = json.loads((_BIRD_DIR / "data" / "dev.json").read_text())
+    return [q["SQL"] for q in dev if q["question_id"] in ids]
+
 
 # --- 1. fixture-driven proof ----------------------------------------------
 
@@ -157,6 +171,73 @@ def test_dangerous_op_does_not_misfire_on_a_complex_read():
         "JOIN transactions t ON t.user_id = u.id GROUP BY u.name"
     )
     assert guard_sql(sql, dialect="sqlite").allowed
+
+
+# --- cost/complexity heuristic ---------------------------------------------
+
+
+def test_comma_cartesian_product_is_rejected_cost():
+    result = guard_sql("SELECT a.id FROM users a, transactions b", dialect="sqlite")
+    assert result.rejected and result.rule == "cost"
+
+
+def test_cross_join_is_rejected_cost():
+    result = guard_sql("SELECT * FROM users CROSS JOIN merchants", dialect="sqlite")
+    assert result.rejected and result.rule == "cost"
+
+
+def test_old_style_join_with_where_is_not_cartesian():
+    # FROM a, b WHERE a.id = b.id is a legitimate inner join — the connecting
+    # WHERE means it is not an unconstrained cross product.
+    sql = "SELECT a.name FROM users a, transactions b WHERE a.id = b.user_id"
+    assert guard_sql(sql, dialect="sqlite").allowed
+
+
+def test_join_explosion_is_rejected_cost():
+    sql = (
+        "SELECT u.id FROM users u "
+        "JOIN a ON a.id = u.id JOIN b ON b.id = a.id JOIN c ON c.id = b.id "
+        "JOIN d ON d.id = c.id JOIN e ON e.id = d.id"
+    )
+    result = guard_sql(sql, dialect="sqlite")
+    assert result.rejected and result.rule == "cost"
+
+
+def test_unbounded_star_scan_is_rejected_cost():
+    result = guard_sql("SELECT * FROM transactions", dialect="sqlite")
+    assert result.rejected and result.rule == "cost"
+
+
+def test_star_with_where_or_limit_is_allowed():
+    assert guard_sql("SELECT * FROM t WHERE amount > 1", dialect="sqlite").allowed
+    assert guard_sql("SELECT * FROM t LIMIT 10", dialect="sqlite").allowed
+
+
+def test_count_star_is_not_an_unbounded_scan():
+    # COUNT(*)'s star is nested in the function, not a top-level projection.
+    assert guard_sql("SELECT COUNT(*) FROM t", dialect="sqlite").allowed
+
+
+def test_star_over_bounded_subquery_is_not_unbounded():
+    # The inner query is filtered, so the outer star is bounded — must not be
+    # mistaken for a raw full-table dump (this would silently drop pass@1).
+    sql = "SELECT * FROM (SELECT id, amount FROM t WHERE amount > 100) z"
+    assert guard_sql(sql, dialect="sqlite").allowed
+
+
+def test_star_with_group_by_is_not_unbounded():
+    # GROUP BY aggregates — cardinality is bounded, not a full dump.
+    assert guard_sql("SELECT * FROM t GROUP BY user_id", dialect="sqlite").allowed
+
+
+def test_cost_budget_clears_every_bird_slice_gold_query():
+    # The thresholds are calibrated against the frozen slice: if any legitimate
+    # gold query tripped the cost gate, the live BIRD pass@1 would silently drop.
+    # This pins the calibration so a future threshold change can't regress it.
+    gold = _load_bird_slice_gold_sql()
+    assert len(gold) == 50, f"expected the frozen 50-question slice, got {len(gold)}"
+    rejected = [sql for sql in gold if guard_sql(sql, dialect="sqlite").rule == "cost"]
+    assert not rejected, f"cost gate rejected legitimate gold SQL: {rejected}"
 
 
 # --- 3. pipeline wiring + classification -----------------------------------
