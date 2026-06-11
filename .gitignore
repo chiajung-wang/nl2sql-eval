@@ -50,6 +50,9 @@ pgdata/
 .claude/
 skills-lock.json
 
+# Local scratch / playground — never committed
+scratch/
+
 # OS / editor
 .DS_Store
 .idea/
