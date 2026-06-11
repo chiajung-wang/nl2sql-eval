@@ -102,14 +102,14 @@ def test_results_row_carries_full_config():
 def test_append_results_adds_row_and_retires_placeholder(tmp_path: Path):
     results = tmp_path / "RESULTS.md"
     results.write_text(
-        "# RESULTS\n\n_No numbers yet — first land in Step 3._\n\n## Log\n\n"
+        "# RESULTS\n\n## Log\n\n"
         "| Date | Step | Metric | Number |\n| - | - | - | - |\n"
         "| _—_ | _—_ | _—_ | _—_ |\n"
     )
     eval_bird.append_results("| 2026-06-11 | 3 | pass@1 | 0.500 |", results)
     text = results.read_text()
-    assert "| _—_" not in text  # placeholder retired
-    assert "No numbers yet" not in text
+    assert "| _—_" not in text  # placeholder row retired
+    assert "| - | - | - | - |" in text  # the real table header/sep stays
     assert text.rstrip().endswith("| 2026-06-11 | 3 | pass@1 | 0.500 |")
 
 

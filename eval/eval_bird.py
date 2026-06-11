@@ -116,11 +116,11 @@ def results_row(
 
 
 def append_results(row: str, results_path: Path = RESULTS_PATH) -> None:
-    """Append ``row`` to the RESULTS.md log, retiring the placeholder line."""
+    """Append ``row`` to the RESULTS.md log, retiring the placeholder table row."""
     lines = [
         ln
         for ln in results_path.read_text().splitlines()
-        if not ln.strip().startswith("| _—_") and "No numbers yet" not in ln
+        if not ln.strip().startswith("| _—_")
     ]
     results_path.write_text("\n".join(lines).rstrip() + "\n" + row + "\n")
 
