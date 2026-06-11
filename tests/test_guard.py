@@ -144,6 +144,13 @@ def test_read_only_takes_precedence_over_dangerous_op():
     assert result.rejected and result.rule == "read_only"
 
 
+def test_trailing_semicolon_comment_is_not_a_stacked_query():
+    # `SELECT 1; -- note` parses into [Select, Semicolon]; the empty trailing
+    # node must be dropped so a single query is not misread as stacked.
+    assert guard_sql("SELECT 1; -- trailing note", dialect="sqlite").allowed
+    assert guard_sql("SELECT 1;", dialect="sqlite").allowed
+
+
 def test_dangerous_op_does_not_misfire_on_a_complex_read():
     sql = (
         "SELECT u.name, COUNT(t.id) FROM users u "

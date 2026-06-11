@@ -67,6 +67,12 @@
       "description": "A single complex read with several joins is exactly what the gate must keep permitting — dangerous-op must not misfire on legitimate analytical SQL.",
       "sql": "SELECT u.name, COUNT(t.id) FROM users u JOIN transactions t ON t.user_id = u.id JOIN merchants m ON m.id = t.merchant_id GROUP BY u.name",
       "expected_verdict": "allow"
+    },
+    {
+      "id": "benign-trailing-semicolon-comment-allowed",
+      "description": "A single query with a trailing semicolon and comment parses into [Select, Semicolon]; the empty trailing node must be dropped so it is not mistaken for a stacked pair and wrongly rejected.",
+      "sql": "SELECT COUNT(*) FROM users; -- count the users",
+      "expected_verdict": "allow"
     }
   ]
 }

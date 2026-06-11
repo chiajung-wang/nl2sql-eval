@@ -128,19 +128,27 @@ def _normalize_dialect(dialect: str) -> str | None:
     return _DIALECT_ALIASES.get(dialect.strip().lower())
 
 
+def _is_empty_statement(stmt: exp.Expression | None) -> bool:
+    """A node that carries no query: a ``None`` slot or a bare ``;`` / trailing
+    comment, which sqlglot models as an empty ``Semicolon``. These are not
+    statements and must not inflate the stacked-query count."""
+    return stmt is None or isinstance(stmt, exp.Semicolon)
+
+
 def _parse_statements(sql: str, dialect: str) -> list[exp.Expression] | None:
-    """Split ``sql`` into statements, trying the named dialect then the generic
-    parser. Returns ``None`` only if the SQL parses under neither — a candidate
-    the gate cannot prove safe."""
+    """Split ``sql`` into real statements, trying the named dialect then the
+    generic parser. Empty/trailing-comment nodes are dropped so a single query
+    with a trailing ``;`` or comment is not mistaken for a stacked pair. Returns
+    ``None`` only if the SQL parses under neither dialect — a candidate the gate
+    cannot prove safe."""
     normalized = _normalize_dialect(dialect)
     attempts = (normalized,) if normalized is None else (normalized, None)
     for parse_dialect in attempts:
         try:
-            return [
-                s for s in sqlglot.parse(sql, dialect=parse_dialect) if s is not None
-            ]
+            parsed = sqlglot.parse(sql, dialect=parse_dialect)
         except ParseError:
             continue
+        return [s for s in parsed if not _is_empty_statement(s)]
     return None
 
 
