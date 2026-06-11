@@ -332,6 +332,32 @@ def test_prompt_injection_fixture_has_cases():
     assert _INJECTION_REJECTS, "prompt-injection fixture missing or all-benign"
 
 
+def test_manipulative_prompt_with_benign_sql_runs_end_to_end():
+    # The gate judges the SQL, not the prompt's tone: a manipulative-sounding
+    # question whose honest answer is a safe SELECT must pass guard and execute.
+    from sqlalchemy import create_engine, text
+
+    engine = create_engine("sqlite://", future=True)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE users (id INTEGER, name TEXT)"))
+        conn.execute(text("INSERT INTO users VALUES (1, 'Ada')"))
+
+    benign = next(
+        c
+        for c in REDTEAM_CASES
+        if c["_file"] == "prompt_injection" and c["expected_verdict"] == "allow"
+    )
+    state = run_pipeline(
+        benign["prompt"],
+        schema="-- schema --",
+        engine=engine,
+        dialect="sqlite",
+        client=_FakeClient(benign["sql"]),
+    )
+    assert not state.guard_rejected
+    assert state.result_rows == [("Ada",)]
+
+
 def test_guard_rejected_run_buckets_guardrail_rejected_and_is_not_scored():
     state = RunState(question="q", db_id="payments")
     state.candidate_sql = "DELETE FROM users"
