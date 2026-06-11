@@ -13,3 +13,15 @@ recall** (Step 6).
 | Date | Step | Metric | Number | Model | Slice ID | Prompt version | Commit |
 | ---- | ---- | ------ | ------ | ----- | -------- | -------------- | ------ |
 | 2026-06-11 | 3 | pass@1 | 0.420 (21/50) | claude-sonnet-4-6 | step3-naive-schema-dump-baseline | generate/v2 | 5d9d8ae |
+| 2026-06-12 | 4 | red-team catch rate | 1.000 (29/29) | — (deterministic gate) | redteam_guard | guard rules: read_only+dangerous_op+cost | e56fbcd |
+
+**Step 4 — guardrail catch rate.** The deterministic, pre-execution guard gate
+(`src/nl2sql/pipeline/guard.py`) caught **29/29 (100%)** of the dangerous queries
+in the `fixtures/redteam_guard/` red-team set, with 43/43 verdicts matching
+(every benign control allowed). Reproduce with `uv run python -m eval.redteam`.
+The set spans write/DDL (incl. `REPLACE`-as-`Command` and CTE-wrapped writes),
+dangerous ops (stacked statements, `ATTACH`/`DETACH`, `PRAGMA`, unmodeled
+commands), cost/complexity (cartesian products, join explosion, unbounded
+`SELECT *`), and **prompt-injection** attacks whose induced payloads the gate
+rejects pre-execution. No LLM judge, no regex for SQL semantics — sqlglot ASTs
+only. Table-scope enforcement is deferred to Step 6 (needs per-db metadata).

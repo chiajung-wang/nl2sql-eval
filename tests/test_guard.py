@@ -298,6 +298,66 @@ def test_rejected_candidate_never_reaches_execute():
     assert state.error is None
 
 
+_INJECTION_REJECTS = [
+    c
+    for c in REDTEAM_CASES
+    if c["_file"] == "prompt_injection" and c["expected_verdict"] == "reject"
+]
+
+
+@pytest.mark.parametrize(
+    "case", [pytest.param(c, id=c["id"]) for c in _INJECTION_REJECTS]
+)
+def test_prompt_injection_is_caught_end_to_end(case):
+    # A prompt-injection attack succeeds at the model layer — the injected client
+    # emits the dangerous payload the NL prompt asked for. The deterministic guard
+    # is the backstop: drive the real generate → guard path (no network) with an
+    # exploding engine and prove the payload is rejected before execution.
+    class _ExplodingEngine:
+        def connect(self):
+            raise AssertionError("a guard-rejected injection must never execute")
+
+    state = run_pipeline(
+        case["prompt"],
+        schema="-- schema --",
+        engine=_ExplodingEngine(),
+        dialect="sqlite",
+        client=_FakeClient(case["sql"]),
+    )
+    assert state.guard_rejected
+    assert state.result_rows is None
+
+
+def test_prompt_injection_fixture_has_cases():
+    assert _INJECTION_REJECTS, "prompt-injection fixture missing or all-benign"
+
+
+def test_manipulative_prompt_with_benign_sql_runs_end_to_end():
+    # The gate judges the SQL, not the prompt's tone: a manipulative-sounding
+    # question whose honest answer is a safe SELECT must pass guard and execute.
+    from sqlalchemy import create_engine, text
+
+    engine = create_engine("sqlite://", future=True)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE users (id INTEGER, name TEXT)"))
+        conn.execute(text("INSERT INTO users VALUES (1, 'Ada')"))
+
+    benign = next(
+        c
+        for c in REDTEAM_CASES
+        if c["_file"] == "prompt_injection" and c["expected_verdict"] == "allow"
+    )
+    state = run_pipeline(
+        benign["prompt"],
+        schema="-- schema --",
+        engine=engine,
+        dialect="sqlite",
+        client=_FakeClient(benign["sql"]),
+    )
+    assert not state.guard_rejected
+    assert state.result_rows == [("Ada",)]
+
+
 def test_guard_rejected_run_buckets_guardrail_rejected_and_is_not_scored():
     state = RunState(question="q", db_id="payments")
     state.candidate_sql = "DELETE FROM users"

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 4 — Red-team fixture + catch rate (Step 4 DoD)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .big{font-size:2.4rem;font-weight:800;color:var(--add);line-height:1}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #39 · Step 4 · Issue 4 · DoD</span>
+    <h1>Red-team fixture completion + catch rate</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #35</span>
+      <span><b>Branch:</b> <code>step-4/issue-4-redteam-results</code> → <code>step-4/guardrails-and-redteam</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>The Step-4 Definition of Done: complete the named-deliverable red-team fixture and
+      state the measured safety claim — "caught 100% of red-team queries."</b></p>
+      <p>A safety feature is only as good as the test that proves it. This slice finishes that test. It adds the
+      sharpest attack class — <b>prompt injection</b>: natural-language prompts that try to <em>talk the model
+      into</em> dangerous SQL. The defense is not an LLM judge or a regex on the question; it is the <b>same
+      deterministic sqlglot-AST gate</b>. Even if the model is manipulated into emitting <code>DROP TABLE</code>
+      or an exfiltration <code>ATTACH</code>, the gate rejects the payload before it reaches a database.</p>
+      <p>Then the headline number is computed and committed to <code>RESULTS.md</code> with its full config — so
+      the eventual blog can cite a traceable run, not a remembered one.</p>
+      <div class="stats">
+        <div><b>29/29</b> dangerous queries caught</div>
+        <div><b>43/43</b> verdicts agree</div>
+        <div><b>4</b> fixtures · 1 named deliverable</div>
+        <div><b>270</b> tests green</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The headline number</h2><div class="card">
+      <p style="text-align:center;margin:.5rem 0"><span class="big">catch rate 1.000</span></p>
+      <p style="text-align:center;margin:.2rem 0 1rem" class="note">29 / 29 dangerous queries caught · 43 / 43 verdicts agree · <code class="k">uv run python -m eval.redteam</code></p>
+      <table>
+        <thead><tr><th>Fixture</th><th>Surface</th><th>Caught</th></tr></thead>
+        <tbody>
+          <tr><td><code>read_only.json</code></td><td>writes/DDL, REPLACE-as-Command, CTE-wrapped writes</td><td><span class="st A">all</span></td></tr>
+          <tr><td><code>dangerous_op.json</code></td><td>stacked, ATTACH/DETACH, PRAGMA, unmodeled commands</td><td><span class="st A">all</span></td></tr>
+          <tr><td><code>cost.json</code></td><td>cartesian, join explosion, unbounded SELECT *</td><td><span class="st A">all</span></td></tr>
+          <tr><td><code>prompt_injection.json</code></td><td>NL attacks inducing dangerous SQL</td><td><span class="st A">all</span></td></tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-bottom:0">Logged in <code>RESULTS.md</code> (Step 4 row): metric <b>red-team
+      catch rate</b>, model <code>— (deterministic gate)</code>, slice <code>redteam_guard</code>, rules
+      <code>read_only+dangerous_op+cost</code>, commit <code>e56fbcd</code>.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Prompt injection → the deterministic backstop</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart LR
+  P["NL attack prompt<br/>'…then drop the audit_log'"] --> M["model (compromised)"]:::test
+  M --> SQL["induced payload<br/>DROP TABLE audit_log"]
+  SQL --> G{"guard (sqlglot AST)"}
+  G -->|read_only / dangerous_op / cost| RJ["GUARDRAIL_REJECTED<br/>never executes"]:::bad
+  PB["manipulative-but-benign prompt"] --> MB["model"]:::test
+  MB --> SB["SELECT name FROM users WHERE id=1"]
+  SB --> G2{"guard"}
+  G2 -->|judges SQL, not tone| OK["allow → execute → result"]:::ok
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef bad fill:#fecaca,stroke:#dc2626,color:#7f1d1d;
+  classDef test fill:#e2e8f0,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
+  class RJ bad; class OK ok; class M,MB test;</pre></div>
+      <p class="diagram-caption">Each NL attack is paired with the payload it induces and replayed through the real
+      <code>generate → guard</code> path via an injected client (no network). The faked part is only the model's
+      response; the gate under test is real. The benign control proves the gate judges the SQL, not the prompt's tone.</p>
+    </section>
+
+    <section><h2><span class="num">4</span> Honesty of the claim</h2><div class="card">
+      <ul>
+        <li><b>Deterministic, reproducible</b> — the catch rate is over fixed SQL payloads; no model in the loop for
+        the number. <code>RESULTS.md</code> attributes it to the gate, not a model run.</li>
+        <li><b>Not an LLM judge, not a regex</b> — injection mitigation is the same AST gate (CLAUDE.md §4, §7).</li>
+        <li><b>Catch-rate math is sound</b> — the denominator is exactly the reject-labeled cases; a benign case can
+        never be counted as "caught", and a reject case must actually be rejected.</li>
+        <li><b>Scope honored</b> — table-scope enforcement stays deferred to Step 6 (needs per-db metadata).</li>
+      </ul>
+    </div></section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>fixtures/redteam_guard/prompt_injection.json</code></td><td><span class="st A">A</span></td><td>NL attacks paired with induced payloads + expected verdicts; a manipulative-but-benign control.</td></tr>
+          <tr><td class="f"><code>tests/test_guard.py</code></td><td><span class="st M">M</span></td><td>End-to-end generate→guard proof per injection case (rejects never execute); benign manipulative prompt runs and returns its result.</td></tr>
+          <tr><td class="f"><code>RESULTS.md</code></td><td><span class="st M">M</span></td><td>Step 4 row: red-team catch rate 1.000 (29/29) with full config + commit.</td></tr>
+          <tr><td class="f"><code>fixtures/redteam_guard/README.md</code></td><td><span class="st M">M</span></td><td>Mark the fixture complete; document the prompt-injection coverage.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 270 passed</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>ruff check</code> + <code>ruff format --check</code> → clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run python -m eval.redteam</code> → catch 29/29, verdict agreement 43/43</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>RESULTS.md</code> Step 4 row committed, traceable to <code>e56fbcd</code> (CLAUDE.md §6)</p>
+        <p style="margin:.2rem 0"><b>✓</b> Subagent review → sound, no blockers; no overclaiming; took the optional E2E benign-prompt assertion</p>
+        <p style="margin:.2rem 0 0" class="note"><b>Step 4 done.</b> Guardrails unit-test green against the entire red-team fixture; the measured claim — "caught 100% of red-team queries" — holds.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #35 / PR #39 · base <code>step-4/guardrails-and-redteam</code> ←
+      <code>step-4/issue-4-redteam-results</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
