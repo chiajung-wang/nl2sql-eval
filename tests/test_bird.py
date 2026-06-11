@@ -14,6 +14,7 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
+from sqlalchemy.exc import OperationalError
 
 from eval.compare import Verdict, compare
 from eval.datasets.bird import loader
@@ -113,7 +114,7 @@ def test_loader_reads_schema_and_runs_queries(mini_data_dir: Path):
 
 def test_loader_is_read_only(mini_data_dir: Path):
     engine = get_engine("mini", mini_data_dir)
-    with pytest.raises(Exception):  # noqa: B017 - any write must fail on a ro db
+    with pytest.raises(OperationalError, match="readonly"):
         run_query(engine, "INSERT INTO t VALUES (3, 'c')")
 
 
