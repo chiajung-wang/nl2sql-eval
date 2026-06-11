@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 2 — BIRD loader + frozen small-schema slice</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #30 · Step 3 · Issue 2</span>
+    <h1>BIRD loader + frozen small-schema slice</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #27</span>
+      <span><b>Branch:</b> <code>step-3/issue-2-bird-loader-and-slice</code> → <code>step-3/harness-and-first-bird-slice</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>The BIRD dataset adapter and the <em>frozen</em> evaluation slice that anchors every
+      future number.</b></p>
+      <p>BIRD ships SQLite, <b>file-per-db</b>: each question is tagged with its database and runs against that db
+      only (single-db per run; cross-db routing is out of scope). The loader resolves and opens each tagged db
+      <b>read-only</b>, dumps its <code class="k">CREATE TABLE</code> schema for the naive prompt, and materializes
+      result sets for scoring via the Step-2 comparator.</p>
+      <p>The slice is the trust anchor: <b>frozen</b> (checked-in ID list), <b>seeded</b> (one RNG seed → one
+      reproducible slice), <b>stratified</b> (difficulty mix preserved), and drawn only from <b>small-schema</b>
+      dbs — because with no retrieval yet, the whole schema is dumped into the prompt, and large schemas would
+      overflow context and tank accuracy for reasons unrelated to generation. Small-schema-first keeps the baseline
+      honest.</p>
+      <div class="stats">
+        <div><b>50</b> frozen question IDs</div>
+        <div><b>4</b> small-schema dbs (≤5 tables)</div>
+        <div><b>20260611</b> RNG seed</div>
+        <div><b>10</b> new tests</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> Key changes</h2><div class="grid">
+      <div class="group">
+        <h3><code>loader.py</code> — tagged-db adapter</h3>
+        <ul>
+          <li><code>load_dev_questions</code>, <code>db_path</code>, <code>get_engine</code> (SQLAlchemy, <b>read-only</b>).</li>
+          <li><code>schema_text</code> — the naive <code>CREATE TABLE</code> dump (stable, name-ordered).</li>
+          <li><code>run_query</code> → comparator-shaped <code>{columns, rows}</code>; <code>table_count</code> as the schema-size proxy.</li>
+        </ul>
+      </div>
+      <div class="group good">
+        <h3><code>slice.py</code> — seeded, stratified selection</h3>
+        <ul>
+          <li>Pure logic: filter to dbs with ≤ <code>max_tables</code>, then <b>largest-remainder</b> difficulty-stratified sampling under a fixed seed.</li>
+          <li>Deterministic — same inputs + seed → same IDs. Tested both ways.</li>
+          <li><code>python -m eval.datasets.bird.slice</code> regenerates the frozen file.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>slice_step3.json</code> — the frozen list</h3>
+        <ul>
+          <li>50 <code>question_id</code>s + a <code>_meta</code> provenance block (criteria, eligible dbs, mixes, date).</li>
+          <li>Committed; the benchmark <b>data itself stays gitignored</b>.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>test_bird.py</code> — offline + real-data</h3>
+        <ul>
+          <li>Pure selection + synthetic-sqlite loader tests need <b>no download</b>.</li>
+          <li>Real-data tests (skipped without data) prove <b>load → execute gold → score</b> and validate the slice.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">3</span> The frozen slice</h2><div class="card">
+      <p>Eligible dbs are those with ≤ 5 tables; 50 questions sampled seeded + difficulty-stratified:</p>
+      <table>
+        <thead><tr><th>Database</th><th>Tables</th><th>Questions in slice</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>thrombosis_prediction</code></td><td>3</td><td>20</td></tr>
+          <tr><td class="f"><code>toxicology</code></td><td>4</td><td>14</td></tr>
+          <tr><td class="f"><code>california_schools</code></td><td>3</td><td>13</td></tr>
+          <tr><td class="f"><code>debit_card_specializing</code></td><td>5</td><td>3</td></tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-bottom:0">Difficulty mix (preserved by stratification, not hand-picked):
+      <b>24 simple · 19 moderate · 7 challenging</b>. db-mix falls out of difficulty-proportional sampling.</p>
+    </div></section>
+
+    <section><h2><span class="num">4</span> Load → execute → score</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TB
+  subgraph SEL["slice.py — frozen selection (seeded)"]
+    direction TB
+    ALL["all dev.json questions (1534)"] --> FILT["filter: db tables ≤ 5"]
+    FILT --> STRAT["largest-remainder, difficulty-stratified, seeded"]
+    STRAT --> IDS["slice_step3.json — 50 ids"]:::ok
+  end
+
+  IDS --> Q["question (tagged db_id)"]
+  Q --> ENG["get_engine(db_id) — SQLite, read-only"]
+  ENG --> SCH["schema_text → naive prompt dump"]
+  ENG --> GOLD["run_query(gold SQL) → {columns, rows}"]
+  GOLD --> CMP["compare() — Step-2 comparator"]:::ok
+  CMP --> V{"verdict"}
+
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  class IDS,CMP ok;</pre></div>
+      <p class="diagram-caption">The loader turns a tagged question into a read-only engine, a schema dump, and an
+      executed result set; scoring is the same Step-2 comparator the harness uses. The frozen slice is the seeded,
+      small-schema subset that anchors the first number.</p>
+    </section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>eval/datasets/bird/loader.py</code></td><td><span class="st A">A</span></td><td>Question loader + read-only tagged-db engine, schema dump, <code>run_query</code>, table-count helpers.</td></tr>
+          <tr><td class="f"><code>eval/datasets/bird/slice.py</code></td><td><span class="st A">A</span></td><td>Pure seeded, difficulty-stratified small-schema selection; regenerator.</td></tr>
+          <tr><td class="f"><code>eval/datasets/bird/slice_step3.json</code></td><td><span class="st A">A</span></td><td>The frozen 50-id slice + provenance metadata.</td></tr>
+          <tr><td class="f"><code>tests/test_bird.py</code></td><td><span class="st A">A</span></td><td>Offline selection/loader tests + real-data end-to-end + slice-integrity (skipif).</td></tr>
+          <tr><td class="f"><code>eval/datasets/bird/__init__.py</code></td><td><span class="st M">M</span></td><td>Docstring: package now implemented (no longer a stub).</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 179 passed (10 new; 2 real-data tests skip without the download)</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>ruff check</code> + <code>ruff format --check</code> → clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Read-only enforced (write → <code>OperationalError</code>); one BIRD question loads, executes, and scores end-to-end</p>
+        <p style="margin:.2rem 0"><b>✓</b> Two-axis <code>/review</code> (Standards + Spec) → 0 hard findings</p>
+        <p style="margin:.2rem 0 0" class="note">No <code class="k">RESULTS.md</code> entry — the first pass@1 lands in Issue 3 (#28), running this slice through the harness.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #27 / PR #30 · base <code>step-3/harness-and-first-bird-slice</code> ←
+      <code>step-3/issue-2-bird-loader-and-slice</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
