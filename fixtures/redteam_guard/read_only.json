@@ -85,6 +85,21 @@
       "sql": "TRUNCATE TABLE ledger",
       "expected_verdict": "reject",
       "expected_rule": "read_only"
+    },
+    {
+      "id": "replace-into-rejected",
+      "description": "SQLite REPLACE INTO is an INSERT-or-replace data write that sqlglot parses as a generic Command, not a typed Insert. Keying off the command verb must still reject it — a blocklist of typed nodes alone would let this write through.",
+      "sql": "REPLACE INTO users (id, name) VALUES (1, 'mallory')",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    },
+    {
+      "id": "cte-wrapped-delete-rejected",
+      "description": "A DELETE smuggled inside a CTE parses with a top-level SELECT root; the gate must walk the subtree, not just the root statement type, to catch it.",
+      "sql": "WITH gone AS (DELETE FROM transactions RETURNING id) SELECT id FROM gone",
+      "dialect": "postgres",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
     }
   ]
 }

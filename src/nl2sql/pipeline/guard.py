@@ -101,6 +101,15 @@ _WRITE_DDL_TYPES: tuple[type[exp.Expression], ...] = (
     exp.TruncateTable,
 )
 
+# A write whose syntax sqlglot does not model lands in a generic ``exp.Command``
+# rather than a typed node — SQLite's ``REPLACE INTO`` (an INSERT-or-replace) is
+# the live example on the BIRD path. We key off the parsed command verb (an AST
+# field, still not a text regex) so this data write cannot pass as read-only.
+# Non-write meta-commands (ATTACH, PRAGMA, VACUUM, EXPLAIN, stacked statements)
+# are a *separate* attack surface owned by the dangerous-op rule (next Step-4
+# issue) — read-only's scope is strictly data/schema writes.
+_WRITE_COMMANDS: frozenset[str] = frozenset({"REPLACE"})
+
 
 # The pipeline names dialects for the *prompt* ("PostgreSQL", "SQLite"); sqlglot
 # wants its own keys ("postgres", "sqlite"). Map the names we use; anything
@@ -138,14 +147,22 @@ def _parse_statements(sql: str, dialect: str) -> list[exp.Expression] | None:
 def _check_read_only(statements: Sequence[exp.Expression], dialect: str) -> str | None:
     """Reject if any statement writes data or changes schema (DML/DDL).
 
+    ``find`` walks each statement's whole subtree (self included), so a write
+    smuggled inside a CTE — ``WITH x AS (DELETE ... RETURNING *) SELECT ...`` —
+    is caught, not just a top-level one. Writes sqlglot parses as a generic
+    ``Command`` (SQLite ``REPLACE INTO``) are caught by verb.
+
     Side-effecting meta-commands that are neither DML nor DDL (ATTACH, PRAGMA,
     stacked statements) are a distinct attack surface handled by the dangerous-op
     rule in the next Step-4 issue — not silently folded in here.
     """
     for stmt in statements:
-        if isinstance(stmt, _WRITE_DDL_TYPES):
-            kind = type(stmt).__name__.upper()
+        write = stmt.find(*_WRITE_DDL_TYPES)
+        if write is not None:
+            kind = type(write).__name__.upper()
             return f"{kind} mutates data or schema; the gate is read-only"
+        if isinstance(stmt, exp.Command) and stmt.name.upper() in _WRITE_COMMANDS:
+            return f"{stmt.name.upper()} writes data; the gate is read-only"
     return None
 
 

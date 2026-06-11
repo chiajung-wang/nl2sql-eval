@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from eval.harness import Case, classify_terminal_state, run_batch, score_run
-from eval.redteam import evaluate, load_cases
+from eval.redteam import DEFAULT_CASE_DIALECT, evaluate, load_cases
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.guard import GuardDecision, guard, guard_sql
 from nl2sql.pipeline.state import RunState, TerminalState
@@ -37,7 +37,7 @@ def test_fixture_is_non_empty():
     "case", [pytest.param(c, id=f"{c['_file']}:{c['id']}") for c in REDTEAM_CASES]
 )
 def test_redteam_fixture_verdicts(case):
-    result = guard_sql(case["sql"], dialect=case.get("dialect", "sqlite"))
+    result = guard_sql(case["sql"], dialect=case.get("dialect", DEFAULT_CASE_DIALECT))
     assert result.decision.value == case["expected_verdict"], (
         f"{case['id']}: {result.note}"
     )
@@ -65,6 +65,22 @@ def test_read_only_is_ast_typed_not_keyword_regex():
     # A column literally named "delete" must not trip the write/DDL check — the
     # rule keys off the statement AST type, never a substring (CLAUDE.md §4).
     assert guard_sql('SELECT "delete" FROM audit_log').allowed
+
+
+def test_replace_into_command_write_is_rejected():
+    # SQLite REPLACE INTO parses as a generic Command (not a typed Insert); a
+    # node-type blocklist alone would wave this data write through.
+    result = guard_sql("REPLACE INTO users VALUES (1)", dialect="sqlite")
+    assert result.rejected and result.rule == "read_only"
+
+
+def test_cte_wrapped_write_is_rejected():
+    # A DELETE smuggled in a CTE has a top-level SELECT root; the rule must walk
+    # the subtree, not just check the root statement type.
+    result = guard_sql(
+        "WITH g AS (DELETE FROM t RETURNING id) SELECT id FROM g", dialect="postgres"
+    )
+    assert result.rejected and result.rule == "read_only"
 
 
 def test_empty_sql_is_allowed_so_execute_owns_the_missing_sql_case():
