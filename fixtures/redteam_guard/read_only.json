@@ -1,0 +1,90 @@
+{
+  "_meta": {
+    "fixture": "redteam_guard/read_only",
+    "purpose": "Step 4, Issue 1 — proves the read-only enforcement rule in src/nl2sql/pipeline/guard.py. Every write/DDL statement type must be rejected by sqlglot AST type (never a keyword regex), and benign read-only SELECTs must pass. Each case is a (candidate SQL, expected verdict) pair driven through guard_sql.",
+    "format": "Each case: 'id', 'description', 'sql' (the candidate), optional 'dialect' (default 'sqlite'), 'expected_verdict' ('allow' | 'reject'), and on a reject the 'expected_rule' that should fire. Cases with expected_verdict='reject' are the red-team set the catch-rate is computed over.",
+    "rule": "read-only enforcement is deterministic and AST-based (CLAUDE.md §4, §7). Side-effecting meta-commands (ATTACH, PRAGMA, stacked statements) are a separate attack surface handled by the dangerous-op rule in the next Step-4 issue — not folded in here."
+  },
+  "cases": [
+    {
+      "id": "benign-select-allowed",
+      "description": "A plain read-only SELECT is exactly what the gate exists to permit.",
+      "sql": "SELECT name FROM users WHERE country = 'US'",
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "benign-select-with-cte-allowed",
+      "description": "A CTE-wrapped SELECT is still a read; the WITH clause must not be mistaken for DDL.",
+      "sql": "WITH active AS (SELECT id FROM users WHERE active = 1) SELECT COUNT(*) FROM active",
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "benign-union-allowed",
+      "description": "A UNION of two SELECTs is read-only.",
+      "sql": "SELECT id FROM users UNION SELECT id FROM merchants",
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "benign-column-named-delete-allowed",
+      "description": "A column literally named 'delete' must NOT trip read-only — proves the check is AST-typed, not a keyword regex.",
+      "sql": "SELECT \"delete\" FROM audit_log",
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "insert-rejected",
+      "description": "INSERT writes data and must be rejected.",
+      "sql": "INSERT INTO users (id, name) VALUES (1, 'mallory')",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    },
+    {
+      "id": "update-rejected",
+      "description": "UPDATE mutates rows and must be rejected.",
+      "sql": "UPDATE users SET role = 'admin' WHERE id = 1",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    },
+    {
+      "id": "delete-rejected",
+      "description": "DELETE removes rows and must be rejected.",
+      "sql": "DELETE FROM transactions WHERE amount > 0",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    },
+    {
+      "id": "drop-table-rejected",
+      "description": "DROP TABLE is destructive DDL and must be rejected.",
+      "sql": "DROP TABLE transactions",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    },
+    {
+      "id": "create-table-rejected",
+      "description": "CREATE TABLE is DDL and must be rejected.",
+      "sql": "CREATE TABLE evil (id INTEGER)",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    },
+    {
+      "id": "ctas-rejected",
+      "description": "CREATE TABLE ... AS SELECT smuggles a write behind a SELECT; the statement type is still CREATE, so it must be rejected.",
+      "sql": "CREATE TABLE leak AS SELECT * FROM users",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    },
+    {
+      "id": "alter-table-rejected",
+      "description": "ALTER TABLE changes schema and must be rejected.",
+      "sql": "ALTER TABLE users ADD COLUMN backdoor TEXT",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    },
+    {
+      "id": "truncate-rejected",
+      "description": "TRUNCATE TABLE wipes a table and must be rejected.",
+      "sql": "TRUNCATE TABLE ledger",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    }
+  ]
+}

@@ -20,6 +20,7 @@ from sqlalchemy.engine import Engine
 from nl2sql.obs import stage_span
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
+from nl2sql.pipeline.guard import guard
 from nl2sql.pipeline.state import RunState
 
 
@@ -34,13 +35,16 @@ def run_pipeline(
     model: str = DEFAULT_MODEL,
     client: Any | None = None,
 ) -> RunState:
-    """Run one question through the linear ``generate → execute → return`` path.
+    """Run one question through ``generate → guard → execute → return``.
 
-    Returns the populated ``RunState`` (with ``candidate_sql`` and either the
-    result set or an ``error``). ``dialect``/``evidence`` are passed to generate
-    (SQLite + the BIRD hint on the benchmark path; PostgreSQL defaults for the
-    payments demo). Scoring and terminal-state classification are the harness's
-    job, not the pipeline's.
+    The deterministic guard gate runs *before* execution: a rejected candidate
+    sets ``state.guard_rejected`` and never reaches the database, so the harness
+    buckets it as ``GUARDRAIL_REJECTED``. Returns the populated ``RunState`` (with
+    ``candidate_sql`` and either the result set, an ``error``, or a guard
+    rejection). ``dialect``/``evidence`` are passed to generate, and the same
+    ``dialect`` parses the candidate in guard (SQLite on the BIRD path;
+    PostgreSQL for the payments demo). Scoring and terminal-state classification
+    are the harness's job, not the pipeline's.
     """
     with stage_span("pipeline", db_id=db_id):
         state = RunState(question=question, db_id=db_id)
@@ -52,7 +56,9 @@ def run_pipeline(
             model=model,
             client=client,
         )
-        execute(state, engine)
+        guard(state, dialect=dialect)
+        if not state.guard_rejected:
+            execute(state, engine)
         return state
 
 
