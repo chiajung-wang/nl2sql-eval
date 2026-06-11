@@ -1,0 +1,82 @@
+{
+  "_meta": {
+    "fixture": "golden_compare/order_sensitivity",
+    "purpose": "Issue 12 — proves the ORDER BY conditional in eval/compare.py. Row order is canonicalized away (rows sorted on both sides) UNLESS the gold SQL declares it significant via a top-level ORDER BY, in which case a same-rows/wrong-order candidate must be judged incorrect. Detection is sqlglot AST-based, never regex (CLAUDE.md §4).",
+    "format": "Same triple format as baseline.json. These cases rely on eval.compare.DEFAULT_RULES (now 'order_insensitive'); none override 'rules'. Scope: ordering only — value-level canonicalization (NULL/float/column/multiset) is Issue 13.",
+    "rule": "A canonicalization is applied to BOTH sides identically, so sorting can never make a wrong answer look right (CLAUDE.md domain rule 1)."
+  },
+  "cases": [
+    {
+      "id": "order-significant-wrong-order-incorrect",
+      "description": "Gold has a top-level ORDER BY; candidate returns the SAME rows in the WRONG order → incorrect. The order error must be caught.",
+      "gold_sql": "SELECT name FROM merchants ORDER BY signup_date;",
+      "gold_result": {"columns": ["name"], "rows": [["DevTools Inc"], ["CloudNine SaaS"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "order-significant-same-order-correct",
+      "description": "Gold has a top-level ORDER BY; candidate returns the same rows in the SAME order → correct.",
+      "gold_sql": "SELECT name FROM merchants ORDER BY signup_date;",
+      "gold_result": {"columns": ["name"], "rows": [["DevTools Inc"], ["CloudNine SaaS"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["DevTools Inc"], ["CloudNine SaaS"]]},
+      "expected_verdict": "correct"
+    },
+    {
+      "id": "no-order-different-order-correct",
+      "description": "Gold has NO ORDER BY; candidate returns the same rows in a different order → correct. Row order is not significant, so it is normalized away.",
+      "gold_sql": "SELECT name FROM merchants WHERE category = 'software';",
+      "gold_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["DevTools Inc"], ["CloudNine SaaS"]]},
+      "expected_verdict": "correct"
+    },
+    {
+      "id": "order-in-subquery-not-significant",
+      "description": "Gold's only ORDER BY is buried in a subquery and does not affect the final row order; candidate reorders the output → correct. Detection must consider only top-level ORDER BY.",
+      "gold_sql": "SELECT name FROM merchants WHERE id IN (SELECT merchant_id FROM payments ORDER BY amount);",
+      "gold_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["DevTools Inc"], ["CloudNine SaaS"]]},
+      "expected_verdict": "correct"
+    },
+    {
+      "id": "no-order-different-rows-still-incorrect",
+      "description": "Gold has NO ORDER BY; sorting normalizes order but cannot hide a genuinely different multiset of rows → incorrect. Guards that order-insensitivity does not launder wrong answers.",
+      "gold_sql": "SELECT name FROM merchants WHERE category = 'software';",
+      "gold_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["PayKit LLC"]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "no-order-multicol-different-order-correct",
+      "description": "Gold has NO ORDER BY; multi-column rows returned in a different order → correct. Sorting is row-wise across all columns.",
+      "gold_sql": "SELECT name, country FROM merchants;",
+      "gold_result": {"columns": ["name", "country"], "rows": [["CloudNine SaaS", "US"], ["DevTools Inc", "CA"]]},
+      "candidate_result": {"columns": ["name", "country"], "rows": [["DevTools Inc", "CA"], ["CloudNine SaaS", "US"]]},
+      "expected_verdict": "correct"
+    },
+    {
+      "id": "order-significant-on-set-operation-wrong-order-incorrect",
+      "description": "Gold's top-level ORDER BY sits on a set operation (UNION); it governs the final output order, so a same-rows/wrong-order candidate → incorrect. Detection must read `order` off the outermost set-op node, not only a bare SELECT.",
+      "gold_sql": "SELECT name FROM merchants UNION SELECT name FROM partners ORDER BY name;",
+      "gold_result": {"columns": ["name"], "rows": [["Acme Co"], ["Beta LLC"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["Beta LLC"], ["Acme Co"]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "order-significant-parenthesized-query-wrong-order-incorrect",
+      "description": "A parenthesized whole query keeps its ORDER BY top-level; after unwrapping the outer Subquery node the order is significant, so a same-rows/wrong-order candidate → incorrect.",
+      "gold_sql": "(SELECT name FROM merchants ORDER BY signup_date);",
+      "gold_result": {"columns": ["name"], "rows": [["DevTools Inc"], ["CloudNine SaaS"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "unparseable-gold-falls-back-to-order-insensitive-correct",
+      "description": "Gold SQL that sqlglot cannot parse raises ParseError; rather than asserting order matters, detection falls back to order-insensitive, so a different-order candidate → correct. Gold SQL is validated upstream — this is the safe default for a harness bug.",
+      "gold_sql": "!!! not valid sql @@@",
+      "gold_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["DevTools Inc"], ["CloudNine SaaS"]]},
+      "expected_verdict": "correct"
+    }
+  ]
+}
