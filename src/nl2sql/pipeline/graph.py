@@ -19,7 +19,7 @@ from sqlalchemy.engine import Engine
 
 from nl2sql.obs import stage_span
 from nl2sql.pipeline.execute import execute
-from nl2sql.pipeline.generate import DEFAULT_MODEL, generate
+from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.state import RunState
 
 
@@ -29,18 +29,29 @@ def run_pipeline(
     schema: str,
     engine: Engine,
     db_id: str = "payments",
+    dialect: str = DEFAULT_DIALECT,
+    evidence: str = "",
     model: str = DEFAULT_MODEL,
     client: Any | None = None,
 ) -> RunState:
     """Run one question through the linear ``generate → execute → return`` path.
 
     Returns the populated ``RunState`` (with ``candidate_sql`` and either the
-    result set or an ``error``). Scoring and terminal-state classification are
-    the harness's job, not the pipeline's.
+    result set or an ``error``). ``dialect``/``evidence`` are passed to generate
+    (SQLite + the BIRD hint on the benchmark path; PostgreSQL defaults for the
+    payments demo). Scoring and terminal-state classification are the harness's
+    job, not the pipeline's.
     """
     with stage_span("pipeline", db_id=db_id):
         state = RunState(question=question, db_id=db_id)
-        generate(state, schema, model=model, client=client)
+        generate(
+            state,
+            schema,
+            dialect=dialect,
+            evidence=evidence,
+            model=model,
+            client=client,
+        )
         execute(state, engine)
         return state
 

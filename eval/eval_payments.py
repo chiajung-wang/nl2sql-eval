@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 
 from eval.datasets.payments.questions import load_questions
 from eval.harness import Case, run_batch
-from eval.metrics import BatchReport
+from eval.metrics import BatchReport, summary_lines
 from nl2sql.pipeline.execute import get_engine
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
@@ -48,14 +48,7 @@ def build_payments_cases() -> list[Case]:
 
 
 def _print_report(report: BatchReport) -> None:
-    print(f"\npass@1: {report.pass_at_1:.3f}  ({report.n_correct}/{report.total})")
-    print("terminal states:")
-    for state, count in report.terminal_counts().items():
-        if count:
-            print(f"  {state.value:24} {count}")
-    print("pass@1 by difficulty:")
-    for difficulty, rate in sorted(report.pass_at_1_by("difficulty").items(), key=str):
-        print(f"  {str(difficulty):24} {rate:.3f}")
+    print("\n" + "\n".join(summary_lines(report)))
     print("\nper-case:")
     for r in report.results:
         mark = "PASS" if r.correct else r.terminal_state.value

@@ -30,7 +30,14 @@ MAX_TOKENS = 1024
 # Templates live at the repo-root ``prompts/`` dir (CI diffs them), three
 # parents up from src/nl2sql/pipeline/generate.py.
 PROMPTS_DIR = Path(__file__).resolve().parents[3] / "prompts"
-GENERATE_TEMPLATE = "generate/v1.jinja"
+GENERATE_TEMPLATE = "generate/v2.jinja"
+# The prompt version recorded alongside every reported number (CLAUDE.md §6).
+PROMPT_VERSION = "generate/v2"
+
+# Default dialect — the payments demo is PostgreSQL; the BIRD path passes
+# "SQLite". A variable (not hardcoded) so the prompt measures generation quality
+# rather than dialect mismatch on a non-Postgres benchmark.
+DEFAULT_DIALECT = "PostgreSQL"
 
 # Strips a ```sql ... ``` (or bare ```) fence if the model wraps its answer.
 _FENCE_RE = re.compile(
@@ -48,10 +55,23 @@ def _env() -> Environment:
     )
 
 
-def render_prompt(schema: str, question: str) -> str:
-    """Render the externalized generate template with the schema dumped inline."""
+def render_prompt(
+    schema: str,
+    question: str,
+    *,
+    dialect: str = DEFAULT_DIALECT,
+    evidence: str = "",
+) -> str:
+    """Render the externalized generate template with the schema dumped inline.
+
+    ``dialect`` selects the SQL flavor named in the prompt; ``evidence`` is an
+    optional external-knowledge hint (BIRD ships one per question) that is
+    omitted from the prompt when empty.
+    """
     template = _env().get_template(GENERATE_TEMPLATE)
-    return template.render(schema=schema, question=question)
+    return template.render(
+        schema=schema, question=question, dialect=dialect, evidence=evidence
+    )
 
 
 def _extract_sql(text: str) -> str:
@@ -76,16 +96,22 @@ def generate(
     state: RunState,
     schema: str,
     *,
+    dialect: str = DEFAULT_DIALECT,
+    evidence: str = "",
     model: str = DEFAULT_MODEL,
     client: Any | None = None,
 ) -> RunState:
     """Generate candidate SQL for ``state.question`` and store it on the state.
 
-    One direct Anthropic ``messages.create`` call. ``client`` is injectable so
-    tests can run without a network/API key. Mutates and returns ``state``.
+    One direct Anthropic ``messages.create`` call. ``dialect``/``evidence`` are
+    threaded into the prompt (SQLite + the BIRD hint on the benchmark path;
+    PostgreSQL + no hint on the payments demo). ``client`` is injectable so tests
+    can run without a network/API key. Mutates and returns ``state``.
     """
     with stage_span("generate", db_id=state.db_id, model=model) as extra:
-        prompt = render_prompt(schema, state.question)
+        prompt = render_prompt(
+            schema, state.question, dialect=dialect, evidence=evidence
+        )
         client = client or _default_client()
 
         response = client.messages.create(

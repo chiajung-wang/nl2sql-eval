@@ -66,3 +66,28 @@ class BatchReport:
         return {
             key: sum(1 for r in rs if r.correct) / len(rs) for key, rs in groups.items()
         }
+
+
+def summary_lines(report: BatchReport) -> list[str]:
+    """The aggregate summary of a batch — pass@1, terminal mix, by-difficulty.
+
+    Shared by the live entrypoints so payments and BIRD print the same shape.
+    Aggregates only (no row values).
+    """
+    lines = [
+        f"pass@1: {report.pass_at_1:.3f}  ({report.n_correct}/{report.total})",
+        "terminal states:",
+    ]
+    lines += [
+        f"  {state.value:24} {count}"
+        for state, count in report.terminal_counts().items()
+        if count
+    ]
+    lines.append("pass@1 by difficulty:")
+    lines += [
+        f"  {str(difficulty):24} {rate:.3f}"
+        for difficulty, rate in sorted(
+            report.pass_at_1_by("difficulty").items(), key=lambda kv: str(kv[0])
+        )
+    ]
+    return lines
