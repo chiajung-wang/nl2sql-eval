@@ -101,6 +101,64 @@ def test_note_composes_rule_and_reason():
     assert note is not None and note.startswith("read_only:")
 
 
+# --- dangerous-op rule -----------------------------------------------------
+
+
+def test_attach_database_is_rejected_dangerous_op():
+    result = guard_sql("ATTACH DATABASE 'evil.db' AS evil", dialect="sqlite")
+    assert result.rejected and result.rule == "dangerous_op"
+
+
+def test_detach_database_is_rejected_dangerous_op():
+    result = guard_sql("DETACH DATABASE evil", dialect="sqlite")
+    assert result.rejected and result.rule == "dangerous_op"
+
+
+def test_all_pragma_is_rejected_even_introspection():
+    # Read- vs write-PRAGMA can't be told apart reliably on the AST and no PRAGMA
+    # is a valid answer, so the gate default-denies all of them.
+    assert (
+        guard_sql("PRAGMA writable_schema=ON", dialect="sqlite").rule == "dangerous_op"
+    )
+    assert (
+        guard_sql("PRAGMA table_info(users)", dialect="sqlite").rule == "dangerous_op"
+    )
+
+
+def test_stacked_statements_are_rejected_dangerous_op():
+    # Both statements are reads, so read-only passes; a question maps to one
+    # query, so the stacked shape is the dangerous-op rule's catch.
+    result = guard_sql("SELECT 1; SELECT 2", dialect="sqlite")
+    assert result.rejected and result.rule == "dangerous_op"
+
+
+def test_unmodeled_command_is_rejected_dangerous_op():
+    result = guard_sql("VACUUM", dialect="sqlite")
+    assert result.rejected and result.rule == "dangerous_op"
+
+
+def test_read_only_takes_precedence_over_dangerous_op():
+    # A stacked candidate whose second statement writes is caught by read-only
+    # first (fail-fast, rules in order) — precedence is deterministic.
+    result = guard_sql("SELECT name FROM users; DROP TABLE users", dialect="sqlite")
+    assert result.rejected and result.rule == "read_only"
+
+
+def test_trailing_semicolon_comment_is_not_a_stacked_query():
+    # `SELECT 1; -- note` parses into [Select, Semicolon]; the empty trailing
+    # node must be dropped so a single query is not misread as stacked.
+    assert guard_sql("SELECT 1; -- trailing note", dialect="sqlite").allowed
+    assert guard_sql("SELECT 1;", dialect="sqlite").allowed
+
+
+def test_dangerous_op_does_not_misfire_on_a_complex_read():
+    sql = (
+        "SELECT u.name, COUNT(t.id) FROM users u "
+        "JOIN transactions t ON t.user_id = u.id GROUP BY u.name"
+    )
+    assert guard_sql(sql, dialect="sqlite").allowed
+
+
 # --- 3. pipeline wiring + classification -----------------------------------
 
 

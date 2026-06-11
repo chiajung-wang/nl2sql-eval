@@ -9,10 +9,10 @@ gate is *measured* against ``fixtures/redteam_guard/``.
 
 Checks land incrementally across Step 4:
 
-- **read-only enforcement** (this issue) — reject writes/DDL by statement type;
-- **dangerous-op blocking** (Step 4, next issue) — stacked statements, ATTACH,
-  write-bearing PRAGMA and other side-effecting meta-commands;
-- **cost/complexity heuristic** (Step 4) — join count, missing ``LIMIT``,
+- **read-only enforcement** — reject writes/DDL by statement type;
+- **dangerous-op blocking** — stacked statements, ATTACH/DETACH, PRAGMA and other
+  side-effecting meta-commands;
+- **cost/complexity heuristic** (Step 4, next issue) — join count, missing ``LIMIT``,
   cartesian products, all read off the AST (heuristic-first; no EXPLAIN on the
   SQLite path).
 
@@ -106,8 +106,8 @@ _WRITE_DDL_TYPES: tuple[type[exp.Expression], ...] = (
 # the live example on the BIRD path. We key off the parsed command verb (an AST
 # field, still not a text regex) so this data write cannot pass as read-only.
 # Non-write meta-commands (ATTACH, PRAGMA, VACUUM, EXPLAIN, stacked statements)
-# are a *separate* attack surface owned by the dangerous-op rule (next Step-4
-# issue) — read-only's scope is strictly data/schema writes.
+# are a *separate* attack surface owned by the dangerous-op rule — read-only's
+# scope is strictly data/schema writes.
 _WRITE_COMMANDS: frozenset[str] = frozenset({"REPLACE"})
 
 
@@ -128,19 +128,27 @@ def _normalize_dialect(dialect: str) -> str | None:
     return _DIALECT_ALIASES.get(dialect.strip().lower())
 
 
+def _is_empty_statement(stmt: exp.Expression | None) -> bool:
+    """A node that carries no query: a ``None`` slot or a bare ``;`` / trailing
+    comment, which sqlglot models as an empty ``Semicolon``. These are not
+    statements and must not inflate the stacked-query count."""
+    return stmt is None or isinstance(stmt, exp.Semicolon)
+
+
 def _parse_statements(sql: str, dialect: str) -> list[exp.Expression] | None:
-    """Split ``sql`` into statements, trying the named dialect then the generic
-    parser. Returns ``None`` only if the SQL parses under neither — a candidate
-    the gate cannot prove safe."""
+    """Split ``sql`` into real statements, trying the named dialect then the
+    generic parser. Empty/trailing-comment nodes are dropped so a single query
+    with a trailing ``;`` or comment is not mistaken for a stacked pair. Returns
+    ``None`` only if the SQL parses under neither dialect — a candidate the gate
+    cannot prove safe."""
     normalized = _normalize_dialect(dialect)
     attempts = (normalized,) if normalized is None else (normalized, None)
     for parse_dialect in attempts:
         try:
-            return [
-                s for s in sqlglot.parse(sql, dialect=parse_dialect) if s is not None
-            ]
+            parsed = sqlglot.parse(sql, dialect=parse_dialect)
         except ParseError:
             continue
+        return [s for s in parsed if not _is_empty_statement(s)]
     return None
 
 
@@ -153,8 +161,8 @@ def _check_read_only(statements: Sequence[exp.Expression], dialect: str) -> str 
     ``Command`` (SQLite ``REPLACE INTO``) are caught by verb.
 
     Side-effecting meta-commands that are neither DML nor DDL (ATTACH, PRAGMA,
-    stacked statements) are a distinct attack surface handled by the dangerous-op
-    rule in the next Step-4 issue — not silently folded in here.
+    stacked statements) are a distinct attack surface owned by the dangerous-op
+    rule — not silently folded in here.
     """
     for stmt in statements:
         write = stmt.find(*_WRITE_DDL_TYPES)
@@ -166,6 +174,52 @@ def _check_read_only(statements: Sequence[exp.Expression], dialect: str) -> str 
     return None
 
 
+# Typed meta-statements that escape the data boundary or alter engine state —
+# never DML/DDL, so read-only lets them by, but never a legitimate answer to a
+# question either. ``Attach``/``Detach`` reach across databases; ``Pragma`` flips
+# engine flags (``PRAGMA writable_schema=ON`` is the classic read-only bypass).
+_DANGEROUS_TYPES: tuple[type[exp.Expression], ...] = (
+    exp.Attach,
+    exp.Detach,
+    exp.Pragma,
+)
+
+
+def _check_dangerous_op(
+    statements: Sequence[exp.Expression], dialect: str
+) -> str | None:
+    """Reject side-effecting / injection-shaped constructs that are not writes.
+
+    Three surfaces, all AST-typed:
+
+    - **Stacked statements** — more than one statement in a single candidate is
+      the classic SQL-injection shape; a question maps to exactly one query.
+    - **ATTACH / DETACH / PRAGMA** — data-boundary escapes and engine-state flips.
+      *All* PRAGMA are rejected, not just writes: read- vs write-PRAGMA cannot be
+      told apart reliably on the AST, and no PRAGMA is a valid query answer, so
+      default-deny is both safer and simpler.
+    - **Unmodeled commands** — anything sqlglot could only parse as a generic
+      ``Command`` (``VACUUM``, ``SET``, …) is engine state we do not understand
+      and will not run. (A write ``Command`` like ``REPLACE`` is already caught
+      upstream by read-only.)
+    """
+    if len(statements) > 1:
+        return (
+            f"{len(statements)} statements in one candidate; "
+            "stacked queries are not permitted"
+        )
+    for stmt in statements:
+        if isinstance(stmt, _DANGEROUS_TYPES):
+            return (
+                f"{type(stmt).__name__.upper()} is a side-effecting meta-command; "
+                "not permitted"
+            )
+        if isinstance(stmt, exp.Command):
+            verb = stmt.name.upper() or "an unrecognized statement"
+            return f"{verb} is an unsupported/side-effecting command; not permitted"
+    return None
+
+
 # A guard rule: inspect the parsed statements (already split per ``;``) and the
 # dialect, return a reject reason or ``None`` to pass. Rules are pure functions
 # of the AST — the registry mirrors ``eval.compare``'s rule pipeline so later
@@ -174,11 +228,12 @@ GuardRule = Callable[[Sequence[exp.Expression], str], str | None]
 
 _RULES: dict[str, GuardRule] = {
     "read_only": _check_read_only,
+    "dangerous_op": _check_dangerous_op,
 }
 
-# The checks run, in order, on every candidate. Later Step-4 issues append
-# "dangerous_op" and "cost" here; the first rule to fire wins (fail-fast).
-DEFAULT_GUARD_RULES: tuple[str, ...] = ("read_only",)
+# The checks run, in order, on every candidate. The cost heuristic appends here
+# in the next Step-4 issue; the first rule to fire wins (fail-fast).
+DEFAULT_GUARD_RULES: tuple[str, ...] = ("read_only", "dangerous_op")
 
 
 def guard_sql(
