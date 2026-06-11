@@ -39,6 +39,9 @@ coverage.xml
 *.db
 pgdata/
 
+# BIRD benchmark payload — downloaded locally, not committed (slice ID list lives outside data/)
+eval/datasets/bird/data/
+
 # Langfuse / local artifacts
 *.log
 
