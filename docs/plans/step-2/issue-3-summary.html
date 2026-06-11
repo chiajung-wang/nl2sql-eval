@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PR #15 — comparator core + golden-fixture harness</title>
+<title>Issue 3 — value &amp; shape canonicalization</title>
 <style>
   :root{
     --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
@@ -52,181 +52,189 @@
   .st.R{color:var(--accent-2);background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.35)}
   .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
   .done b{color:var(--add)}
+  .alert{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.32);border-left:3px solid var(--mod);
+         border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .alert b{color:var(--mod)}
+  .alert code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
   footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
   @media (max-width:640px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
   <header class="hero"><div class="wrap">
-    <span class="badge">PR #15 · Step 2 · Merged</span>
-    <h1>comparator core + golden-fixture harness</h1>
+    <span class="badge">PR #21 · Step 2 · Issue 3 · Re-land</span>
+    <h1>value &amp; shape canonicalization</h1>
     <div class="meta">
       <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
-      <span><b>Merged:</b> 2026-06-10</span>
-      <span><b>Merge commit:</b> <code>7e7216b</code></span>
-      <span><b>Closes:</b> Issue #11</span>
-      <span><b>Branch:</b> <code>step-2/issue-11-comparator-golden-fixture</code></span>
+      <span><b>Issue:</b> #13</span>
+      <span><b>Commit:</b> <code>3403260</code></span>
+      <span><b>Branch:</b> <code>step-2/issue-13-value-shape-reland</code> → <code>main</code></span>
+      <span><b>Original (mis-targeted):</b> PR #16</span>
     </div>
   </div></header>
   <div class="wrap">
 
+    <section><h2><span class="num">0</span> Why this is a re-land</h2>
+      <div class="alert">
+        <p style="margin:.2rem 0"><b>The value/shape rules were implemented once but never reached <code>main</code>.</b></p>
+        <p style="margin:.6rem 0 0">Issue 3 first shipped as <b>PR #16</b>, but #16 was opened against the
+        <code>step-2/issue-11-comparator-golden-fixture</code> branch — which had already merged to <code>main</code>
+        via #15 and gone stale. So #16 merged onto a <b>dead-end branch</b>: GitHub honestly reports it "merged"
+        and Issue #13 "completed", yet <code>main</code>'s <code>eval/compare.py</code> still only had
+        <code>exact</code> + <code>order_insensitive</code>.</p>
+        <p style="margin:.6rem 0 0">A plain cherry-pick wasn't viable either: #16 was cut <b>before #12</b>
+        (order-sensitivity), so it used the old single-arg <code>CanonRule</code> signature, incompatible with
+        <code>main</code>'s <code>(result, ctx)</code> <code>RuleContext</code> API. This PR re-lands the work
+        <b>reconciled onto current <code>main</code></b>.</p>
+      </div>
+    </section>
+
     <section><h2><span class="num">1</span> Overview</h2><div class="card">
-      <p class="lede"><b>The thinnest end-to-end slice of the measurement core — the comparator skeleton every later Step-2 slice extends.</b></p>
-      <p>This PR lands the public <code class="k">compare()</code> entry point in <code class="k">eval/compare.py</code>:
-      a deterministic result-set scorer that compares <em>values</em>, never SQL strings (CLAUDE.md §5.1, §7).
-      It ships only the trivial <code class="k">"exact"</code> rule, but does so through a
-      <b>configurable canonicalization-rule pipeline</b> — each rule is applied to <em>both</em> sides before comparison,
-      so a rule can never make a wrong answer look right, and the applied rules are recorded on the verdict and logged per call.</p>
-      <p>Crucially, it lands the <b>proof harness alongside the scorer</b>: a committed golden fixture of
-      <code class="k">(gold, candidate, expected_verdict)</code> triples and a fixture-driven test that treats those triples
-      as the source of truth. A number from an unvalidated scorer is worse than no number, so the proof comes first.</p>
+      <p class="lede"><b>The value- and shape-level rules that let two differently-written-but-equally-correct queries
+      compare equal — while still catching real semantic errors.</b></p>
+      <p>Each rule is a deterministic transform registered into the same canonicalization pipeline as Issues 11–12,
+      applied to <em>both</em> sides before comparison, so a rule can only let an equally-correct query pass —
+      it can never make a wrong answer look right (CLAUDE.md domain rule 1). No LLM, no regex for SQL semantics.</p>
+      <p>Three new always-on rules join the default pipeline — <code class="k">column_position</code>,
+      <code class="k">null_sentinel</code>, <code class="k">float_tolerance</code> — and <b>multiset semantics
+      come for free by omission</b>: there is deliberately no de-dup rule, so a <code class="k">COUNT</code> vs
+      <code class="k">COUNT DISTINCT</code> row-multiplicity difference stays a real error.</p>
       <div class="stats">
-        <div><b>4</b> files changed</div>
-        <div><b>+362 / −5</b> lines</div>
+        <div><b>3</b> new rules</div>
         <div><b>8</b> golden triples</div>
-        <div><b>11</b> new tests (109 total)</div>
+        <div><b>5</b> rule-level unit tests</div>
+        <div><b>144</b> tests pass</div>
       </div>
     </div></section>
 
-    <section><h2><span class="num">2</span> Key changes</h2><div class="grid">
+    <section><h2><span class="num">2</span> The rules</h2><div class="grid">
       <div class="group">
-        <h3><code>compare()</code> — the public scorer</h3>
+        <h3><code>column_position</code> — match by position, not name</h3>
         <ul>
-          <li>Returns a <code>Comparison</code> carrying a clear <code>Verdict</code> (correct / incorrect), the <b>applied rules</b>, and a human reason.</li>
-          <li>Compares result-set <b>values only</b> — not the SQL string, and (in this slice) not column labels: a correct value under a different alias is still correct.</li>
-          <li><code>gold_sql</code> is recorded for explainability; the order-insensitivity rule (Issue #12) will inspect it for <code>ORDER BY</code>.</li>
+          <li>Replaces column <b>labels</b> with positional placeholders, so an alias/rename/relabel of an
+          otherwise-correct query cannot fail it.</li>
+          <li>A genuine column-order error (values <b>transposed</b> between positions) still differs → caught.</li>
+          <li>Inert by design against the current value-only comparison; it <b>names and logs</b> the
+          position-based contract and is the seam for a future label-aware rule.</li>
         </ul>
       </div>
       <div class="group">
-        <h3>Canonicalization pipeline</h3>
+        <h3><code>null_sentinel</code> — one normal form for NULL</h3>
         <ul>
-          <li>Rules <b>register by name</b> via <code>register_rule()</code> and are applied to both sides in order.</li>
-          <li>Ships <code>"exact"</code> only; the subtle rules (ordering, NULL/float/column, multiset, BIRD alignment) slot in for Issues #12–#14 <b>without touching <code>compare()</code></b>.</li>
-          <li>An unknown rule name is rejected with a <code>ValueError</code>.</li>
+          <li>Every SQL <code>NULL</code> (<code>None</code>) collapses to a single sentinel, so NULLs compare
+          consistently and become hashable / orderable for downstream rules.</li>
+          <li>The sentinel is <b>distinct from any real value</b> — a NULL never silently equals <code>0</code>,
+          <code>""</code>, or the string <code>"None"</code>.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>float_tolerance</code> — round before comparing</h3>
+        <ul>
+          <li>Floats / <code>Decimal</code>s are rounded to <code>FLOAT_DECIMALS = 6</code> places, so
+          insignificant precision noise (an <code>AVG</code> differing in the 9th digit) doesn't read as wrong.</li>
+          <li>A genuinely different number still differs → caught. <code>bool</code> (an <code>int</code> subclass)
+          is left untouched, not rounded to 0/1.</li>
+          <li>A fixed, logged constant — not a per-call knob — keeps every verdict reproducible.</li>
         </ul>
       </div>
       <div class="group warn">
-        <h3>Empty result — a distinct case</h3>
+        <h3>Multiset semantics — by omission</h3>
         <ul>
-          <li>Both-empty → <b>correct</b> (a legitimately empty answer, not an error).</li>
-          <li>Empty vs non-empty (either direction) → <b>incorrect</b>; empty is <em>never</em> auto-correct.</li>
-        </ul>
-      </div>
-      <div class="group">
-        <h3>PII-safe logging</h3>
-        <ul>
-          <li>Logs verdict, applied rules, reason, and <code>gold_sql</code> — <b>never the result rows</b>.</li>
-          <li>The comparator runs upstream of redaction (§5.2), so logging row values would leak raw PII into traces (§5.3).</li>
-        </ul>
-      </div>
-      <div class="group">
-        <h3>Golden fixture — the deliverable</h3>
-        <ul>
-          <li><code>baseline.json</code>: 8 triples — identical, plainly-different, alias-rename, multi-row, missing-row, and the three empty-result permutations.</li>
-          <li>Self-documenting <code>_meta</code> block + README describing the case format and the <code>rules</code> override.</li>
-        </ul>
-      </div>
-      <div class="group">
-        <h3>Fixture-driven tests</h3>
-        <ul>
-          <li>Loads <b>every</b> <code>*.json</code> in the fixture dir — adding a triple is exercised automatically, no test edits.</li>
-          <li>A non-empty-fixture guard prevents a glob/parse regression silently turning the proof into a no-op.</li>
-          <li>Contract tests: unknown-rule rejection, applied-rules logged, value-based-not-name-based verdict.</li>
+          <li>There is <b>no de-dup rule</b>, so two results differing only in row multiplicity stay distinct.</li>
+          <li>The classic <code>COUNT</code> vs <code>COUNT DISTINCT</code> bug → <b>incorrect</b>. Set semantics
+          would wrongly pass it.</li>
+          <li>A future <code>set</code> rule would be the canonicalization; its <em>absence</em> is what makes the
+          comparator multiset.</li>
         </ul>
       </div>
     </div></section>
 
-    <section><h2><span class="num">3</span> Comparator flow (this slice)</h2>
-      <div class="diagram-wrap"><pre class="mermaid">flowchart TB
-  subgraph IN["Inputs to compare()"]
-    direction TB
-    GSQL["gold_sql (recorded only)"]
-    GOLD["gold_result"]
-    CAND["candidate_result"]
+    <section><h2><span class="num">3</span> Pipeline order matters</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart LR
+  GOLD["gold_result"] --> CP
+  CAND["candidate_result"] --> CP
+  subgraph PIPE["DEFAULT_RULES — both sides, in order"]
+    direction LR
+    CP["column_position"] --> NS["null_sentinel"] --> FT["float_tolerance"] --> OI["order_insensitive<br/>(Issue 12)"] --> EX["exact"]
   end
-
-  GOLD --> RG["ResultSet.from_mapping"]
-  CAND --> RC["ResultSet.from_mapping"]
-
-  subgraph PIPE["rule pipeline — both sides, in order, logged"]
-    direction TB
-    EX["exact (identity — Issue 11)"]
-    FUT["order / NULL / float / column / multiset / BIRD<br/>(Issues 12-14, same pipeline)"]:::future
-    EX -.later.-> FUT
-  end
-
-  RG --> PIPE
-  RC --> PIPE
-
   PIPE --> CMP{"gold.rows == candidate.rows ?"}
   CMP -->|equal| OK["Verdict.CORRECT"]:::ok
   CMP -->|differ| BAD["Verdict.INCORRECT"]:::bad
-
-  OK --> OUT["Comparison{verdict, applied_rules, reason}"]
-  BAD --> OUT
-  OUT --> LOG["log verdict + rules + gold_sql<br/>(never the rows — PII-safe)"]:::log
-
-  subgraph FIX["fixtures/golden_compare/baseline.json"]
-    direction TB
-    T1["identical / different / alias-rename"]
-    T2["multi-row / missing-row"]
-    T3["empty: both / empty-vs / vs-empty"]
-  end
-  FIX -->|"(gold, candidate, expected_verdict)"| TESTS["tests/test_compare.py · uv run pytest"]:::test
-  TESTS -.asserts verdict.-> CMP
-
   classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
   classDef bad fill:#fecaca,stroke:#dc2626,color:#7f1d1d;
-  classDef test fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
-  classDef future fill:#e2e8f0,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
-  classDef log fill:#fef9c3,stroke:#ca8a04,color:#713f12;
-  class OK ok; class BAD bad; class TESTS test; class FUT future; class LOG log;</pre></div>
-      <p class="diagram-caption">Both result sets pass through the same named rule pipeline before comparison;
-      this slice runs only <code>exact</code>. The golden fixture asserts the verdict for every baseline case —
-      the substantive rules land in the same pipeline in Issues #12–#14 without touching <code>compare()</code>.</p>
+  class OK ok; class BAD bad;</pre></div>
+      <p class="diagram-caption">Value normalization runs <b>before</b> <code>order_insensitive</code> on purpose:
+      that rule sorts rows by their stringified cells, so floats must already be rounded and NULLs normalized —
+      otherwise the same logical rows could sort differently on the two sides and a correct answer would be judged wrong.</p>
     </section>
 
-    <section><h2><span class="num">4</span> Files changed</h2>
+    <section><h2><span class="num">4</span> Golden triples — the proof</h2><div class="card">
+      <p>Each case in <code class="k">fixtures/golden_compare/value_shape.json</code> pins the exact
+      <code>rules</code> it exercises, so the triple proves <em>which</em> canonicalization is responsible for the
+      verdict — both the relaxations that must let a correct query pass and the boundaries that must still fail.</p>
+      <table>
+        <thead><tr><th>Case</th><th>Verdict</th><th>What it proves</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>column-rename-positional-match</code></td><td><span class="st A">correct</span></td><td>Renamed labels, same values → positional match passes.</td></tr>
+          <tr><td class="f"><code>column-values-transposed-is-wrong</code></td><td><span class="st D">incorrect</span></td><td>Values swapped between positions → still caught.</td></tr>
+          <tr><td class="f"><code>null-sentinel-matches</code></td><td><span class="st A">correct</span></td><td>NULL in the same position both sides → match.</td></tr>
+          <tr><td class="f"><code>null-is-not-zero</code></td><td><span class="st D">incorrect</span></td><td>Gold NULL vs candidate <code>0</code> → never equal.</td></tr>
+          <tr><td class="f"><code>float-within-tolerance</code></td><td><span class="st A">correct</span></td><td>9th-decimal difference → below tolerance, passes.</td></tr>
+          <tr><td class="f"><code>float-out-of-tolerance</code></td><td><span class="st D">incorrect</span></td><td>Genuinely different number → still fails.</td></tr>
+          <tr><td class="f"><code>multiset-count-vs-count-distinct</code></td><td><span class="st D">incorrect</span></td><td>Collapsed duplicates → real error under multiset.</td></tr>
+          <tr><td class="f"><code>multiset-duplicates-preserved</code></td><td><span class="st A">correct</span></td><td>Equal multiplicities → compare equal.</td></tr>
+        </tbody>
+      </table>
+    </div></section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
       <table>
         <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
         <tbody>
           <tr>
             <td class="f"><code>eval/compare.py</code></td>
             <td><span class="st M">M</span></td>
-            <td>Stub → full skeleton: <code>compare()</code>, <code>ResultSet</code>, <code>Verdict</code>, <code>Comparison</code>, the <code>register_rule()</code> pipeline, the <code>"exact"</code> baseline rule, empty-result handling, and PII-safe per-call logging.</td>
+            <td>Adds <code>column_position</code>, <code>null_sentinel</code>, <code>float_tolerance</code> (on the
+            <code>(result, ctx)</code> signature), the <code>NULL_SENTINEL</code> / <code>FLOAT_DECIMALS</code>
+            constants, and the reconciled <code>DEFAULT_RULES</code> with value rules ahead of the order rule.</td>
           </tr>
           <tr>
-            <td class="f"><code>fixtures/golden_compare/baseline.json</code></td>
+            <td class="f"><code>fixtures/golden_compare/value_shape.json</code></td>
             <td><span class="st A">A</span></td>
-            <td>The named deliverable: 8 <code>(gold, candidate, expected_verdict)</code> triples covering identical, different, alias-rename, multi-row, missing-row, and three empty-result permutations, with a self-describing <code>_meta</code> block.</td>
+            <td>8 <code>(gold, candidate, expected_verdict)</code> triples — one per relaxation and per boundary —
+            each pinning the <code>rules</code> it exercises, with a self-describing <code>_meta</code> block.</td>
           </tr>
           <tr>
             <td class="f"><code>fixtures/golden_compare/README.md</code></td>
             <td><span class="st M">M</span></td>
-            <td>One-line placeholder → full doc: fixture purpose, per-file layout, the case format, and the <code>rules</code> override.</td>
+            <td>Documents the new <code>value_shape.json</code> file in the per-file layout.</td>
           </tr>
           <tr>
             <td class="f"><code>tests/test_compare.py</code></td>
-            <td><span class="st A">A</span></td>
-            <td>Fixture-driven proof: loads every <code>*.json</code> as parametrized cases, a non-empty-fixture guard, plus contract tests (unknown-rule rejection, applied-rules logged, value-based verdict).</td>
+            <td><span class="st M">M</span></td>
+            <td>Rule-level unit tests (NULL sentinel mapping, float tolerance within/outside + Decimal/bool
+            handling, multiset default) and the combined <code>DEFAULT_RULES</code> assertion.</td>
           </tr>
         </tbody>
       </table>
     </section>
 
-    <section><h2><span class="num">5</span> Scope &amp; verification</h2><div class="card">
-      <p><b>Scope guard.</b> No order-sensitivity, NULL/float/column canonicalization, multiset, or BIRD reconciliation here — those are Issues #12–#14. The comparator stays deterministic: no LLM, no regex for SQL semantics.
-      <b>No <code class="k">RESULTS.md</code> entry</b> — this slice produces no benchmark number yet (numbers begin Step 3 onward).</p>
+    <section><h2><span class="num">6</span> Scope &amp; verification</h2><div class="card">
+      <p><b>Scope guard.</b> Row ordering stays in Issue 12 (not re-implemented here); BIRD reconciliation and the
+      whole-fixture Definition-of-Done sign-off are Issue 4 (#14). The comparator stays deterministic — no LLM,
+      no regex for SQL semantics. <b>No <code class="k">RESULTS.md</code> entry</b> — this slice produces no
+      benchmark number yet (numbers begin Step 3 onward).</p>
       <div class="done">
-        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 109 passed (11 new)</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 144 passed</p>
         <p style="margin:.2rem 0"><b>✓</b> <code>ruff check</code> + <code>ruff format --check</code> → clean</p>
-        <p style="margin:.2rem 0"><b>✓</b> All six acceptance criteria for Issue #11 met</p>
+        <p style="margin:.2rem 0"><b>✓</b> Comparator passes its <b>entire</b> golden fixture (CLAUDE.md §8, §10)</p>
+        <p style="margin:.2rem 0"><b>✓</b> All Issue #13 acceptance criteria met — now actually on <code>main</code> via #21</p>
       </div>
     </div></section>
 
     <footer>
-      Generated from git/<code>gh</code> for PR #15 · merge commit <code>7e7216b</code> ·
-      base <code>main</code> ← <code>step-2/issue-11-comparator-golden-fixture</code>
+      Regenerated for Issue #13 / PR #21 · re-land of mis-targeted PR #16 ·
+      base <code>main</code> ← <code>step-2/issue-13-value-shape-reland</code>
     </footer>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
