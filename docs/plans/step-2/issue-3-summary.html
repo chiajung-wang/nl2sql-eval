@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PR #16 — value &amp; shape canonicalization rules</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .st.D{color:var(--del);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35)}
+  .st.R{color:var(--accent-2);background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  table.fx{margin-top:.5rem}
+  table.fx td{font-size:.86rem}
+  .v{display:inline-block;font-size:.7rem;font-weight:700;padding:.05rem .45rem;border-radius:5px;text-transform:uppercase}
+  .v.ok{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .v.no{color:var(--del);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #16 · Step 2 · Open</span>
+    <h1>value &amp; shape canonicalization rules</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Status:</b> Open</span>
+      <span><b>Tip commit:</b> <code>7bedb1c</code></span>
+      <span><b>Closes:</b> Issue #13</span>
+      <span><b>Branch:</b> <code>step-2/issue-13-value-shape-canon</code> → <code>step-2/issue-11-…</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>The four substantive comparison rules that let equally-correct queries pass while still catching real semantic errors — each proven by its own golden triple.</b></p>
+      <p>This PR fills the Issue-11 canonicalization pipeline with its first real rules, all in <code class="k">eval/compare.py</code> and all deterministic:
+      <b>column matching by position</b>, <b>NULL-sentinel normalization</b>, and <b>float tolerance</b>. Each is a transform applied to
+      <em>both</em> sides, so it can only let a correct answer pass — never make a wrong one look right. <code class="k">compare()</code> itself is untouched;
+      the rules register through the existing <code class="k">register_rule()</code> seam and join the new <code class="k">DEFAULT_RULES</code>.</p>
+      <p>The fourth rule is the one that isn't there: <b>multiset semantics are the default by omission</b> of any de-dup rule, so a
+      <code class="k">COUNT</code> vs <code class="k">COUNT DISTINCT</code> row-multiplicity difference stays distinct and scores <b>wrong</b>.
+      Every relaxation and every boundary ships a <code class="k">(gold, candidate, expected_verdict)</code> triple that pins the exact rule it exercises.</p>
+      <div class="stats">
+        <div><b>4</b> files changed</div>
+        <div><b>+274 / −18</b> lines</div>
+        <div><b>8</b> new golden triples</div>
+        <div><b>6</b> new unit tests (123 total)</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> Key changes</h2><div class="grid">
+      <div class="group">
+        <h3><code>column_position</code> — match by position</h3>
+        <ul>
+          <li>Relabels columns to positional placeholders so an <b>alias / rename / relabel</b> of a correct query can't fail it.</li>
+          <li>Values transposed <em>between</em> positions still differ → caught.</li>
+          <li>Intentionally <b>inert against the row-only verdict</b>: <code>compare()</code> already matches values positionally — the rule <em>names and logs</em> that contract and is the seam for a future label-aware rule.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>null_sentinel</code> — one normal form for NULL</h3>
+        <ul>
+          <li>Every <code>None</code> collapses to <code>NULL_SENTINEL</code> so NULLs compare consistently across drivers and become hashable / orderable.</li>
+          <li>The sentinel is <b>distinct from any real value</b> — a NULL never silently equals <code>0</code>, <code>""</code>, or the string <code>"None"</code>.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>float_tolerance</code> — fixed, logged precision</h3>
+        <ul>
+          <li>Rounds <code>float</code>/<code>Decimal</code> cells to <code>FLOAT_DECIMALS = 6</code> before comparison; insignificant noise (an <code>AVG</code> off in the 9th digit) passes, a genuinely different number fails.</li>
+          <li><code>bool</code> (an <code>int</code> subclass) is left untouched; non-numeric cells pass through.</li>
+          <li>A module constant, not a per-call knob — keeps every verdict reproducible.</li>
+        </ul>
+      </div>
+      <div class="group warn">
+        <h3>Multiset — the rule that's absent</h3>
+        <ul>
+          <li><b>No de-dup rule exists</b>, so duplicates are kept and row multiplicity matters.</li>
+          <li><code>COUNT</code> vs <code>COUNT DISTINCT</code> → <b>incorrect</b>; under set semantics it would wrongly pass.</li>
+          <li>Equal multiplicities on both sides → correct.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>New <code>DEFAULT_RULES</code></h3>
+        <ul>
+          <li><code>column_position</code> → <code>null_sentinel</code> → <code>float_tolerance</code> → <code>exact</code>, always-on for a trustworthy scorer.</li>
+          <li>Kept explicit so every reported verdict names the exact canonicalization it ran under. Ordering (#12) and BIRD (#14) extend the same tuple.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>Scope guard held</h3>
+        <ul>
+          <li><b>No row-ordering</b> logic — that's Issue #12; <code>_map_cells</code> preserves order to avoid a double-sort.</li>
+          <li><b>No BIRD reconciliation</b> — that's Issue #14. Deterministic throughout: no LLM, no regex for SQL semantics.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Rule pipeline &amp; the boundaries each rule proves</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TB
+  GOLD["gold_result"] --> RG["ResultSet"]
+  CAND["candidate_result"] --> RC["ResultSet"]
+
+  subgraph PIPE["DEFAULT_RULES — applied to BOTH sides, in order, logged"]
+    direction TB
+    CP["column_position<br/>strip labels → positional"]:::rule
+    NS["null_sentinel<br/>None → NULL_SENTINEL"]:::rule
+    FT["float_tolerance<br/>round to 6 dp"]:::rule
+    EX["exact<br/>value equality"]:::rule
+    CP --> NS --> FT --> EX
+  end
+
+  RG --> PIPE
+  RC --> PIPE
+
+  EX --> CMP{"gold.rows == candidate.rows ?<br/>(multiset: duplicates kept, no de-dup rule)"}
+  CMP -->|equal| OK["Verdict.CORRECT"]:::ok
+  CMP -->|differ| BAD["Verdict.INCORRECT"]:::bad
+  OK --> LOG["log verdict + rules + gold_sql<br/>(never the rows — PII-safe)"]:::log
+  BAD --> LOG
+
+  subgraph FIX["fixtures/golden_compare/value_shape.json — 8 triples, each pins its rules"]
+    direction TB
+    F1["rename → correct &nbsp;·&nbsp; transposed → wrong"]
+    F2["NULL=NULL → correct &nbsp;·&nbsp; NULL≠0 → wrong"]
+    F3["within 6dp → correct &nbsp;·&nbsp; out → wrong"]
+    F4["COUNT vs DISTINCT → wrong &nbsp;·&nbsp; dups kept → correct"]
+  end
+  FIX -->|"(gold, candidate, expected_verdict)"| TESTS["tests/test_compare.py · uv run pytest"]:::test
+  TESTS -.asserts verdict.-> CMP
+
+  classDef rule fill:#e0f2fe,stroke:#0284c7,color:#075985;
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef bad fill:#fecaca,stroke:#dc2626,color:#7f1d1d;
+  classDef test fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  classDef log fill:#fef9c3,stroke:#ca8a04,color:#713f12;
+  class OK ok; class BAD bad; class TESTS test; class LOG log;</pre></div>
+      <p class="diagram-caption">All four default rules transform both sides before the value comparison. Multiset is the default —
+      there is deliberately no de-dup rule — so a row-multiplicity difference still differs. Each fixture triple pins the exact
+      <code>rules</code> it exercises, proving both the relaxation and its boundary.</p>
+    </section>
+
+    <section><h2><span class="num">4</span> Golden triples</h2><div class="card">
+      <table class="fx">
+        <thead><tr><th>Case</th><th>Rules</th><th>Verdict</th><th>Proves</th></tr></thead>
+        <tbody>
+          <tr><td><code>column-rename-positional-match</code></td><td><code>column_position, exact</code></td><td><span class="v ok">correct</span></td><td>Renamed labels, same values → positional match passes.</td></tr>
+          <tr><td><code>column-values-transposed-is-wrong</code></td><td><code>column_position, exact</code></td><td><span class="v no">incorrect</span></td><td>Values swapped between positions are still caught.</td></tr>
+          <tr><td><code>null-sentinel-matches</code></td><td><code>null_sentinel, exact</code></td><td><span class="v ok">correct</span></td><td>NULL vs NULL compares consistently.</td></tr>
+          <tr><td><code>null-is-not-zero</code></td><td><code>null_sentinel, exact</code></td><td><span class="v no">incorrect</span></td><td>NULL never silently equals <code>0</code>.</td></tr>
+          <tr><td><code>float-within-tolerance</code></td><td><code>float_tolerance, exact</code></td><td><span class="v ok">correct</span></td><td>9th-decimal noise rounds equal at 6 dp.</td></tr>
+          <tr><td><code>float-out-of-tolerance</code></td><td><code>float_tolerance, exact</code></td><td><span class="v no">incorrect</span></td><td>A genuinely different number still fails.</td></tr>
+          <tr><td><code>multiset-count-vs-count-distinct</code></td><td><code>exact</code></td><td><span class="v no">incorrect</span></td><td>Set semantics would wrongly pass; multiset catches it.</td></tr>
+          <tr><td><code>multiset-duplicates-preserved</code></td><td><code>exact</code></td><td><span class="v ok">correct</span></td><td>Equal multiplicities on both sides pass.</td></tr>
+        </tbody>
+      </table>
+    </div></section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="f"><code>eval/compare.py</code></td>
+            <td><span class="st M">M</span></td>
+            <td>Adds <code>column_position</code>, <code>null_sentinel</code>, <code>float_tolerance</code> rules + <code>_map_cells</code> helper, the <code>NULL_SENTINEL</code> / <code>FLOAT_DECIMALS</code> constants, and the new four-rule <code>DEFAULT_RULES</code>. <code>compare()</code> unchanged. Docstrings make multiset-by-omission and the inert-by-design <code>column_position</code> explicit.</td>
+          </tr>
+          <tr>
+            <td class="f"><code>fixtures/golden_compare/value_shape.json</code></td>
+            <td><span class="st A">A</span></td>
+            <td>The deliverable: 8 triples, each pinning the exact <code>rules</code> it exercises — rename-pass/transpose-fail, NULL-match/NULL-is-not-zero, float within/out, multiset fail/pass — with a self-describing <code>_meta</code> block.</td>
+          </tr>
+          <tr>
+            <td class="f"><code>tests/test_compare.py</code></td>
+            <td><span class="st M">M</span></td>
+            <td>6 new unit tests pinning each rule's contract directly: default-rules carry the canonicalization, sentinel value &amp; NULL-vs-real-value distinctness, float tolerance pass/fail, <code>Decimal</code> rounding with <code>bool</code> passthrough, multiset COUNT-vs-DISTINCT.</td>
+          </tr>
+          <tr>
+            <td class="f"><code>fixtures/golden_compare/README.md</code></td>
+            <td><span class="st M">M</span></td>
+            <td>Documents <code>value_shape.json</code> and narrows the "later issues" note to the remaining rules (ordering, BIRD).</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Scope &amp; verification</h2><div class="card">
+      <p><b>Scope guard.</b> No row-ordering (Issue #12), no BIRD reconciliation or whole-fixture sign-off (Issue #14). The comparator stays deterministic — no LLM, no regex for SQL semantics, rules applied to both sides.
+      <b>No <code class="k">RESULTS.md</code> entry</b> — this slice produces no benchmark number (numbers begin Step 3 onward).</p>
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 123 passed (entire golden fixture green)</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>ruff check</code> + <code>ruff format --check</code> → clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> All six acceptance criteria for Issue #13 met</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated from git/<code>gh</code> for PR #16 · tip <code>7bedb1c</code> ·
+      base <code>step-2/issue-11-comparator-golden-fixture</code> ← <code>step-2/issue-13-value-shape-canon</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
