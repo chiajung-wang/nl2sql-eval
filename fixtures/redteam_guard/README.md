@@ -27,8 +27,8 @@ over (reported in `RESULTS.md` at the close of Step 4).
 ## Coverage (filled in across Step 4)
 
 - `read_only.json` — write/DDL rejection + benign read-only allows (Issue 1).
-- _dangerous-op cases_ — stacked statements, `ATTACH`/`DETACH`, write-bearing
-  `PRAGMA` (next issue).
+- `dangerous_op.json` — stacked statements, `ATTACH`/`DETACH`, `PRAGMA`, and
+  unmodeled commands (Issue 2).
 - _cost/complexity cases_ — cartesian bombs, unbounded scans (next issue).
 - _prompt-injection NL prompts_ — natural-language attempts to induce dangerous
   SQL, with expected verdicts (Step 4 DoD issue).
