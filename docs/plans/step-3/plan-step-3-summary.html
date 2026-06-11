@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Step 3 — minimal harness + first BIRD slice numbers (plan)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.25rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .group .meta-row{margin-top:.6rem;font-size:.78rem;color:var(--muted)}
+  .group .meta-row a{color:var(--accent-2);text-decoration:none}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .pill{display:inline-block;font-size:.74rem;font-weight:600;padding:.12rem .55rem;border-radius:999px;margin:.15rem .25rem .15rem 0}
+  .pill.tt{color:var(--accent);background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3)}
+  .pill.ok{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3)}
+  .pill.risk{color:var(--del);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.r code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">Plan · Step 3 · Foundation · Phase 1 DoD</span>
+    <h1>minimal harness + first BIRD slice numbers</h1>
+    <div class="meta">
+      <span><b>Phase:</b> Foundation (measurement apparatus)</span>
+      <span><b>Depends on:</b> Step 1 (pipeline) · Step 2 (validated comparator)</span>
+      <span><b>Unblocks:</b> Step 4+ (guardrails, retrieval, correction — all measured)</span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Headline &amp; goal</h2><div class="card">
+      <p class="lede"><b>Produce the first <em>trustworthy</em> measured claim.</b></p>
+      <p>Wire the batch harness and produce the first real <b>pass@1</b> on BIRD — using the
+      now-validated comparator from Step 2. This is the project's thesis made concrete: a
+      <em>measured claim</em>, not a working toy. With no self-correction yet, <b>pass@1</b> is the
+      only meaningful metric; the number is explicitly the <b>naive schema-dump baseline</b> —
+      the "before" that Step 6's retrieval will lift (CLAUDE.md §6, PRD §9).</p>
+      <div class="stats">
+        <div><b>2</b> new modules — <code class="k">harness.py</code>, <code class="k">metrics.py</code></div>
+        <div><b>1</b> frozen, seeded slice</div>
+        <div><b>pass@1</b> the only metric (no correction yet)</div>
+        <div><b>1st</b> mandatory <code class="k">RESULTS.md</code> row</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> What to build</h2><div class="grid">
+      <div class="group">
+        <h3><code>eval/harness.py</code> — the batch runner</h3>
+        <ul>
+          <li>Iterate a test set → invoke the <b>shared-import</b> pipeline (never a copy) → score each via <code>compare.py</code> → bucket the terminal state.</li>
+          <li><b>Batch-capable, offline, repeatable</b> — invokable as a job, not only behind the demo. This is what enables prompt-CI later.</li>
+          <li>Emit <b>pass@1</b>.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>eval/datasets/bird/</code> + frozen slice</h3>
+        <ul>
+          <li>Loader/adapter for BIRD: SQLite, <b>file-per-db</b>; run each question against its <b>tagged</b> db (single-db per run; no routing).</li>
+          <li><b>Frozen, seeded</b> slice from <b>smaller-schema</b> dbs first, checked in as an <b>explicit ID list</b>.</li>
+          <li>Small-schema-first keeps the baseline honest — large schemas overflow the prompt and tank accuracy for reasons unrelated to generation.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>eval/metrics.py</code> — aggregation</h3>
+        <ul>
+          <li>Accuracy aggregation + the <b>terminal-state classifier</b> (lives here, <b>not</b> in <code>state.py</code> — CLAUDE.md §3).</li>
+          <li>Every run buckets into exactly one terminal state.</li>
+          <li>Computes pass@1 over the batch.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Issue breakdown (tracer-bullet slices)</h2><div class="grid">
+      <div class="group">
+        <h3>Issue 1 — Harness + metrics, proven on payments gold</h3>
+        <ul>
+          <li>The harness machinery validated <b>end-to-end on trusted ground</b> before BIRD — no download needed yet.</li>
+          <li>Harness + metrics + classifier + scoring, all green on the verified payments questions.</li>
+        </ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · no blockers · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/26">#26</a></div>
+      </div>
+      <div class="group">
+        <h3>Issue 2 — BIRD loader + frozen small-schema slice</h3>
+        <ul>
+          <li>The dataset adapter + the frozen, seeded ID list that anchors every future number.</li>
+          <li>Demoable: load → one BIRD question runs against its tagged db → scored.</li>
+        </ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · parallel with Issue 1 · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/27">#27</a></div>
+      </div>
+      <div class="group" style="border-left-color:var(--add)">
+        <h3>Issue 3 — First BIRD pass@1 + <code>RESULTS.md</code></h3>
+        <ul>
+          <li>Run the harness over the frozen slice → first <b>pass@1</b> → the mandated <code>RESULTS.md</code> row.</li>
+          <li><b>Phase 1 Definition of Done.</b></li>
+        </ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · blocked by #26, #27 · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/28">#28</a></div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">4</span> Harness flow → first number</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TB
+  subgraph SLICE["frozen, seeded BIRD slice (small-schema)"]
+    direction TB
+    IDS["checked-in ID list"]
+    BIRD["eval/datasets/bird/ — SQLite, file-per-db"]
+  end
+
+  IDS --> LOAD["load question + tagged db"]
+  BIRD --> LOAD
+
+  subgraph HARNESS["eval/harness.py — batch, offline, repeatable"]
+    direction TB
+    PIPE["shared-import pipeline (no copy)"]
+    SCORE["score via eval/compare.py (Step 2)"]
+    CLS["classify terminal state (metrics.py)"]
+    PIPE --> SCORE --> CLS
+  end
+
+  LOAD --> HARNESS
+  CLS --> AGG["aggregate pass@1 (metrics.py)"]
+  AGG --> RES["RESULTS.md row:<br/>date · model · slice · prompt ver · commit · pass@1<br/>note: naive schema-dump baseline"]:::ok
+
+  PG["payments verified gold set"] -.validates harness first.-> HARNESS
+
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  class RES ok;</pre></div>
+      <p class="diagram-caption">The harness validates itself on the trusted payments gold set, then runs
+      the frozen BIRD slice through the <b>same shared pipeline</b> and the <b>Step-2 comparator</b>.
+      pass@1 is aggregated and written to <code>RESULTS.md</code> with full config — the first
+      trustworthy measured claim.</p>
+    </section>
+
+    <section><h2><span class="num">5</span> Done when &amp; results log</h2>
+      <div class="done">
+        <p style="margin:.2rem 0"><b>Done when:</b> you have your first real <b>pass@1</b> on the frozen,
+        small-schema BIRD slice, produced by the validated comparator.</p>
+        <p style="margin:.6rem 0 .2rem" class="note"><b>The results log starts here and is now
+        mandatory.</b> Append to <code class="k">RESULTS.md</code>: date, model, slice ID, prompt
+        version, commit, pass@1, and a one-line note ("naive schema-dump baseline, small-schema slice").
+        From here on, <b>no step's done-when is met until its number is in <code>RESULTS.md</code> with
+        full config</b> (CLAUDE.md §6).</p>
+      </div>
+    </section>
+
+    <section><h2><span class="num">6</span> Pitfalls</h2>
+      <div class="card" style="padding:.4rem">
+        <table><thead><tr><th>Pitfall</th><th>Severity</th><th>Why it bites</th></tr></thead><tbody>
+          <tr><td class="r">Large-schema dbs in the slice</td>
+              <td><span class="pill risk">baseline</span></td>
+              <td class="note">With no retrieval, the whole schema is dumped into the prompt; large schemas overflow context and tank accuracy for reasons unrelated to generation — contaminating the baseline.</td></tr>
+          <tr><td class="r">String-comparing SQL</td>
+              <td><span class="pill risk">correctness</span></td>
+              <td class="note">Only result sets, via <code>compare.py</code>. Two different queries can be equally correct.</td></tr>
+          <tr><td class="r">Pipeline drift</td>
+              <td><span class="pill tt">integrity</span></td>
+              <td class="note">The harness must invoke the <em>same</em> pipeline as the demo (shared import). A forked copy means you measure something you don't ship.</td></tr>
+          <tr><td class="r">Unlabeled modest number</td>
+              <td><span class="pill tt">narrative</span></td>
+              <td class="note">A low pass@1 is a <em>feature</em> of the story — the "before" — only if it's explicitly labeled the naive schema-dump baseline.</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <section><h2><span class="num">7</span> Guardrails for this step</h2><div class="grid">
+      <div class="group warn">
+        <h3>Never (anti-patterns)</h3>
+        <ul>
+          <li>Compare SQL by <b>string-match</b> — result sets only via <code>compare.py</code> (CLAUDE.md §7).</li>
+          <li><b>Fork the pipeline</b> for the harness — shared import, no drift (CLAUDE.md §3).</li>
+          <li>Put the <b>terminal-state classifier in <code>state.py</code></b> — it lives in the harness/metrics.</li>
+          <li>Report a number <b>without a <code>RESULTS.md</code> entry</b> (now mandatory).</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>Always</h3>
+        <ul>
+          <li>Keep the slice <b>frozen, seeded, stratified</b> and checked in as an explicit ID list.</li>
+          <li>Validate the harness on <b>trusted ground</b> (payments gold) before BIRD.</li>
+          <li>Tie every reported number to <b>model, slice ID, prompt version, date, commit</b>.</li>
+          <li>Keep <code class="k">eval/</code> a <b>peer</b> of <code class="k">src/</code>.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <footer>Step 3 plan summary — source: <code>docs/plans/step-3/plan-step-3.md</code> · slices: <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/26">#26</a> · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/27">#27</a> · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/28">#28</a> · derived from PRD §9 and CLAUDE.md §3/§6 · diagram renders with network access (Mermaid CDN)</footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
