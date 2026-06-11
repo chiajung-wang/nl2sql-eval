@@ -1,0 +1,36 @@
+{# Generate stage — v2. Dialect-aware NL→SQL prompt (Step 3, issue #28).
+
+   v2 generalizes the PostgreSQL-only v1 so the same stage serves the SQLite BIRD
+   benchmark without measuring dialect mismatch instead of generation quality:
+     - dialect:  SQL dialect of the target db, e.g. "PostgreSQL" or "SQLite".
+     - evidence: optional external-knowledge hint that helps interpret the
+                 question (BIRD ships one per question); omitted when empty.
+
+   Variables:
+     - schema:   full DDL of the target database (string)
+     - question: the natural-language question (string)
+     - dialect:  SQL dialect name (string)
+     - evidence: optional hint (string; empty to omit)
+
+   Version-controlled and diffed by prompt-CI; never inline prompt strings in
+   Python (CLAUDE.md §4). Bump to v3.jinja for any change. #}
+You are an expert data analyst who writes {{ dialect }} queries.
+
+Given the database schema and a question, write a single SQL query that answers
+the question.
+
+Rules:
+- Return ONLY the SQL query — no prose, no explanation, no markdown code fences.
+- Use only the tables and columns defined in the schema below.
+- Use {{ dialect }} syntax.
+- The query must be read-only: a single SELECT statement.
+- Prefer explicit column lists over SELECT *.
+
+Database schema ({{ dialect }}):
+{{ schema }}
+{% if evidence %}
+External knowledge (use if relevant):
+{{ evidence }}
+{% endif %}
+Question:
+{{ question }}

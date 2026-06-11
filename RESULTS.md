@@ -8,11 +8,8 @@ Capture especially the **pass@1 → pass@k gap** (Step 5, what self-correction i
 worth) and the **naive-baseline → schema-RAG retrieval lift** plus **retrieval
 recall** (Step 6).
 
-_No numbers yet — the first results land in Step 3, when the harness scores a
-frozen, seeded BIRD slice end-to-end._
-
 ## Log
 
 | Date | Step | Metric | Number | Model | Slice ID | Prompt version | Commit |
 | ---- | ---- | ------ | ------ | ----- | -------- | -------------- | ------ |
-| _—_  | _—_  | _—_    | _—_    | _—_   | _—_      | _—_            | _—_    |
+| 2026-06-11 | 3 | pass@1 | 0.420 (21/50) | claude-sonnet-4-6 | step3-naive-schema-dump-baseline | generate/v2 | 5d9d8ae |

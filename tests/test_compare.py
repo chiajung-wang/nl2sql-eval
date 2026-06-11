@@ -128,6 +128,18 @@ def test_order_detection_ignores_order_by_inside_a_string_literal():
     assert _gold_order_is_significant(gold_sql) is False
 
 
+def test_order_detection_parses_sqlite_backtick_identifiers():
+    # BIRD gold uses SQLite backtick-quoted identifiers the generic sqlglot
+    # parser rejects; the comparator must still see the top-level ORDER BY (via
+    # the SQLite-dialect fallback) rather than silently going order-insensitive.
+    assert (
+        _gold_order_is_significant("SELECT a FROM t ORDER BY `Avg Score` DESC") is True
+    )
+    # A backtick ORDER BY confined to a subquery is still not significant.
+    sub = "SELECT a FROM (SELECT a FROM t ORDER BY `x`) s"
+    assert _gold_order_is_significant(sub) is False
+
+
 def test_default_rules_are_the_full_canonicalization_pipeline():
     # The default pipeline is the robust one: position-based columns, NULL
     # normalization, and float tolerance (Issue 13) run BEFORE order-insensitivity
