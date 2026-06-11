@@ -53,24 +53,29 @@ def classify_terminal_state(
 ) -> TerminalState:
     """Bucket a finished run into exactly one terminal state.
 
-    Reachable as of Step 3:
+    Reachable as of Step 4:
 
+    - a candidate the guard gate rejected pre-execution → ``GUARDRAIL_REJECTED``;
     - a captured error → ``EXECUTION_ERROR_FINAL``;
     - a clean run whose result the comparator judged wrong → ``WRONG_ANSWER``;
     - a clean run whose result matched gold → ``SUCCESS``.
 
-    ``comparison`` is the scorer's verdict (``None`` when the run errored and was
-    never scored, or for callers that only classify execution outcome — e.g. the
-    Step-1 proof, which passes no comparison and so never sees ``WRONG_ANSWER``).
-    The ``GUARDRAIL_REJECTED``, ``RETRIEVAL_EMPTY``, and ``RETRY_EXHAUSTED`` states
-    become reachable only as those stages land (Step 4–6). The classifier lives
-    in the harness, never in ``state.py`` (CLAUDE.md §3).
+    The guard check comes first: a rejected candidate never executed and was never
+    scored, so it must not fall through to the error/answer buckets. ``comparison``
+    is the scorer's verdict (``None`` when the run errored or was guard-rejected
+    and so never scored, or for callers that only classify execution outcome —
+    e.g. the Step-1 proof, which passes no comparison and so never sees
+    ``WRONG_ANSWER``). ``RETRIEVAL_EMPTY`` and ``RETRY_EXHAUSTED`` become reachable
+    only as those stages land (Step 5–6). The classifier lives in the harness,
+    never in ``state.py`` (CLAUDE.md §3).
 
     Step-1 caveat (unchanged): a *generation* gap (``execute`` sets ``state.error``
     when no SQL was produced) also buckets as ``EXECUTION_ERROR_FINAL``, since
     ``generate`` has no retry budget yet; a generation-failure state splits this
     out when self-correction lands (Step 5).
     """
+    if state.guard_rejected:
+        return TerminalState.GUARDRAIL_REJECTED
     if state.error is not None:
         return TerminalState.EXECUTION_ERROR_FINAL
     if comparison is not None and not comparison.correct:
@@ -86,10 +91,11 @@ def score_run(
     Scoring is on the **raw verified result** — ``state.result_rows`` — which is
     correct only because the pipeline has no ``redact`` stage yet; once it does,
     this must score the raw exit, never the presented one (CLAUDE.md §5.2). A run
-    that errored is not scored (there is no candidate result to compare).
+    that errored or was guard-rejected is not scored (there is no candidate result
+    to compare).
     """
     comparison: Comparison | None = None
-    if state.error is None:
+    if not state.guard_rejected and state.error is None:
         candidate = {
             "columns": state.result_columns or [],
             "rows": state.result_rows or [],
@@ -116,11 +122,12 @@ def run_batch(
         state = run_one(case)
         comparison, terminal = score_run(state, case, rules=rules)
         correct = terminal is TerminalState.SUCCESS
-        note = (
-            state.error
-            if state.error is not None
-            else (comparison.reason if comparison is not None else None)
-        )
+        if state.guard_rejected:
+            note = state.guard_reason
+        elif state.error is not None:
+            note = state.error
+        else:
+            note = comparison.reason if comparison is not None else None
         results.append(
             CaseResult(
                 case_id=case.id,
