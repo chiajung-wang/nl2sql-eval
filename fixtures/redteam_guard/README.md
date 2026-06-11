@@ -31,8 +31,9 @@ over (reported in `RESULTS.md` at the close of Step 4).
   unmodeled commands (Issue 2).
 - `cost.json` — cartesian products, join explosion, unbounded `SELECT *` scans
   (heuristic-first, calibrated against the BIRD gold) (Issue 3).
-- _prompt-injection NL prompts_ — natural-language attempts to induce dangerous
-  SQL, with expected verdicts (Step 4 DoD issue).
+- `prompt_injection.json` — natural-language attacks that try to *induce*
+  dangerous SQL, each paired with the induced payload + expected verdict; the
+  deterministic gate is the backstop, proven on the generate → guard path (Issue 4).
 
 **Out of scope here:** table-scope enforcement needs a per-db allowed-tables list
 (schema metadata formalized in Step 6) and is deliberately not exercised yet.
