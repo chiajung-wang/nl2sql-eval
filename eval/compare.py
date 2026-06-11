@@ -116,6 +116,27 @@ def _exact(result: ResultSet, ctx: RuleContext) -> ResultSet:
     return result
 
 
+# Dialects tried, in order, to parse the gold SQL for ORDER BY detection. The
+# generic parser first; then SQLite, whose backtick-quoted identifiers (e.g.
+# ``ORDER BY `Avg Score```) the BIRD gold uses and the generic parser rejects.
+# Detection is structural (does a top-level ORDER BY exist), so a dialect that
+# merely *parses* the statement is enough — never regex (CLAUDE.md §4).
+_PARSE_DIALECTS: tuple[str | None, ...] = (None, "sqlite")
+
+
+def _parse_gold(gold_sql: str) -> exp.Expression | None:
+    """Parse the gold SQL, trying each known dialect; ``None`` if all fail."""
+    for dialect in _PARSE_DIALECTS:
+        try:
+            return sqlglot.parse_one(gold_sql, dialect=dialect)
+        except ParseError:
+            continue
+    # Unparseable under every dialect: fall back to order-insensitive (the
+    # default) rather than silently asserting that order matters.
+    logger.warning("could not parse gold_sql for ORDER BY detection: %r", gold_sql)
+    return None
+
+
 def _gold_order_is_significant(gold_sql: str) -> bool:
     """True when the gold query's *output* row order is part of correctness.
 
@@ -126,14 +147,7 @@ def _gold_order_is_significant(gold_sql: str) -> bool:
     attached only to the outermost SELECT / set-operation node, so an inner
     ``ORDER BY`` lives on the inner node and is correctly skipped.
     """
-    try:
-        expression = sqlglot.parse_one(gold_sql)
-    except ParseError:
-        # Gold SQL is validated upstream; an unparseable string here is a harness
-        # bug, not a correctness signal. Fall back to order-insensitive (the
-        # default) rather than silently asserting that order matters.
-        logger.warning("could not parse gold_sql for ORDER BY detection: %r", gold_sql)
-        return False
+    expression = _parse_gold(gold_sql)
     if expression is None:
         return False
     # Unwrap a parenthesized whole query, e.g. ``(SELECT ... ORDER BY ...)``, so
