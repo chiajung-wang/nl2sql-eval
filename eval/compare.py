@@ -289,6 +289,11 @@ def _set(result: ResultSet, ctx: RuleContext) -> ResultSet:
     re-sorted by :func:`_row_sort_key` after de-duplication so the canonical form
     is deterministic on both sides; like ``order_insensitive`` it never consults
     the gold SQL, so it ignores ``ORDER BY`` the way BIRD does.
+
+    Requires hashable cells — true of every scalar a SQL driver returns
+    (``int``, ``float``, ``Decimal``, ``str``, ``bytes``, ``None``, dates), which
+    is the comparator's data model throughout. This mirrors BIRD itself, whose
+    ``set(fetchall())`` carries the same assumption.
     """
     unique = set(result.rows)
     return ResultSet(
