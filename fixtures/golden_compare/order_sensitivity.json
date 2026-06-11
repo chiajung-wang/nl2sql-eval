@@ -53,6 +53,30 @@
       "gold_result": {"columns": ["name", "country"], "rows": [["CloudNine SaaS", "US"], ["DevTools Inc", "CA"]]},
       "candidate_result": {"columns": ["name", "country"], "rows": [["DevTools Inc", "CA"], ["CloudNine SaaS", "US"]]},
       "expected_verdict": "correct"
+    },
+    {
+      "id": "order-significant-on-set-operation-wrong-order-incorrect",
+      "description": "Gold's top-level ORDER BY sits on a set operation (UNION); it governs the final output order, so a same-rows/wrong-order candidate → incorrect. Detection must read `order` off the outermost set-op node, not only a bare SELECT.",
+      "gold_sql": "SELECT name FROM merchants UNION SELECT name FROM partners ORDER BY name;",
+      "gold_result": {"columns": ["name"], "rows": [["Acme Co"], ["Beta LLC"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["Beta LLC"], ["Acme Co"]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "order-significant-parenthesized-query-wrong-order-incorrect",
+      "description": "A parenthesized whole query keeps its ORDER BY top-level; after unwrapping the outer Subquery node the order is significant, so a same-rows/wrong-order candidate → incorrect.",
+      "gold_sql": "(SELECT name FROM merchants ORDER BY signup_date);",
+      "gold_result": {"columns": ["name"], "rows": [["DevTools Inc"], ["CloudNine SaaS"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "unparseable-gold-falls-back-to-order-insensitive-correct",
+      "description": "Gold SQL that sqlglot cannot parse raises ParseError; rather than asserting order matters, detection falls back to order-insensitive, so a different-order candidate → correct. Gold SQL is validated upstream — this is the safe default for a harness bug.",
+      "gold_sql": "!!! not valid sql @@@",
+      "gold_result": {"columns": ["name"], "rows": [["CloudNine SaaS"], ["DevTools Inc"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["DevTools Inc"], ["CloudNine SaaS"]]},
+      "expected_verdict": "correct"
     }
   ]
 }
