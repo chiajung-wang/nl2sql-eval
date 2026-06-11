@@ -1,0 +1,149 @@
+"""Offline proof of the batch harness + metrics (Step 3, Issue 1).
+
+No database, no network: the per-question runner is injected as a stub returning
+canned ``RunState``s, so the harness's scoring, terminal-state classification, and
+pass@1 aggregation are exercised deterministically. The live payments run
+(``eval.eval_payments``) is the AFK proof against trusted ground; these tests
+guard the logic underneath it.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from eval.compare import Verdict, compare
+from eval.harness import Case, classify_terminal_state, run_batch, score_run
+from eval.metrics import BatchReport, CaseResult
+from nl2sql.pipeline.state import RunState, TerminalState
+
+
+def _state(
+    *,
+    columns: list[str] | None = None,
+    rows: list[tuple[Any, ...]] | None = None,
+    error: str | None = None,
+    sql: str | None = "SELECT 1",
+) -> RunState:
+    s = RunState(question="q", db_id="payments")
+    s.candidate_sql = sql
+    s.result_columns = columns
+    s.result_rows = rows
+    s.error = error
+    return s
+
+
+def _case(
+    cid: str,
+    gold_rows: list[list[Any]],
+    *,
+    gold_sql: str = "SELECT n FROM t",
+    difficulty: str | None = None,
+) -> Case:
+    return Case(
+        id=cid,
+        question="q",
+        db_id="payments",
+        gold_sql=gold_sql,
+        gold_result={"columns": ["n"], "rows": gold_rows},
+        difficulty=difficulty,
+    )
+
+
+# --- the classifier --------------------------------------------------------
+
+
+def test_error_run_buckets_execution_error_final():
+    assert (
+        classify_terminal_state(_state(error="boom"))
+        is TerminalState.EXECUTION_ERROR_FINAL
+    )
+
+
+def test_correct_run_buckets_success():
+    ok = compare(
+        {"columns": ["n"], "rows": [[1]]}, {"columns": ["n"], "rows": [[1]]}, ""
+    )
+    assert classify_terminal_state(_state(), ok) is TerminalState.SUCCESS
+
+
+def test_clean_but_wrong_run_buckets_wrong_answer():
+    wrong = compare(
+        {"columns": ["n"], "rows": [[1]]}, {"columns": ["n"], "rows": [[2]]}, ""
+    )
+    assert classify_terminal_state(_state(), wrong) is TerminalState.WRONG_ANSWER
+
+
+def test_no_comparison_is_backward_compatible_success():
+    # The Step-1 proof calls the classifier with no comparison; it must still
+    # bucket a clean run as SUCCESS (never WRONG_ANSWER) — back-compat.
+    assert classify_terminal_state(_state()) is TerminalState.SUCCESS
+
+
+# --- score_run: builds the candidate from the RunState ---------------------
+
+
+def test_score_run_scores_raw_result_rows():
+    state = _state(columns=["n"], rows=[(3,)])
+    comparison, terminal = score_run(state, _case("c", [[3]]))
+    assert comparison is not None and comparison.verdict is Verdict.CORRECT
+    assert terminal is TerminalState.SUCCESS
+
+
+def test_score_run_does_not_score_an_errored_run():
+    comparison, terminal = score_run(_state(error="boom"), _case("c", [[3]]))
+    assert comparison is None
+    assert terminal is TerminalState.EXECUTION_ERROR_FINAL
+
+
+# --- run_batch + aggregation -----------------------------------------------
+
+
+def test_run_batch_aggregates_pass_at_1_and_terminal_mix():
+    cases = [
+        _case("ok", [[1]], difficulty="simple"),
+        _case("wrong", [[1]], difficulty="simple"),
+        _case("err", [[1]], difficulty="hard"),
+    ]
+    states = {
+        "ok": _state(columns=["n"], rows=[(1,)]),
+        "wrong": _state(columns=["n"], rows=[(2,)]),
+        "err": _state(error="syntax error"),
+    }
+    report = run_batch(cases, lambda c: states[c.id])
+
+    assert report.total == 3
+    assert report.n_correct == 1
+    assert report.pass_at_1 == 1 / 3
+    counts = report.terminal_counts()
+    assert counts[TerminalState.SUCCESS] == 1
+    assert counts[TerminalState.WRONG_ANSWER] == 1
+    assert counts[TerminalState.EXECUTION_ERROR_FINAL] == 1
+    assert report.pass_at_1_by("difficulty") == {"simple": 0.5, "hard": 0.0}
+
+
+def test_run_batch_routes_through_the_order_aware_comparator():
+    # The harness must actually use the Step-2 comparator, not a string/exact
+    # check: an unordered gold passes reordered rows; an ORDER BY gold does not.
+    unordered = _case("u", [["a"], ["b"]], gold_sql="SELECT name FROM t")
+    ordered = _case("o", [["a"], ["b"]], gold_sql="SELECT name FROM t ORDER BY name")
+    reordered = _state(columns=["name"], rows=[("b",), ("a",)])
+    report = run_batch([unordered, ordered], lambda c: reordered)
+
+    by_id = {r.case_id: r for r in report.results}
+    assert by_id["u"].terminal_state is TerminalState.SUCCESS
+    assert by_id["o"].terminal_state is TerminalState.WRONG_ANSWER
+
+
+def test_empty_batch_pass_at_1_is_zero_not_error():
+    assert BatchReport(()).pass_at_1 == 0.0
+
+
+def test_case_result_note_never_carries_rows():
+    # The note is the comparator's reason or the error text — explainability
+    # without leaking result values into a report/log (CLAUDE.md §5.3).
+    report = run_batch(
+        [_case("ok", [[1]])], lambda c: _state(columns=["n"], rows=[(1,)])
+    )
+    note = report.results[0].note
+    assert note == "result sets match"
+    assert isinstance(report.results[0], CaseResult)
