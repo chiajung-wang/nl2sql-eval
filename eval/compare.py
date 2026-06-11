@@ -139,8 +139,13 @@ def _column_position(result: ResultSet) -> ResultSet:
     rename, or relabel of an otherwise-correct query cannot fail it. The verdict
     is computed from row *values* in positional order; a genuine column-order
     error (values transposed between positions) still differs and is caught.
-    This rule makes the value-only, position-based matching explicit and logged
-    — it is the seam where a stricter label-aware rule could later be swapped in.
+
+    This rule **cannot change a verdict on its own**: ``compare()`` already
+    compares row *values* positionally and never looks at column labels, so
+    rows are matched by position regardless. Its job is to *name and log* that
+    contract — making the value-only, position-based matching explicit — and to
+    serve as the seam where a stricter label-aware rule could later be swapped
+    in. It is intentionally inert against the current row-only comparison.
     """
     columns = tuple(f"col_{i}" for i in range(len(result.columns)))
     return ResultSet(columns=columns, rows=result.rows)
