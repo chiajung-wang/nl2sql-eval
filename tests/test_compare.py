@@ -18,6 +18,7 @@ import pytest
 
 from eval.compare import _RULES as RULES
 from eval.compare import (
+    BIRD_RULES,
     DEFAULT_RULES,
     FLOAT_DECIMALS,
     NULL_SENTINEL,
@@ -200,3 +201,51 @@ def test_multiset_is_the_default_count_vs_count_distinct_is_wrong():
         "SELECT status FROM payments;",
     )
     assert result.verdict is Verdict.INCORRECT
+
+
+# --- Issue 14: BIRD-evaluator alignment -------------------------------------
+
+
+def test_set_rule_dedups_and_is_order_insensitive():
+    # The 'set' rule is the BIRD primitive: it collapses duplicates AND sorts to
+    # a canonical order, regardless of the gold's ORDER BY (it never reads it).
+    rule = RULES["set"]
+    out = rule(
+        ResultSet(columns=("s",), rows=(("paid",), ("failed",), ("paid",))),
+        RuleContext(gold_sql="SELECT s FROM t ORDER BY s"),
+    )
+    assert out.rows == (("failed",), ("paid",))
+
+
+def test_bird_rules_reproduce_set_comparison_semantics():
+    # BIRD_RULES == set(predicted) == set(ground_truth): order- and
+    # duplicate-insensitive. A reordered, de-duplicated candidate passes.
+    result = compare(
+        {"columns": ["s"], "rows": [["a"], ["a"], ["b"]]},
+        {"columns": ["s"], "rows": [["b"], ["a"]]},
+        "SELECT s FROM t ORDER BY s",
+        rules=BIRD_RULES,
+    )
+    assert result.correct
+    assert result.applied_rules == BIRD_RULES
+
+
+def test_default_and_bird_rules_diverge_on_the_same_data():
+    # The whole point of Issue 14: on data where row order matters (gold ORDER
+    # BY) and duplicates differ, BIRD's set() passes what our default rejects.
+    # The gap between the two verdicts is exactly what BIRD's evaluator masks.
+    gold = {"columns": ["s"], "rows": [["a"], ["a"], ["b"]]}
+    candidate = {"columns": ["s"], "rows": [["b"], ["a"]]}
+    gold_sql = "SELECT s FROM t ORDER BY s"
+    assert compare(gold, candidate, gold_sql, rules=BIRD_RULES).correct
+    assert compare(gold, candidate, gold_sql).verdict is Verdict.INCORRECT
+
+
+def test_bird_rules_have_no_float_tolerance():
+    # BIRD compares floats exactly; BIRD_RULES omits float_tolerance, so 9th-
+    # decimal noise that our default forgives is judged wrong under BIRD.
+    gold = {"columns": ["avg"], "rows": [[42.66666667]]}
+    near = {"columns": ["avg"], "rows": [[42.666666673]]}
+    assert "float_tolerance" not in BIRD_RULES
+    assert compare(gold, near, "", rules=BIRD_RULES).verdict is Verdict.INCORRECT
+    assert compare(gold, near, "").correct  # default forgives it

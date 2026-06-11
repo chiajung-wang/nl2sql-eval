@@ -1,0 +1,106 @@
+{
+  "_meta": {
+    "fixture": "golden_compare/bird_alignment",
+    "purpose": "Proves Issue-14 BIRD-evaluator alignment: where our default comparator matches the official BIRD evaluator (set(predicted) == set(ground_truth)) and — crucially — where it deliberately diverges. Each divergence is pinned as a PAIR of triples on the same data: one under BIRD_RULES (the 'set' rule, reproducing BIRD's verdict) and one under DEFAULT_RULES (our stricter / more lenient verdict). 'BIRD-aligned' is thus proven by the fixture, not asserted. Full audit + rationale: docs/eval/comparator-rule-set.md.",
+    "format": "Each case: {id, description, gold_sql, gold_result:{columns,rows}, candidate_result:{columns,rows}, expected_verdict, rules?:[...]}. Cases with 'rules':['column_position','set','exact'] reproduce BIRD's set-comparison; cases without 'rules' use eval.compare.DEFAULT_RULES (our default). Loaded automatically by tests/test_compare.py.",
+    "bird_reference": "set(predicted_res) == set(ground_truth_res) over cursor.fetchall(), from AlibabaResearch/DAMO-ConvAI bird/llm/src/evaluation.py — order-insensitive, duplicate-collapsing, no float tolerance."
+  },
+  "cases": [
+    {
+      "id": "divergence-multiset__bird-collapses-duplicates",
+      "description": "Gold keeps duplicate rows, candidate collapsed them (COUNT vs COUNT DISTINCT). Under BIRD's set() the duplicate is dropped on both sides, so the multiplicity loss is invisible → BIRD says correct.",
+      "gold_sql": "SELECT status FROM payments;",
+      "gold_result": {"columns": ["status"], "rows": [["paid"], ["paid"], ["failed"]]},
+      "candidate_result": {"columns": ["status"], "rows": [["paid"], ["failed"]]},
+      "expected_verdict": "correct",
+      "rules": ["column_position", "set", "exact"]
+    },
+    {
+      "id": "divergence-multiset__ours-rejects-duplicate-loss",
+      "description": "Same data under our DEFAULT_RULES (multiset, no de-dup): the row-multiplicity difference is a real error → incorrect. This is the BIRD blind spot we deliberately close.",
+      "gold_sql": "SELECT status FROM payments;",
+      "gold_result": {"columns": ["status"], "rows": [["paid"], ["paid"], ["failed"]]},
+      "candidate_result": {"columns": ["status"], "rows": [["paid"], ["failed"]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "divergence-order__bird-ignores-order-by",
+      "description": "Gold declares a top-level ORDER BY but candidate returns the same rows in the wrong order. BIRD's set() is order-agnostic even here, so it cannot see the broken ORDER BY → BIRD says correct.",
+      "gold_sql": "SELECT name FROM merchants ORDER BY name;",
+      "gold_result": {"columns": ["name"], "rows": [["Acme"], ["Beta"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["Beta"], ["Acme"]]},
+      "expected_verdict": "correct",
+      "rules": ["column_position", "set", "exact"]
+    },
+    {
+      "id": "divergence-order__ours-rejects-reorder-when-gold-orders",
+      "description": "Same data under DEFAULT_RULES: order_insensitive sees the gold's top-level ORDER BY and treats row order as the answer, so the reordered candidate is incorrect. We catch the broken ORDER BY BIRD masks.",
+      "gold_sql": "SELECT name FROM merchants ORDER BY name;",
+      "gold_result": {"columns": ["name"], "rows": [["Acme"], ["Beta"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["Beta"], ["Acme"]]},
+      "expected_verdict": "incorrect"
+    },
+    {
+      "id": "divergence-float__bird-rejects-precision-noise",
+      "description": "An AVG differing only in the 9th decimal. BIRD compares floats exactly (no tolerance), so identical-to-9-digits values are judged different → BIRD says incorrect. A false negative on an equally-correct query.",
+      "gold_sql": "SELECT avg(amount) AS avg_amount FROM payments;",
+      "gold_result": {"columns": ["avg_amount"], "rows": [[42.66666667]]},
+      "candidate_result": {"columns": ["avg_amount"], "rows": [[42.666666673]]},
+      "expected_verdict": "incorrect",
+      "rules": ["column_position", "set", "exact"]
+    },
+    {
+      "id": "divergence-float__ours-accepts-within-tolerance",
+      "description": "Same data under DEFAULT_RULES: float_tolerance rounds to 6 decimals, so insignificant precision noise compares equal → correct. We forgive the FP noise BIRD penalizes (the one axis where we are more lenient than BIRD).",
+      "gold_sql": "SELECT avg(amount) AS avg_amount FROM payments;",
+      "gold_result": {"columns": ["avg_amount"], "rows": [[42.66666667]]},
+      "candidate_result": {"columns": ["avg_amount"], "rows": [[42.666666673]]},
+      "expected_verdict": "correct"
+    },
+    {
+      "id": "aligned-null__matches-under-bird",
+      "description": "Both sides return NULL in the same position. BIRD compares raw None in the set and matches; our null_sentinel reaches the same verdict → aligned, correct.",
+      "gold_sql": "SELECT phone FROM users WHERE id = 5;",
+      "gold_result": {"columns": ["phone"], "rows": [[null]]},
+      "candidate_result": {"columns": ["phone"], "rows": [[null]]},
+      "expected_verdict": "correct",
+      "rules": ["column_position", "set", "exact"]
+    },
+    {
+      "id": "aligned-null__never-equals-zero-under-bird",
+      "description": "Gold NULL vs candidate 0. Under BIRD's set(), None and 0 are distinct elements → incorrect; our sentinel agrees → aligned.",
+      "gold_sql": "SELECT balance FROM accounts WHERE id = 9;",
+      "gold_result": {"columns": ["balance"], "rows": [[null]]},
+      "candidate_result": {"columns": ["balance"], "rows": [[0]]},
+      "expected_verdict": "incorrect",
+      "rules": ["column_position", "set", "exact"]
+    },
+    {
+      "id": "aligned-empty__both-empty-correct-under-bird",
+      "description": "Two empty result sets: set() == set() → BIRD correct; we agree (both-empty is the correct-able empty case) → aligned.",
+      "gold_sql": "SELECT id FROM orders WHERE 1 = 0;",
+      "gold_result": {"columns": ["id"], "rows": []},
+      "candidate_result": {"columns": ["id"], "rows": []},
+      "expected_verdict": "correct",
+      "rules": ["column_position", "set", "exact"]
+    },
+    {
+      "id": "aligned-empty__empty-vs-nonempty-incorrect-under-bird",
+      "description": "Empty gold vs non-empty candidate: set() != set({(1,)}) → BIRD incorrect; we agree (empty is never auto-correct) → aligned.",
+      "gold_sql": "SELECT id FROM orders WHERE 1 = 0;",
+      "gold_result": {"columns": ["id"], "rows": []},
+      "candidate_result": {"columns": ["id"], "rows": [[1]]},
+      "expected_verdict": "incorrect",
+      "rules": ["column_position", "set", "exact"]
+    },
+    {
+      "id": "aligned-column-position__rename-matches-under-bird",
+      "description": "Same value under a renamed column label. BIRD's fetchall() tuples carry no labels, so it matches positionally; column_position names that same contract → aligned, correct.",
+      "gold_sql": "SELECT name AS customer FROM customers WHERE id = 1;",
+      "gold_result": {"columns": ["customer"], "rows": [["Alice"]]},
+      "candidate_result": {"columns": ["name"], "rows": [["Alice"]]},
+      "expected_verdict": "correct",
+      "rules": ["column_position", "set", "exact"]
+    }
+  ]
+}

@@ -264,6 +264,56 @@ def _float_tolerance(result: ResultSet, ctx: RuleContext) -> ResultSet:
     return _map_cells(result, _round)
 
 
+# --- Issue 14: BIRD-evaluator alignment -------------------------------------
+#
+# The official BIRD evaluator decides correctness with
+# ``set(predicted_res) == set(ground_truth_res)`` over the rows returned by
+# ``cursor.fetchall()`` (verified against AlibabaResearch/DAMO-ConvAI
+# ``bird/llm/src/evaluation.py``). That single ``set()`` makes BIRD
+# simultaneously **order-insensitive** (always, even when the gold declares an
+# ``ORDER BY``) and **duplicate-collapsing**, with **no float tolerance**. Our
+# default pipeline deliberately diverges on all three — stricter on order and
+# multiplicity, more lenient on float noise — to catch real errors BIRD's
+# set-comparison masks and to forgive precision noise BIRD penalizes. See
+# ``docs/eval/comparator-rule-set.md`` for the full per-rule audit and rationale.
+
+
+@register_rule("set")
+def _set(result: ResultSet, ctx: RuleContext) -> ResultSet:
+    """Collapse rows to a set — the BIRD-evaluator primitive (Issue 14).
+
+    Reproduces ``set(...)`` over ``fetchall()``: rows are de-duplicated and made
+    order-insensitive in one step. This is the rule whose **absence** from
+    :data:`DEFAULT_RULES` makes our scorer multiset and order-aware; including it
+    (see :data:`BIRD_RULES`) reproduces BIRD's set semantics exactly. Rows are
+    re-sorted by :func:`_row_sort_key` after de-duplication so the canonical form
+    is deterministic on both sides; like ``order_insensitive`` it never consults
+    the gold SQL, so it ignores ``ORDER BY`` the way BIRD does.
+
+    Requires hashable cells — true of every scalar a SQL driver returns
+    (``int``, ``float``, ``Decimal``, ``str``, ``bytes``, ``None``, dates), which
+    is the comparator's data model throughout. This mirrors BIRD itself, whose
+    ``set(fetchall())`` carries the same assumption.
+    """
+    unique = set(result.rows)
+    return ResultSet(
+        columns=result.columns,
+        rows=tuple(sorted(unique, key=_row_sort_key)),
+    )
+
+
+# The BIRD-compatibility rule set: reproduces the official BIRD evaluator's
+# verdict — ``set(predicted) == set(ground_truth)``. ``set`` supplies BIRD's
+# order-insensitive, duplicate-collapsing comparison; ``column_position`` names
+# the positional (label-blind) matching BIRD also does; ``exact`` names the final
+# equality. Deliberately omits ``float_tolerance`` (BIRD compares floats exactly)
+# and ``null_sentinel`` (BIRD compares raw ``None``; the sentinel is a bijective
+# internal relabel that would not change any verdict). Opt-in — pass
+# ``rules=BIRD_RULES`` to score a result the BIRD way and quantify the gap
+# against :data:`DEFAULT_RULES`.
+BIRD_RULES: tuple[str, ...] = ("column_position", "set", "exact")
+
+
 # The default rule set. Value-level canonicalization runs first — position-based
 # column matching, NULL normalization, float tolerance (Issue 13) — *then*
 # order-insensitivity gated on the gold's ``ORDER BY`` (Issue 12), and finally
