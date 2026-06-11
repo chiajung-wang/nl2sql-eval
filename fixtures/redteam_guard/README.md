@@ -29,7 +29,8 @@ over (reported in `RESULTS.md` at the close of Step 4).
 - `read_only.json` — write/DDL rejection + benign read-only allows (Issue 1).
 - `dangerous_op.json` — stacked statements, `ATTACH`/`DETACH`, `PRAGMA`, and
   unmodeled commands (Issue 2).
-- _cost/complexity cases_ — cartesian bombs, unbounded scans (next issue).
+- `cost.json` — cartesian products, join explosion, unbounded `SELECT *` scans
+  (heuristic-first, calibrated against the BIRD gold) (Issue 3).
 - _prompt-injection NL prompts_ — natural-language attempts to induce dangerous
   SQL, with expected verdicts (Step 4 DoD issue).
 

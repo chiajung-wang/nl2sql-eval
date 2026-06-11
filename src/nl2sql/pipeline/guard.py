@@ -12,9 +12,8 @@ Checks land incrementally across Step 4:
 - **read-only enforcement** — reject writes/DDL by statement type;
 - **dangerous-op blocking** — stacked statements, ATTACH/DETACH, PRAGMA and other
   side-effecting meta-commands;
-- **cost/complexity heuristic** (Step 4, next issue) — join count, missing ``LIMIT``,
-  cartesian products, all read off the AST (heuristic-first; no EXPLAIN on the
-  SQLite path).
+- **cost/complexity heuristic** — join count, unbounded ``SELECT *``, cartesian
+  products, all read off the AST (heuristic-first; no EXPLAIN on the SQLite path).
 
 **Table-scope** enforcement is deliberately *not* here: it needs a per-db
 allowed-tables list, which is schema metadata formalized in Step 6. It arrives
@@ -220,20 +219,79 @@ def _check_dangerous_op(
     return None
 
 
+# Cost/complexity budget — **heuristic-first**, read straight off the AST. No
+# EXPLAIN: BIRD is SQLite (no cost-bearing EXPLAIN) and BIRD drives the headline
+# numbers; EXPLAIN-based cost is a Postgres-only enhancement for a later step.
+#
+# The join ceiling is *calibrated against the frozen BIRD slice gold*, which tops
+# out at 2 joins — so 4 is comfortable headroom that only a pathological query
+# trips, never a legitimate analytical one. Likewise the slice gold has zero
+# unconstrained (no-ON/USING, no-WHERE) joins and zero unbounded ``SELECT *``, so
+# those checks cannot false-reject a real answer.
+MAX_JOINS: int = 4
+
+
+def _is_unbounded_star_scan(select: exp.Select, statement: exp.Expression) -> bool:
+    """A ``SELECT *`` that dumps a whole table: star projection, no WHERE filter,
+    no LIMIT. ``COUNT(*)`` does not count — its star is nested in the function, not
+    a top-level projection."""
+    has_star = any(isinstance(proj, exp.Star) for proj in select.expressions)
+    no_where = select.args.get("where") is None
+    no_limit = statement.args.get("limit") is None and select.args.get("limit") is None
+    return has_star and no_where and no_limit
+
+
+def _check_cost(statements: Sequence[exp.Expression], dialect: str) -> str | None:
+    """Reject queries whose AST shape implies a runaway/abusive scan.
+
+    Three heuristic signals, all structural:
+
+    - **Cartesian product** — a join with no ``ON``/``USING`` predicate *and* no
+      ``WHERE`` to constrain it (a true cross product). Old-style
+      ``FROM a, b WHERE a.id = b.id`` joins keep their WHERE and are not flagged.
+    - **Join explosion** — more joins than :data:`MAX_JOINS` (calibrated headroom
+      over the BIRD gold).
+    - **Unbounded ``SELECT *`` scan** — a star projection with neither WHERE nor
+      LIMIT, i.e. a full-table dump.
+    """
+    for stmt in statements:
+        for select in stmt.find_all(exp.Select):
+            joins = select.args.get("joins") or []
+            unconstrained = any(
+                not j.args.get("on") and not j.args.get("using") for j in joins
+            )
+            if unconstrained and select.args.get("where") is None:
+                return (
+                    "join with no ON/USING predicate and no WHERE; "
+                    "this is a cartesian product"
+                )
+
+        n_joins = len(list(stmt.find_all(exp.Join)))
+        if n_joins > MAX_JOINS:
+            return f"{n_joins} joins exceeds the complexity budget of {MAX_JOINS}"
+
+        root = stmt if isinstance(stmt, exp.Select) else stmt.find(exp.Select)
+        if root is not None and _is_unbounded_star_scan(root, stmt):
+            return "SELECT * with no WHERE or LIMIT; this is an unbounded full scan"
+    return None
+
+
 # A guard rule: inspect the parsed statements (already split per ``;``) and the
 # dialect, return a reject reason or ``None`` to pass. Rules are pure functions
-# of the AST — the registry mirrors ``eval.compare``'s rule pipeline so later
-# Step-4 checks slot in without touching the gate's control flow.
+# of the AST — the registry mirrors ``eval.compare``'s rule pipeline so checks
+# slot in without touching the gate's control flow.
 GuardRule = Callable[[Sequence[exp.Expression], str], str | None]
 
 _RULES: dict[str, GuardRule] = {
     "read_only": _check_read_only,
     "dangerous_op": _check_dangerous_op,
+    "cost": _check_cost,
 }
 
-# The checks run, in order, on every candidate. The cost heuristic appends here
-# in the next Step-4 issue; the first rule to fire wins (fail-fast).
-DEFAULT_GUARD_RULES: tuple[str, ...] = ("read_only", "dangerous_op")
+# The checks run, in order, on every candidate; the first rule to fire wins
+# (fail-fast). Read-only and dangerous-op are correctness/safety gates; cost is
+# the heuristic complexity budget, last so a clearer rejection reason wins first.
+DEFAULT_GUARD_RULES: tuple[str, ...] = ("read_only", "dangerous_op", "cost")
 
 
 def guard_sql(

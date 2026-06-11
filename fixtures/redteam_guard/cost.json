@@ -1,0 +1,75 @@
+{
+  "_meta": {
+    "fixture": "redteam_guard/cost",
+    "purpose": "Step 4, Issue 3 — proves the cost/complexity heuristic in src/nl2sql/pipeline/guard.py. Heuristic-FIRST, read off the sqlglot AST: cartesian products (join with no ON/USING and no WHERE), join explosion (> MAX_JOINS), and unbounded SELECT * scans. No EXPLAIN — BIRD is SQLite.",
+    "format": "Same (candidate SQL, expected verdict) shape as the other fixtures. The benign 'allow' cases mirror the shape of legitimate BIRD analytical SQL so the budget cannot false-reject a real answer.",
+    "rule": "Thresholds are calibrated against the frozen BIRD slice gold (max 2 joins, zero unconstrained joins, zero unbounded SELECT *), so the heuristic only trips pathological queries. Old-style FROM a, b WHERE a.id = b.id joins keep their WHERE and are NOT flagged as cartesian."
+  },
+  "cases": [
+    {
+      "id": "cartesian-comma-join-rejected",
+      "description": "Comma-joined tables with no WHERE to connect them is a true cross product — every row of one against every row of the other.",
+      "sql": "SELECT a.id, b.id FROM users a, transactions b",
+      "expected_verdict": "reject",
+      "expected_rule": "cost"
+    },
+    {
+      "id": "cartesian-cross-join-rejected",
+      "description": "An explicit CROSS JOIN with no WHERE is an unconstrained cartesian product.",
+      "sql": "SELECT * FROM users CROSS JOIN merchants",
+      "expected_verdict": "reject",
+      "expected_rule": "cost"
+    },
+    {
+      "id": "cartesian-three-table-bomb-rejected",
+      "description": "Three comma-joined tables, no predicates — a combinatorial blowup.",
+      "sql": "SELECT a.id FROM users a, transactions b, merchants c",
+      "expected_verdict": "reject",
+      "expected_rule": "cost"
+    },
+    {
+      "id": "join-explosion-rejected",
+      "description": "More joins than the complexity budget (calibrated well above the BIRD gold's max of 2). Each join is properly predicated, so only the sheer count trips it.",
+      "sql": "SELECT u.id FROM users u JOIN a ON a.id = u.id JOIN b ON b.id = a.id JOIN c ON c.id = b.id JOIN d ON d.id = c.id JOIN e ON e.id = d.id",
+      "expected_verdict": "reject",
+      "expected_rule": "cost"
+    },
+    {
+      "id": "unbounded-star-scan-rejected",
+      "description": "SELECT * over a whole table with no WHERE and no LIMIT — a full-table dump (also a data-exfiltration shape).",
+      "sql": "SELECT * FROM transactions",
+      "expected_verdict": "reject",
+      "expected_rule": "cost"
+    },
+    {
+      "id": "old-style-join-with-where-allowed",
+      "description": "An old-style comma join WITH a connecting WHERE predicate is a legitimate inner join, not a cartesian product — it must pass.",
+      "sql": "SELECT a.name, b.amount FROM users a, transactions b WHERE a.id = b.user_id",
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "star-with-where-allowed",
+      "description": "SELECT * with a WHERE filter is bounded — not the runaway scan the rule targets.",
+      "sql": "SELECT * FROM transactions WHERE amount > 100",
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "star-with-limit-allowed",
+      "description": "SELECT * with a LIMIT is bounded and allowed.",
+      "sql": "SELECT * FROM transactions LIMIT 10",
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "typical-two-join-aggregate-allowed",
+      "description": "A two-join aggregate is exactly the shape of legitimate BIRD analytical SQL — well under the budget and properly predicated. Must pass untouched.",
+      "sql": "SELECT u.name, COUNT(t.id) FROM users u JOIN transactions t ON t.user_id = u.id JOIN merchants m ON m.id = t.merchant_id GROUP BY u.name",
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "no-where-projection-allowed",
+      "description": "A column projection with no WHERE and no LIMIT (not a star) is a normal answer — the unbounded check targets SELECT *, not every unfiltered query, so this passes (8 of the 50 gold queries have no WHERE).",
+      "sql": "SELECT name FROM users",
+      "expected_verdict": "allow"
+    }
+  ]
+}
