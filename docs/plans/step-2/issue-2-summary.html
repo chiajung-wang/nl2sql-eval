@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PR #17 — order-sensitivity ORDER BY conditional</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .st.D{color:var(--del);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35)}
+  .st.R{color:var(--accent-2);background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #17 · Step 2 · Open</span>
+    <h1>order-sensitivity — the <code class="k">ORDER BY</code> conditional</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>State:</b> Open</span>
+      <span><b>Tip commit:</b> <code>7045fa8</code></span>
+      <span><b>Closes:</b> Issue #12 (Step 2 · Issue 2)</span>
+      <span><b>Branch:</b> <code>step-2/issue-12-order-sensitivity</code> ← base <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>The subtle, false-negative-prone canonicalization rule: row order is normalized away — <em>unless</em> the gold query says it matters.</b></p>
+      <p>This PR adds the <code class="k">order_insensitive</code> rule to the comparator pipeline from Issue&nbsp;#11 and makes it the new default.
+      Two queries returning the same rows in a different order are equally correct, so rows are <b>sorted on both sides</b> before comparison —
+      <em>except</em> when the gold SQL declares a <b>top-level <code class="k">ORDER BY</code></b>, where the order <em>is</em> the answer and a
+      same-rows/wrong-order candidate must be judged <b>incorrect</b>.</p>
+      <p>Detection is <b>sqlglot AST-based, never regex</b> (CLAUDE.md §4): it reads the <code class="k">order</code> arg off the outermost
+      SELECT / set-operation node, so an <code class="k">ORDER BY</code> buried in a subquery, derived table, or CTE body is correctly ignored —
+      and an <code class="k">ORDER BY</code> inside a string literal never false-positives. A new <code class="k">RuleContext</code> threads
+      <code class="k">gold_sql</code> through the pipeline so the rule can branch on it while still being applied <b>identically to both sides</b> —
+      sorting can never launder a wrong answer.</p>
+      <div class="stats">
+        <div><b>4</b> files changed</div>
+        <div><b>+238 / −26</b> lines</div>
+        <div><b>9</b> golden triples (order)</div>
+        <div><b>131</b> tests pass</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> Key changes</h2><div class="grid">
+      <div class="group">
+        <h3><code>order_insensitive</code> — the new default rule</h3>
+        <ul>
+          <li>Sorts rows on both sides before comparison so row order is normalized away when it is not significant.</li>
+          <li>Gated on <code>ctx.gold_sql</code> (never the candidate's): a significant <code>ORDER BY</code> leaves rows untouched.</li>
+          <li><code>DEFAULT_RULES</code> moves from <code>"exact"</code> → <code>("order_insensitive",)</code>; <code>"exact"</code> stays available for opt-in.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>AST-based ORDER BY detection</h3>
+        <ul>
+          <li><code>_gold_order_is_significant()</code> parses with <code>sqlglot.parse_one</code> and reads <code>args["order"]</code> off the outermost node.</li>
+          <li>Subquery / derived-table / CTE-body <code>ORDER BY</code> → <b>not</b> significant; set-op + post-CTE top-level → significant.</li>
+          <li>Unwraps a parenthesized whole query <code>(SELECT … ORDER BY …)</code> so its order stays top-level.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>RuleContext</code> threaded through the pipeline</h3>
+        <ul>
+          <li>New frozen <code>RuleContext(gold_sql=…)</code> passed <b>identically into the rule for both sides</b>.</li>
+          <li>Rule signature becomes <code>(ResultSet, RuleContext) → ResultSet</code> — a branch on context can't make a wrong answer look right.</li>
+        </ul>
+      </div>
+      <div class="group warn">
+        <h3>Total, exception-free sort key</h3>
+        <ul>
+          <li><code>_row_sort_key()</code> maps each cell to <code>(null_rank, type_name, str(value))</code> so heterogeneous / <code>NULL</code> cells never raise.</li>
+          <li>Used <b>only</b> to align equal multisets for comparison — it is <em>not</em> value canonicalization (NULL/float is Issue&nbsp;#13) and never collapses distinct rows.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>Golden fixture — proves it both ways</h3>
+        <ul>
+          <li><code>order_sensitivity.json</code>: significant wrong/right order, no-order reordering, subquery <code>ORDER BY</code>, multi-column, and a wrong-answer-can't-be-laundered guard.</li>
+          <li>Review follow-up added 3 more triples: set-op (<code>UNION</code>) top-level order, parenthesized whole query, and unparseable <code>gold_sql</code> → insensitive fallback.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>AST-detection unit tests</h3>
+        <ul>
+          <li>Parametrized cases for top-level vs subquery / CTE / set-op order, plus the parenthesized-query unwrap.</li>
+          <li>Guards that <code>'ORDER BY x'</code> inside a string literal is <b>not</b> detected (a regex scan would false-positive), and asserts the new default rule.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">3</span> The ORDER BY conditional</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TB
+  GSQL["gold_sql"] --> PARSE["sqlglot.parse_one (AST)"]:::ast
+  PARSE -->|ParseError / None| FALLBACK["fall back to order-insensitive"]:::ast
+  PARSE -->|parsed| UNWRAP["unwrap parenthesized Subquery"]
+  UNWRAP --> Q{"outermost node has<br/>top-level ORDER BY ?"}
+
+  Q -->|"yes — order is the answer"| KEEP["leave rows as returned"]:::keep
+  Q -->|"no (or buried in subquery/CTE)"| SORT["sort rows — both sides<br/>via _row_sort_key (total, never raises)"]:::sort
+  FALLBACK --> SORT
+
+  KEEP --> CMP{"gold.rows == candidate.rows ?"}
+  SORT --> CMP
+  CMP -->|equal| OK["Verdict.CORRECT"]:::ok
+  CMP -->|differ| BAD["Verdict.INCORRECT"]:::bad
+
+  subgraph GUARD["applied identically to BOTH sides → can't launder a wrong answer"]
+    direction TB
+    KEEP
+    SORT
+  end
+
+  subgraph FIX["fixtures/golden_compare/order_sensitivity.json — 9 triples"]
+    direction TB
+    F1["significant: wrong-order → incorrect · same-order → correct"]
+    F2["no-order: reorder → correct · different multiset → incorrect"]
+    F3["subquery / set-op / parenthesized / unparseable"]
+  end
+  FIX -->|"(gold, candidate, expected_verdict)"| TESTS["tests/test_compare.py · uv run pytest"]:::test
+  TESTS -.asserts verdict.-> CMP
+
+  classDef ast fill:#e0f2fe,stroke:#0284c7,color:#075985;
+  classDef keep fill:#fde68a,stroke:#d97706,color:#78350f;
+  classDef sort fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef bad fill:#fecaca,stroke:#dc2626,color:#7f1d1d;
+  classDef test fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  class PARSE ast; class FALLBACK ast; class KEEP keep; class SORT sort; class OK ok; class BAD bad; class TESTS test;</pre></div>
+      <p class="diagram-caption">The gold SQL's AST — not a string scan — decides whether row order is significant.
+      When it isn't, both sides are sorted with a total, exception-free key; when it is, rows are left as returned so an order error is caught.
+      Either branch transforms gold and candidate identically, then the unchanged <code>gold.rows == candidate.rows</code> check produces the verdict.</p>
+    </section>
+
+    <section><h2><span class="num">4</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="f"><code>eval/compare.py</code></td>
+            <td><span class="st M">M</span></td>
+            <td>Adds <code>RuleContext</code> (threaded into the rule signature), <code>_gold_order_is_significant()</code> (sqlglot AST), <code>_row_sort_key()</code>, and the <code>order_insensitive</code> rule; <code>DEFAULT_RULES</code> becomes <code>("order_insensitive",)</code>.</td>
+          </tr>
+          <tr>
+            <td class="f"><code>fixtures/golden_compare/order_sensitivity.json</code></td>
+            <td><span class="st A">A</span></td>
+            <td>9 <code>(gold, candidate, expected_verdict)</code> triples proving the rule both ways — significant/insignificant order, subquery, set-op, parenthesized query, unparseable-gold fallback, and a no-launder guard.</td>
+          </tr>
+          <tr>
+            <td class="f"><code>fixtures/golden_compare/README.md</code></td>
+            <td><span class="st M">M</span></td>
+            <td>Documents the new <code>order_sensitivity.json</code> file in the fixture layout.</td>
+          </tr>
+          <tr>
+            <td class="f"><code>tests/test_compare.py</code></td>
+            <td><span class="st M">M</span></td>
+            <td>AST-detection unit tests (top-level vs subquery/CTE/set-op, parenthesized unwrap, string-literal non-match) plus a default-rule assertion; the fixture-driven loader picks up the new triples automatically.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">5</span> Scope &amp; verification</h2><div class="card">
+      <p><b>Scope guard.</b> Ordering only. Value-level canonicalization (NULL sentinel, float tolerance, column-by-position, multiset) is Issue&nbsp;#13 — the sort key deliberately does not canonicalize values. The comparator stays deterministic: no LLM, no regex for SQL semantics.
+      <b>No <code class="k">RESULTS.md</code> entry</b> — this slice produces no benchmark number (numbers begin Step&nbsp;3 onward).</p>
+      <p class="note"><b>Review follow-up (commit <code>7045fa8</code>).</b> A two-axis review flagged that three order-detection edge cases were unit-tested but not in the golden fixture — the artifact CLAUDE.md §10 names as the comparator's proof. They were moved into <code>order_sensitivity.json</code> (6 → 9 triples).</p>
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 131 passed</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>ruff check</code> + <code>ruff format --check</code> → clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> All five acceptance criteria for Issue #12 met</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated from git/<code>gh</code> for PR #17 · tip <code>7045fa8</code> ·
+      base <code>main</code> ← <code>step-2/issue-12-order-sensitivity</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
