@@ -1,0 +1,81 @@
+{
+  "_meta": {
+    "slice": "step3-naive-schema-dump-baseline",
+    "purpose": "Frozen, seeded, stratified Step-3 slice from smaller-schema BIRD dbs. Anchors the first pass@1 number; small-schema-first keeps the naive schema-dump baseline trustworthy (no context-overflow effects).",
+    "criteria": {
+      "max_tables": 5,
+      "size": 50,
+      "seed": 20260611
+    },
+    "eligible_dbs": {
+      "california_schools": 3,
+      "debit_card_specializing": 5,
+      "thrombosis_prediction": 3,
+      "toxicology": 4
+    },
+    "difficulty_mix": {
+      "challenging": 7,
+      "moderate": 19,
+      "simple": 24
+    },
+    "db_mix": {
+      "california_schools": 13,
+      "debit_card_specializing": 3,
+      "thrombosis_prediction": 20,
+      "toxicology": 14
+    },
+    "generated": "2026-06-11"
+  },
+  "question_ids": [
+    6,
+    10,
+    12,
+    19,
+    20,
+    25,
+    32,
+    37,
+    58,
+    59,
+    70,
+    84,
+    88,
+    205,
+    233,
+    234,
+    235,
+    247,
+    259,
+    265,
+    273,
+    280,
+    296,
+    306,
+    311,
+    336,
+    337,
+    1162,
+    1163,
+    1165,
+    1186,
+    1188,
+    1189,
+    1220,
+    1221,
+    1228,
+    1237,
+    1243,
+    1248,
+    1252,
+    1254,
+    1265,
+    1273,
+    1292,
+    1293,
+    1298,
+    1309,
+    1475,
+    1476,
+    1500
+  ]
+}
