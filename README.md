@@ -187,7 +187,7 @@ uv run pytest
 uv run pytest tests/test_compare.py tests/test_guard.py
 ```
 
-- **Comparator:** validated against `fixtures/golden_compare/` — `(gold, candidate, expected_verdict)` triples. Add a fixture case for every new comparison edge case.
+- **Comparator:** validated against `fixtures/golden_compare/` — `(gold, candidate, expected_verdict)` triples. Add a fixture case for every new comparison edge case. The committed rule set and its **per-rule audit against the official BIRD evaluator** (including the deliberate divergences and the opt-in `BIRD_RULES` for leaderboard parity) live in [`docs/eval/comparator-rule-set.md`](docs/eval/comparator-rule-set.md).
 - **Guardrails:** unit-test green plus a reported catch rate against `fixtures/redteam_guard/`. Add a fixture case for every new dangerous-query pattern.
 - **Payments gold set** (`eval/datasets/payments/questions.json`) carries two distinct, independent flags:
   - `machine_verified` — the agent's claim that `gold_sql` reproduces the stored `gold_result` against the seed. Reproduce it (needs a live, seeded db):

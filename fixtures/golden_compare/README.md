@@ -22,9 +22,11 @@ automatically**, no test edits required.
   sentinel (NULL matches NULL, never equals `0`), float tolerance (within
   passes, out-of-tolerance fails), and multiset semantics (`COUNT` vs
   `COUNT DISTINCT` row-multiplicity difference is **wrong**).
-
-Later Step-2 issues add their own files for the remaining work (BIRD-evaluator
-alignment).
+- `bird_alignment.json` — Issue 14: alignment with the official BIRD evaluator.
+  Each deliberate divergence (order, multiplicity, float) is pinned as a **pair**
+  of triples on the same data — one under `BIRD_RULES` (BIRD's `set()` verdict),
+  one under `DEFAULT_RULES` (ours) — plus alignment cases for NULL, empty, and
+  column position. Full audit: [`docs/eval/comparator-rule-set.md`](../../docs/eval/comparator-rule-set.md).
 
 ## Case format
 
