@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy import create_engine, text
 
 from nl2sql.pipeline.graph import run_pipeline
-from nl2sql.pipeline.retrieve import is_not_found_error
+from nl2sql.pipeline.retrieve import is_not_found_error, missing_identifier
 from nl2sql.schema_index import build_schema_index
 from tests.test_pipeline_loop import FakeAnthropic
 
@@ -60,6 +60,23 @@ def test_is_not_found_error_true_for_missing_table_or_column(error):
 )
 def test_is_not_found_error_false_otherwise(error):
     assert is_not_found_error(error) is False
+
+
+@pytest.mark.parametrize(
+    "error, expected",
+    [
+        ("(sqlite3.OperationalError) no such table: ghost", "ghost"),
+        ("(sqlite3.OperationalError) no such column: foo", "foo"),
+        ('relation "ghost" does not exist', "ghost"),
+        ('column "foo" does not exist', "foo"),
+        # The hint is the bare name — never the message's stopwords.
+        ("no such table: ghost", "ghost"),
+        ('near "FROM": syntax error', ""),
+        (None, ""),
+    ],
+)
+def test_missing_identifier_extracts_the_bare_name(error, expected):
+    assert missing_identifier(error) == expected
 
 
 # --- the re-trigger in the pipeline -----------------------------------------

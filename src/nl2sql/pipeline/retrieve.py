@@ -20,6 +20,8 @@ this the same way, never a fork.
 
 from __future__ import annotations
 
+import re
+
 from nl2sql.obs import stage_span
 from nl2sql.pipeline.state import RunState
 from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
@@ -33,6 +35,14 @@ _NOT_FOUND_MARKERS = (
     "no such column",
     "does not exist",
     "unknown column",
+)
+
+# The identifier the engine reported as missing — SQLite "no such table: ghost"
+# or PostgreSQL 'relation "ghost" does not exist'. Pulled from the *error string*
+# (not the SQL) so the re-retrieve hint is the name the generator reached for,
+# rather than the message's stopwords.
+_MISSING_IDENT_RE = re.compile(
+    r"no such (?:table|column):\s*([^\s).,]+)" r'|"([^"]+)"\s+does not exist'
 )
 
 
@@ -49,6 +59,20 @@ def is_not_found_error(error: str | None) -> bool:
     return any(marker in lowered for marker in _NOT_FOUND_MARKERS)
 
 
+def missing_identifier(error: str | None) -> str:
+    """The missing table/column name(s) from a not-found ``error``, space-joined.
+
+    The re-retrieve's lexical hint: the bare identifier the generator reached for
+    (``ghost``), not the whole message — so the hint is signal, not stopwords like
+    "no such table". Empty when nothing parses out (widening still does the heavy
+    lifting). Parses the error *string*, never the SQL.
+    """
+    if not error:
+        return ""
+    names = [a or b for a, b in _MISSING_IDENT_RE.findall(error)]
+    return " ".join(dict.fromkeys(n for n in names if n))
+
+
 def retrieve(
     state: RunState,
     index: SchemaIndex,
@@ -60,12 +84,14 @@ def retrieve(
     """Select the relevant tables for ``state.question`` and render their schema.
 
     Records the chosen table names on ``state.retrieved_tables`` (for the recall
-    metric) and returns the focused schema string the generator consumes. ``hint``
-    (the prior not-found error text on a re-retrieve) is folded into the lexical
-    query as extra context; ``floor`` widens coverage to at least that many tables
-    (padding from declaration order) so a re-retrieve surfaces more of the schema
-    than the first attempt. Only table *names* and counts reach the span — schema
-    metadata, never result rows.
+    metric) and returns the focused schema string the generator consumes.
+    ``floor`` is the **primary** re-retrieve lever: it widens coverage to at least
+    that many tables (padding from declaration order) so a re-retrieve surfaces
+    more of the schema than the first attempt. ``hint`` (the missing identifier
+    from the prior not-found error) is a secondary nudge folded into the lexical
+    query — it helps only when the reached-for name lexically resembles a real
+    table. Only table *names* and counts reach the span — schema metadata, never
+    result rows.
     """
     with stage_span("retrieve", db_id=state.db_id) as extra:
         query = f"{state.question} {hint}".strip() if hint else state.question

@@ -25,7 +25,7 @@ from nl2sql.pipeline.correct import correct
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.guard import guard
-from nl2sql.pipeline.retrieve import is_not_found_error, retrieve
+from nl2sql.pipeline.retrieve import is_not_found_error, missing_identifier, retrieve
 from nl2sql.pipeline.state import RunState
 from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
 
@@ -106,7 +106,9 @@ def run_pipeline(
             # widen, not only into regeneration. Capture the error before
             # ``correct`` clears it; the re-retrieve stays inside the same budget.
             re_retrieve = schema_index is not None and is_not_found_error(state.error)
-            error_hint = state.error or ""
+            # The bare missing identifier (e.g. "ghost"), captured before
+            # ``correct`` clears the error — a lexical nudge for the re-retrieve.
+            hint = missing_identifier(state.error) if re_retrieve else ""
             correct(state)
             if re_retrieve:
                 re_retrievals += 1
@@ -118,7 +120,7 @@ def run_pipeline(
                     schema_index,
                     max_tables=max_tables,
                     floor=floor,
-                    hint=error_hint,
+                    hint=hint,
                 )
 
 
