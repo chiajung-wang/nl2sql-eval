@@ -158,19 +158,41 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _append_recall_note(naive: BatchReport, rag: BatchReport, recall: float) -> None:
-    """Append the prose note that accompanies the Step-6 lift row in RESULTS.md."""
+    """Append the prose note that accompanies the Step-6 lift row in RESULTS.md.
+
+    Sign-aware and honest: retrieval's benefit is *conditional* on the schema not
+    fitting the prompt. The note reads the measured lift and frames it from the
+    data, never from a hoped-for headline."""
     lift = rag.accuracy - naive.accuracy
+    missed = 1.0 - recall
+    if lift < 0:
+        reading = (
+            f"On these dbs (≤14 tables) the whole schema still **fits** the "
+            f"model's context, so the naive dump already hands it every table, "
+            f"while schema-RAG — whose job is to *drop* tables to fit a budget — "
+            f"occasionally drops a **needed** one. Recall **{recall:.3f}** means "
+            f"~{missed:.1%} of the gold tables were missed, and those become wrong "
+            f"answers: the recall metric diagnoses the loss directly. Retrieval is "
+            f"**not free** — its lift is where the schema *overflows*; here it does "
+            f"not, so retrieval can only lose information. This is the twin of "
+            f"Step 5's finding: measurement over a hoped-for headline."
+        )
+    else:
+        reading = (
+            f"Schema-RAG paid off: surfacing only the relevant tables helped where "
+            f"the full dump would distract or overflow. Recall **{recall:.3f}** "
+            f"({rag.n_with_recall} cases) shows how well the retriever covered the "
+            f"gold tables — recall is reported alongside accuracy because the "
+            f"silent wrong-schema failure (valid SQL, wrong tables, no error) is "
+            f"invisible to accuracy alone."
+        )
     note = (
         f"\n**Step 6 — naive-dump → schema-RAG retrieval lift (large-schema slice).** "
-        f"On the frozen `{slice6_id()}` slice (large-schema BIRD dbs, where the "
-        f"naive full-schema dump overflows the prompt), schema-RAG moves pass@1 from "
+        f"On the frozen `{slice6_id()}` slice, schema-RAG moves pass@1 from "
         f"**{naive.accuracy:.3f} ({naive.n_correct}/{naive.total})** to "
         f"**{rag.accuracy:.3f} ({rag.n_correct}/{rag.total})** — a lift of "
-        f"**{lift:+.3f}**. Retrieval recall over the gold query's tables is "
-        f"**{recall:.3f}** ({rag.n_with_recall} cases). Recall is reported alongside "
-        f"accuracy because the silent wrong-schema failure (valid SQL, wrong tables, "
-        f"no error) is invisible to accuracy alone. Reproduce with "
-        f"`uv run python -m eval.eval_bird_rag`.\n"
+        f"**{lift:+.3f}** — with retrieval recall **{recall:.3f}**. {reading} "
+        f"Reproduce with `uv run python -m eval.eval_bird_rag`.\n"
     )
     RESULTS_PATH.write_text(RESULTS_PATH.read_text().rstrip() + "\n" + note)
 
