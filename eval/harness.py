@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from eval.compare import DEFAULT_RULES, Comparison, compare
-from eval.metrics import BatchReport, CaseResult, TwinReport
+from eval.metrics import BatchReport, CaseResult, TwinReport, retrieval_recall
 from nl2sql.pipeline.state import RunState, TerminalState
 
 logger = logging.getLogger(__name__)
@@ -157,6 +157,12 @@ def run_batch(
                 input_tokens=int(state.meta.get("input_tokens", 0) or 0),
                 output_tokens=int(state.meta.get("output_tokens", 0) or 0),
                 latency_ms=latency_ms,
+                # Retrieval recall vs the gold query's tables — the measure of the
+                # silent wrong-schema failure (Step 6). ``None`` on the naive-dump
+                # path, where the retriever selected no specific tables.
+                retrieval_recall=retrieval_recall(
+                    state.retrieved_tables, case.gold_sql
+                ),
             )
         )
         logger.info(

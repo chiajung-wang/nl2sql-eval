@@ -15,8 +15,61 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 
+import sqlglot
+from sqlglot import exp
+from sqlglot.errors import ParseError
+
 from eval.cost import cost_usd
 from nl2sql.pipeline.state import TerminalState
+
+# BIRD is SQLite; fall back to the generic parser so gold-table extraction is
+# dialect-robust (mirrors the comparator's tolerant gold parse).
+_RECALL_DIALECTS: tuple[str | None, ...] = ("sqlite", None)
+
+
+def gold_query_tables(gold_sql: str) -> set[str]:
+    """The base table names a gold query references, casefolded, from the AST.
+
+    Deterministic — sqlglot ``exp.Table`` nodes, never a string scan (CLAUDE.md
+    §4): an alias, a column literally named like a table, or the word ``from`` in
+    a string literal can't fool it. **CTE names are excluded**: a reference to a
+    ``WITH`` block parses as a ``Table`` too, but the retriever (which selects
+    real schema tables) can never "retrieve" a CTE, so counting it would
+    permanently deflate recall — and a CTE that *shadows* a real table name would
+    falsely credit it. Returns an empty set if the gold parses under no known
+    dialect (recall is then undefined for that case)."""
+    for dialect in _RECALL_DIALECTS:
+        try:
+            tree = sqlglot.parse_one(gold_sql, dialect=dialect)
+        except ParseError:
+            continue
+        if tree is None:
+            continue
+        tables = {t.name.casefold() for t in tree.find_all(exp.Table) if t.name}
+        cte_names = {
+            c.alias_or_name.casefold()
+            for c in tree.find_all(exp.CTE)
+            if c.alias_or_name
+        }
+        return tables - cte_names
+    return set()
+
+
+def retrieval_recall(retrieved: list[str] | None, gold_sql: str) -> float | None:
+    """Recall of retrieved tables vs the gold query's tables — or ``None`` if N/A.
+
+    recall = |retrieved ∩ gold-tables| / |gold-tables|, table names matched
+    case-insensitively. ``None`` when retrieval did not run (the naive full-dump
+    path leaves ``retrieved_tables`` unset) or the gold references no tables
+    (recall undefined) — so those cases are excluded from the aggregate rather
+    than counted as 0 or 1."""
+    if retrieved is None:
+        return None
+    gold = gold_query_tables(gold_sql)
+    if not gold:
+        return None
+    got = {t.casefold() for t in retrieved}
+    return len(gold & got) / len(gold)
 
 
 @dataclass(frozen=True)
@@ -42,6 +95,10 @@ class CaseResult:
     input_tokens: int = 0
     output_tokens: int = 0
     latency_ms: float = 0.0
+    # Retrieval recall vs the gold query's tables (Step 6). ``None`` when
+    # retrieval did not run for this case or the gold references no tables, so it
+    # is excluded from the aggregate rather than skewing it.
+    retrieval_recall: float | None = None
 
 
 @dataclass(frozen=True)
@@ -102,6 +159,24 @@ class BatchReport:
         """
         return cost_usd(model, self.total_input_tokens, self.total_output_tokens)
 
+    @property
+    def n_with_recall(self) -> int:
+        """Cases where retrieval recall is defined (retrieval ran, gold has tables)."""
+        return sum(1 for r in self.results if r.retrieval_recall is not None)
+
+    @property
+    def mean_retrieval_recall(self) -> float | None:
+        """Mean retrieval recall over the cases where it is defined; ``None`` if none.
+
+        Recall is reported *alongside* accuracy because the silent wrong-schema
+        failure — valid SQL over the wrong tables, no error — is invisible to
+        accuracy alone (CLAUDE.md §5.7). It can't be fixed at runtime, only
+        measured; this is that measurement."""
+        recalls = [
+            r.retrieval_recall for r in self.results if r.retrieval_recall is not None
+        ]
+        return sum(recalls) / len(recalls) if recalls else None
+
     def terminal_counts(self) -> dict[TerminalState, int]:
         """Count of runs in each terminal state — every state present (0 if none)."""
         counts = Counter(r.terminal_state for r in self.results)
@@ -125,8 +200,13 @@ def summary_lines(report: BatchReport) -> list[str]:
     """
     lines = [
         f"pass@1: {report.pass_at_1:.3f}  ({report.n_correct}/{report.total})",
-        "terminal states:",
     ]
+    if report.mean_retrieval_recall is not None:
+        lines.append(
+            f"retrieval recall: {report.mean_retrieval_recall:.3f}  "
+            f"(over {report.n_with_recall} cases)"
+        )
+    lines.append("terminal states:")
     lines += [
         f"  {state.value:24} {count}"
         for state, count in report.terminal_counts().items()
