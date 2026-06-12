@@ -32,8 +32,12 @@ def gold_query_tables(gold_sql: str) -> set[str]:
 
     Deterministic — sqlglot ``exp.Table`` nodes, never a string scan (CLAUDE.md
     §4): an alias, a column literally named like a table, or the word ``from`` in
-    a string literal can't fool it. Returns an empty set if the gold parses under
-    no known dialect (recall is then undefined for that case)."""
+    a string literal can't fool it. **CTE names are excluded**: a reference to a
+    ``WITH`` block parses as a ``Table`` too, but the retriever (which selects
+    real schema tables) can never "retrieve" a CTE, so counting it would
+    permanently deflate recall — and a CTE that *shadows* a real table name would
+    falsely credit it. Returns an empty set if the gold parses under no known
+    dialect (recall is then undefined for that case)."""
     for dialect in _RECALL_DIALECTS:
         try:
             tree = sqlglot.parse_one(gold_sql, dialect=dialect)
@@ -41,7 +45,13 @@ def gold_query_tables(gold_sql: str) -> set[str]:
             continue
         if tree is None:
             continue
-        return {t.name.casefold() for t in tree.find_all(exp.Table) if t.name}
+        tables = {t.name.casefold() for t in tree.find_all(exp.Table) if t.name}
+        cte_names = {
+            c.alias_or_name.casefold()
+            for c in tree.find_all(exp.CTE)
+            if c.alias_or_name
+        }
+        return tables - cte_names
     return set()
 
 

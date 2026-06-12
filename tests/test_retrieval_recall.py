@@ -51,6 +51,26 @@ def test_gold_tables_empty_when_no_table():
     assert gold_query_tables("SELECT 1") == set()
 
 
+def test_cte_name_is_not_counted_as_a_gold_table():
+    # A reference to a WITH block parses as a Table, but the retriever can never
+    # "retrieve" a CTE — counting it would permanently deflate recall.
+    sql = (
+        "WITH t AS (SELECT * FROM atom JOIN bond ON atom.id = bond.id) SELECT * FROM t"
+    )
+    assert gold_query_tables(sql) == {"atom", "bond"}
+
+
+def test_cte_shadowing_a_real_table_name_is_excluded():
+    # A CTE named like a real table must not be credited as a base table.
+    sql = "WITH atom AS (SELECT * FROM bond) SELECT * FROM atom"
+    assert gold_query_tables(sql) == {"bond"}
+
+
+def test_table_valued_function_is_not_a_table():
+    # json_each(...) parses as a function, not a base table — excluded.
+    assert gold_query_tables("SELECT value FROM json_each('[1,2,3]')") == set()
+
+
 # --- recall = |retrieved ∩ gold| / |gold| ----------------------------------
 
 
