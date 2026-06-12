@@ -53,10 +53,19 @@ def _case(
 
 
 def test_error_run_buckets_execution_error_final():
+    # Single-shot failure (attempts==0/1, no retry budget) → EXECUTION_ERROR_FINAL.
     assert (
         classify_terminal_state(_state(error="boom"))
         is TerminalState.EXECUTION_ERROR_FINAL
     )
+
+
+def test_budget_exhausted_error_buckets_retry_exhausted():
+    # The Step-5 loop returns an errored run only after spending its budget, so a
+    # multi-attempt error is RETRY_EXHAUSTED, not EXECUTION_ERROR_FINAL.
+    state = _state(error="still broken")
+    state.attempts = 3
+    assert classify_terminal_state(state) is TerminalState.RETRY_EXHAUSTED
 
 
 def test_correct_run_buckets_success():

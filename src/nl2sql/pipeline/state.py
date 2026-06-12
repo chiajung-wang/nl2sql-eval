@@ -46,6 +46,17 @@ class RunState:
     attempts: int = 0
     terminal_state: TerminalState | None = None
 
+    # Self-correction loop (Step 5). ``max_attempts`` is the capped retry budget
+    # the graph runs the generate→execute cycle under (1 = single-shot, no
+    # correction — the pass@1 mode). ``attempts`` counts cycles actually run.
+    # ``correction`` carries the prior failed attempt's SQL + error text that the
+    # next ``generate`` feeds back into the prompt; ``None`` on the first attempt.
+    # The classifier (in the harness, never here) reads ``attempts`` to split a
+    # budget-exhausted run (RETRY_EXHAUSTED) from a single-shot failure
+    # (EXECUTION_ERROR_FINAL).
+    max_attempts: int = 1
+    correction: dict[str, str] | None = None
+
     # Set by the guard stage when a candidate fails a pre-execution check; the
     # harness reads these to bucket the run as GUARDRAIL_REJECTED (the classifier
     # lives in the harness, not here). ``guard_reason`` is "rule: why" — no rows.
