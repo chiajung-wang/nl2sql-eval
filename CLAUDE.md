@@ -54,6 +54,8 @@ The pipeline is an instrumented state machine wrapped by a harness that treats i
 
 **A step is not done until its number is appended to `RESULTS.md`** with the exact config: **model, slice ID, prompt version, date, the number, and the commit**. Every reported number must be traceable to its config and commit. Capture especially the **pass@1→pass@k gap** (Step 5) and the **naive-baseline→retrieval lift** (Step 6).
 
+> **Per-issue delivery loop:** for each `docs/plans/step-N/issue-*.md`, follow the workflow in `docs/per-issue-workflow.md` (worktree → implement+verify → PR to `main` → `/review` → fix → issue summary HTML → next issue → Step-N blog post). Don't skip the review or the summary.
+
 ## 7. Anti-patterns — never do these
 
 - Compare SQL by **string-match** (use result-set comparison).
