@@ -153,8 +153,11 @@ def test_non_not_found_error_regenerates_without_re_retrieving(abc_engine):
 
 def test_re_retrieve_stays_inside_the_budget(abc_engine):
     index = build_schema_index(abc_engine)
-    # Every attempt hits not-found: the loop must re-retrieve yet still stop at the
-    # budget — no infinite re-retrieval.
+    # Every attempt reaches for a table outside the db: the loop re-triggers
+    # retrieval (widening) yet still stops at the budget — no infinite re-retrieval.
+    # With table-scope wired in (Step 6, #48), the out-of-scope table is caught
+    # *pre-execution*, so budget exhaustion ends the run as a terminal
+    # GUARDRAIL_REJECTED — never executed — rather than a not-found retry-exhaust.
     client = FakeAnthropic(reply="SELECT count(*) AS n FROM ghost")
 
     state = run_pipeline(
@@ -168,7 +171,9 @@ def test_re_retrieve_stays_inside_the_budget(abc_engine):
         max_tables=1,
     )
 
-    assert state.error is not None
+    assert state.guard_rejected is True
+    assert state.guard_rule == "table_scope"
+    assert state.error is None  # the gate stopped it; it never executed
     assert state.attempts == 3
     assert len(client.calls) == 3
     # Widening eventually reached the full schema (3 tables).

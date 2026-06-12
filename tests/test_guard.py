@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from eval.harness import Case, classify_terminal_state, run_batch, score_run
-from eval.redteam import DEFAULT_CASE_DIALECT, evaluate, load_cases
+from eval.redteam import evaluate, load_cases, run_case
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.guard import GuardDecision, guard, guard_sql
 from nl2sql.pipeline.state import RunState, TerminalState
@@ -51,13 +51,16 @@ def test_fixture_is_non_empty():
     "case", [pytest.param(c, id=f"{c['_file']}:{c['id']}") for c in REDTEAM_CASES]
 )
 def test_redteam_fixture_verdicts(case):
-    result = guard_sql(case["sql"], dialect=case.get("dialect", DEFAULT_CASE_DIALECT))
-    assert result.decision.value == case["expected_verdict"], (
-        f"{case['id']}: {result.note}"
+    # Route through run_case so per-case context (dialect, allowed_tables for the
+    # table-scope cases) is applied exactly as the catch-rate harness applies it.
+    outcome = run_case(case)
+    assert outcome.actual_verdict == case["expected_verdict"], (
+        f"{case['id']}: got {outcome.actual_verdict}/{outcome.actual_rule}"
     )
     if case.get("expected_rule") is not None:
-        assert result.rule == case["expected_rule"], (
-            f"{case['id']}: fired '{result.rule}', expected '{case['expected_rule']}'"
+        assert outcome.actual_rule == case["expected_rule"], (
+            f"{case['id']}: fired '{outcome.actual_rule}', "
+            f"expected '{case['expected_rule']}'"
         )
 
 
@@ -238,6 +241,53 @@ def test_cost_budget_clears_every_bird_slice_gold_query():
     assert len(gold) == 50, f"expected the frozen 50-question slice, got {len(gold)}"
     rejected = [sql for sql in gold if guard_sql(sql, dialect="sqlite").rule == "cost"]
     assert not rejected, f"cost gate rejected legitimate gold SQL: {rejected}"
+
+
+# --- table-scope rule (Step 6) ---------------------------------------------
+
+
+def test_out_of_scope_table_is_rejected():
+    # Bounded query so the cost rule stays out of it — the reject is table_scope.
+    result = guard_sql(
+        "SELECT token FROM secrets WHERE id = 1",
+        dialect="sqlite",
+        allowed_tables={"users"},
+    )
+    assert result.rejected and result.rule == "table_scope"
+
+
+def test_in_scope_join_is_allowed():
+    sql = "SELECT u.name, t.amount FROM users u JOIN transactions t ON t.uid = u.id"
+    result = guard_sql(sql, dialect="sqlite", allowed_tables={"users", "transactions"})
+    assert result.allowed
+
+
+def test_table_scope_is_case_insensitive():
+    assert guard_sql(
+        "SELECT name FROM Users WHERE id = 1",
+        dialect="sqlite",
+        allowed_tables={"users"},
+    ).allowed
+
+
+def test_cte_name_is_not_out_of_scope():
+    # A CTE name is not a base table — it must not be judged out-of-scope.
+    sql = (
+        "WITH recent AS (SELECT id FROM transactions WHERE n > 0) SELECT id FROM recent"
+    )
+    assert guard_sql(sql, dialect="sqlite", allowed_tables={"transactions"}).allowed
+
+
+def test_table_scope_skipped_without_allowed_tables():
+    # No per-db metadata (naive-dump path) → table-scope is not enforced.
+    assert guard_sql("SELECT x FROM anything WHERE y = 1", dialect="sqlite").allowed
+
+
+def test_read_only_fires_before_table_scope():
+    # Fail-fast precedence: a write to an out-of-scope table is read_only, not
+    # table_scope (read_only runs first).
+    result = guard_sql("DROP TABLE secrets", dialect="sqlite", allowed_tables={"users"})
+    assert result.rejected and result.rule == "read_only"
 
 
 # --- 3. pipeline wiring + classification -----------------------------------

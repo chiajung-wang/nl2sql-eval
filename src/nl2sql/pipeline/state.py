@@ -67,8 +67,12 @@ class RunState:
     # Set by the guard stage when a candidate fails a pre-execution check; the
     # harness reads these to bucket the run as GUARDRAIL_REJECTED (the classifier
     # lives in the harness, not here). ``guard_reason`` is "rule: why" — no rows.
+    # ``guard_rule`` is the machine-readable rule that fired, so the graph can
+    # treat a table-scope rejection as a re-retrieval signal (CLAUDE.md §5.4)
+    # rather than a hard stop, while a security rule (read_only/…) ends the run.
     guard_rejected: bool = False
     guard_reason: str | None = None
+    guard_rule: str | None = None
 
     # Free-form per-stage diagnostics; cost/latency/tokens land here later.
     meta: dict[str, Any] = field(default_factory=dict)

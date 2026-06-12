@@ -117,9 +117,17 @@ def load_cases(fixture_dir: Path = DEFAULT_FIXTURE_DIR) -> list[dict[str, Any]]:
 
 
 def run_case(case: dict[str, Any]) -> CaseOutcome:
-    """Run one fixture case through ``guard_sql`` and score it against its label."""
+    """Run one fixture case through ``guard_sql`` and score it against its label.
+
+    A case may carry ``allowed_tables`` (the per-db table-scope context); cases
+    without it leave table-scope unenforced, exactly as on the naive-dump path."""
     dialect = case.get("dialect", DEFAULT_CASE_DIALECT)
-    result = guard_sql(case["sql"], dialect=dialect)
+    allowed = case.get("allowed_tables")
+    result = guard_sql(
+        case["sql"],
+        dialect=dialect,
+        allowed_tables=set(allowed) if allowed is not None else None,
+    )
     return CaseOutcome(
         case_id=case["id"],
         expected_verdict=case["expected_verdict"],

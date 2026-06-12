@@ -7,17 +7,18 @@ over the SQL text, never an LLM judge (CLAUDE.md §4, §7). That is the whole po
 — a safety-critical check must be testable and reproducible, which is why the
 gate is *measured* against ``fixtures/redteam_guard/``.
 
-Checks land incrementally across Step 4:
+Checks land incrementally:
 
-- **read-only enforcement** — reject writes/DDL by statement type;
+- **read-only enforcement** — reject writes/DDL by statement type (Step 4);
 - **dangerous-op blocking** — stacked statements, ATTACH/DETACH, PRAGMA and other
-  side-effecting meta-commands;
+  side-effecting meta-commands (Step 4);
 - **cost/complexity heuristic** — join count, unbounded ``SELECT *``, cartesian
-  products, all read off the AST (heuristic-first; no EXPLAIN on the SQLite path).
-
-**Table-scope** enforcement is deliberately *not* here: it needs a per-db
-allowed-tables list, which is schema metadata formalized in Step 6. It arrives
-when its data source is real, not hardcoded provisionally now.
+  products, all read off the AST (Step 4; heuristic-first, no EXPLAIN on SQLite);
+- **table-scope enforcement** — reject a candidate that touches a table outside
+  this db's allowed set (Step 6). Deferred from Step 4 until the per-db schema
+  metadata that defines "allowed" existed; it runs only when that metadata
+  (``allowed_tables``, from the schema index) is supplied, so the naive full-dump
+  path is unaffected.
 
 Two public surfaces:
 
@@ -307,6 +308,44 @@ _RULES: dict[str, GuardRule] = {
     "cost": _check_cost,
 }
 
+
+def _referenced_tables(statements: Sequence[exp.Expression]) -> set[str]:
+    """Base table names a candidate references, casefolded, from the AST.
+
+    CTE names are excluded — a ``WITH`` reference parses as a ``Table`` but is not
+    a base table, so it must not be judged out-of-scope (same reasoning as the
+    retrieval-recall metric). sqlglot ASTs only, never a regex (CLAUDE.md §4)."""
+    referenced: set[str] = set()
+    for stmt in statements:
+        cte_names = {
+            c.alias_or_name.casefold()
+            for c in stmt.find_all(exp.CTE)
+            if c.alias_or_name
+        }
+        for tbl in stmt.find_all(exp.Table):
+            name = tbl.name.casefold()
+            if name and name not in cte_names:
+                referenced.add(name)
+    return referenced
+
+
+def _check_table_scope(
+    statements: Sequence[exp.Expression], allowed_tables: set[str]
+) -> str | None:
+    """Reject a candidate that touches a table outside this db's allowed set.
+
+    Single-db per run (CLAUDE.md §5.8): a query must stay within its tagged db's
+    tables. Deferred from Step 4 until the schema metadata that defines "allowed"
+    existed; the allowed set is the db's real tables (from the schema index).
+    Catches a hallucinated or out-of-scope table *before* execution, rather than
+    leaving it to a not-found error."""
+    allowed = {t.casefold() for t in allowed_tables}
+    out_of_scope = sorted(_referenced_tables(statements) - allowed)
+    if out_of_scope:
+        return f"references table(s) outside this db's scope: {', '.join(out_of_scope)}"
+    return None
+
+
 # The checks run, in order, on every candidate; the first rule to fire wins
 # (fail-fast). Read-only and dangerous-op are correctness/safety gates; cost is
 # the heuristic complexity budget, last so a clearer rejection reason wins first.
@@ -318,6 +357,7 @@ def guard_sql(
     *,
     dialect: str = DEFAULT_DIALECT,
     rules: Sequence[str] = DEFAULT_GUARD_RULES,
+    allowed_tables: set[str] | None = None,
 ) -> GuardResult:
     """Statically vet candidate SQL; the deterministic core of the gate.
 
@@ -353,6 +393,16 @@ def guard_sql(
         if violation is not None:
             return GuardResult(GuardDecision.REJECT, rule=name, reason=violation)
 
+    # Table-scope runs only when the per-db allowed-tables metadata is available
+    # (the schema-RAG path). On the naive full-dump path there is no index, so the
+    # check is skipped — exactly as it was deferred until the metadata existed.
+    if allowed_tables is not None:
+        violation = _check_table_scope(statements, allowed_tables)
+        if violation is not None:
+            return GuardResult(
+                GuardDecision.REJECT, rule="table_scope", reason=violation
+            )
+
     return GuardResult(GuardDecision.ALLOW)
 
 
@@ -361,6 +411,7 @@ def guard(
     *,
     dialect: str = DEFAULT_DIALECT,
     rules: Sequence[str] = DEFAULT_GUARD_RULES,
+    allowed_tables: set[str] | None = None,
 ) -> RunState:
     """Pipeline stage: vet ``state.candidate_sql`` and record the verdict.
 
@@ -371,10 +422,18 @@ def guard(
     ``state``.
     """
     with stage_span("guard", db_id=state.db_id) as extra:
-        result = guard_sql(state.candidate_sql, dialect=dialect, rules=rules)
+        result = guard_sql(
+            state.candidate_sql,
+            dialect=dialect,
+            rules=rules,
+            allowed_tables=allowed_tables,
+        )
         extra["decision"] = result.decision.value
+        # Reset on every check so a re-tried candidate (the table-scope feedback
+        # loop) isn't judged by a stale prior verdict.
+        state.guard_rejected = result.rejected
+        state.guard_reason = result.note if result.rejected else None
+        state.guard_rule = result.rule if result.rejected else None
         if result.rejected:
-            state.guard_rejected = True
-            state.guard_reason = result.note
             extra["rule"] = result.rule
     return state
