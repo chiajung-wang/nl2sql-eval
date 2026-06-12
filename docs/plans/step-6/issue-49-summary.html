@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 5 — Large-schema slice + retrieval lift (Step 6 DoD)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .big{font-size:2.4rem;font-weight:800;color:var(--mod);line-height:1}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #73 · Step 6 · Issue 5 · DoD</span>
+    <h1>Large-schema slice + retrieval lift</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #49</span>
+      <span><b>Branch:</b> <code>step-6/issue-49-large-schema-lift</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>The Step-6 Definition of Done: measure the naive-dump → schema-RAG retrieval
+      lift on a frozen large-schema slice — and report it honestly, even when it's negative.</b></p>
+      <p>The same import-shared pipeline runs over a frozen, seeded, stratified <b>large-schema</b> slice (40
+      questions, disjoint from the Step-3 small-schema slice) <b>twice</b>: once with the Step-3 naive full-schema
+      dump, once with schema-RAG. The lift is the accuracy delta; the retrieval-recall metric (#47) explains it.</p>
+      <p>This is the second of the project's two sharpest findings — and like Step 5's pass@k gap, the measurement
+      apparatus earns its keep by surfacing the <em>real</em> result rather than a hoped-for headline.</p>
+      <div class="stats">
+        <div><b>-0.125</b> retrieval lift</div>
+        <div><b>0.942</b> retrieval recall</div>
+        <div><b>40</b> frozen large-schema questions</div>
+        <div><b>367</b> tests green</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The number — and why it's negative</h2><div class="card">
+      <p style="text-align:center;margin:1rem 0">
+        <span class="note">naive </span><span style="font-size:1.6rem;font-weight:800;color:var(--add)">0.700</span>
+        <span class="note"> &nbsp;→ &nbsp;schema-RAG </span><span style="font-size:1.6rem;font-weight:800;color:var(--del)">0.575</span>
+        <span class="note"> &nbsp;·&nbsp; </span><span class="big">lift −0.125</span>
+      </p>
+      <p>Schema-RAG <b>lowered</b> pass@1 by 12.5 points (28/40 → 23/40). The recall metric diagnoses it directly:</p>
+      <table>
+        <thead><tr><th>Signal</th><th>Value</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td>naive pass@1</td><td><b>0.700</b> (28/40)</td><td>The full dump hands the model <em>every</em> table — and these dbs (≤14 tables) <b>fit</b> the context.</td></tr>
+          <tr><td>schema-RAG pass@1</td><td><b>0.575</b> (23/40)</td><td>RAG's job is to <em>drop</em> tables to fit a budget; on a schema that already fits, that can only lose information.</td></tr>
+          <tr><td>retrieval recall</td><td><b>0.942</b></td><td>~5.8% of gold tables were missed (concentrated in the 10–14-table dbs) → those become silent wrong answers.</td></tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-bottom:0"><b>Retrieval is not free.</b> Its lift appears where the schema
+      <em>overflows</em> the prompt; on these BIRD dev dbs it doesn't, so retrieval only costs. The honest reading is
+      the deliverable — the DoD is to <em>measure</em> the lift, not to win it.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Apples-to-apples by construction</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart LR
+  S["frozen large-schema slice<br/>(40 q · seeded · stratified)"] --> C["build cases ONCE<br/>(gold executed per tagged db)"]
+  C --> N["run: schema = full dump"]:::live
+  C --> R["run: schema_index = RAG"]:::live
+  N --> NA["naive pass@1 = 0.700"]:::ok
+  R --> RA["RAG pass@1 = 0.575"]:::bad
+  R --> RC["retrieval recall = 0.942"]:::live
+  NA --> L["lift = -0.125"]:::bad
+  RA --> L
+  RC -.->|diagnoses| L
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef bad fill:#fecaca,stroke:#dc2626,color:#7f1d1d;
+  classDef live fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  class NA,RC live; class RA,L bad; class NA ok;</pre></div>
+      <p class="diagram-caption">Same cases, db, dialect, and evidence for both runs — the only difference is
+      full-dump vs retrieval. The review confirmed the negative result is genuine, not a scoring artifact.</p>
+    </section>
+
+    <section><h2><span class="num">4</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>eval/datasets/bird/slice_step6.json</code></td><td><span class="st A">A</span></td><td>Frozen large-schema slice — 40 ids, <code>min_tables=6</code>, seeded/stratified, disjoint from Step-3.</td></tr>
+          <tr><td class="f"><code>eval/datasets/bird/slice_large.py</code></td><td><span class="st A">A</span></td><td>The Step-6 slice builder (reuses <code>select_slice</code> with the <code>min_tables</code> floor).</td></tr>
+          <tr><td class="f"><code>eval/datasets/bird/slice.py</code></td><td><span class="st M">M</span></td><td><code>select_slice</code> gains a <code>min_tables</code> floor (Step-3 path unchanged).</td></tr>
+          <tr><td class="f"><code>eval/eval_bird_rag.py</code></td><td><span class="st A">A</span></td><td>Naive-vs-RAG runner; sign-aware lift + recall; RESULTS row + honest note.</td></tr>
+          <tr><td class="f"><code>eval/eval_bird.py</code></td><td><span class="st M">M</span></td><td><code>build_bird_cases</code> takes an explicit slice.</td></tr>
+          <tr><td class="f"><code>RESULTS.md</code></td><td><span class="st M">M</span></td><td>Step-6 row: retrieval lift −0.125, recall 0.942, full config + commit.</td></tr>
+          <tr><td class="f"><code>tests/test_slice_large_and_lift.py</code></td><td><span class="st A">A</span></td><td>min_tables floor, disjointness, seeded determinism, lift-row formatting (incl. negative).</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">5</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 367 passed; <code>ruff</code> clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> 40-question × 2-mode BIRD run; number reproducible via <code>uv run python -m eval.eval_bird_rag</code></p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>RESULTS.md</code> row traceable to commit <code>ff342d7</code> (CLAUDE.md §6)</p>
+        <p style="margin:.2rem 0"><b>✓</b> Independent review → <b>methodology sound, negative result genuine</b> (apples-to-apples, no table-dropping bug, recall consistent); slice "purpose" made honest</p>
+        <p style="margin:.2rem 0 0" class="note"><b>Step 6 done.</b> Schema-RAG, loop-aware re-trigger, retrieval recall, table-scope guard, and the measured (honest) retrieval lift all landed.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #49 / PR #73 · base <code>main</code> ← <code>step-6/issue-49-large-schema-lift</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>

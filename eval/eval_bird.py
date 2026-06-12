@@ -50,11 +50,15 @@ def _schema(db_id: str) -> str:
     return loader.schema_text(_engine(db_id))
 
 
-def build_bird_cases() -> tuple[list[Case], dict[str, str]]:
+def build_bird_cases(
+    slice_ids: list[int] | None = None,
+) -> tuple[list[Case], dict[str, str]]:
     """Build a :class:`Case` per slice question (gold executed against its tagged
-    db) plus the per-question evidence map. Gold execution is SQLite-only — no
-    API — so this is testable offline whenever the BIRD data is present."""
-    wanted = set(load_slice_ids())
+    db) plus the per-question evidence map. ``slice_ids`` defaults to the frozen
+    Step-3 slice; the Step-6 large-schema runner passes its own slice. Gold
+    execution is SQLite-only — no API — so this is testable offline whenever the
+    BIRD data is present."""
+    wanted = set(slice_ids if slice_ids is not None else load_slice_ids())
     questions = [q for q in loader.load_dev_questions() if q["question_id"] in wanted]
     cases: list[Case] = []
     evidence: dict[str, str] = {}
