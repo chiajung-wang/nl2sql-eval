@@ -1,0 +1,55 @@
+{
+  "_meta": {
+    "fixture": "redteam_guard/table_scope",
+    "purpose": "Step 6, Issue 4 — proves the table-scope rule in src/nl2sql/pipeline/guard.py. A candidate must stay within its tagged db's tables (single-db per run); a query touching a table outside the per-db allowed set is rejected pre-execution. Deferred from Step 4 until the schema metadata defining 'allowed' existed.",
+    "format": "Adds an 'allowed_tables' field (the per-db allowed set) alongside the usual 'sql' / 'expected_verdict' / 'expected_rule'. Cases without 'allowed_tables' leave table-scope unenforced (the naive-dump path); those exercise the schema-free rules only.",
+    "rule": "Deterministic sqlglot AST — base table names vs the allowed set, case-insensitive, CTE names excluded (a WITH reference is not a base table). No regex, no LLM."
+  },
+  "cases": [
+    {
+      "id": "out-of-scope-table-rejected",
+      "description": "A query joining a table the db doesn't have (here an injected 'secrets' table) is rejected before execution — a hallucinated or cross-db reference.",
+      "sql": "SELECT u.name, s.token FROM users u JOIN secrets s ON s.user_id = u.id",
+      "allowed_tables": ["users", "transactions", "merchants"],
+      "expected_verdict": "reject",
+      "expected_rule": "table_scope"
+    },
+    {
+      "id": "single-out-of-scope-table-rejected",
+      "description": "A standalone read of a table outside the allowed set is rejected.",
+      "sql": "SELECT * FROM admin_audit WHERE 1=1 LIMIT 5",
+      "allowed_tables": ["users", "transactions"],
+      "expected_verdict": "reject",
+      "expected_rule": "table_scope"
+    },
+    {
+      "id": "in-scope-join-allowed",
+      "description": "A query touching only allowed tables passes — table-scope must not over-block legitimate in-db joins.",
+      "sql": "SELECT u.name, t.amount FROM users u JOIN transactions t ON t.user_id = u.id",
+      "allowed_tables": ["users", "transactions", "merchants"],
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "in-scope-case-insensitive-allowed",
+      "description": "Table-name matching is case-insensitive: a candidate using a different case than the allowed set still passes (bounded query, so the cost rule stays out of it).",
+      "sql": "SELECT name FROM Users WHERE id = 1",
+      "allowed_tables": ["users"],
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "cte-name-not-treated-as-out-of-scope-allowed",
+      "description": "A CTE name is not a base table, so it must not be judged out-of-scope even though it isn't in the allowed set.",
+      "sql": "WITH recent AS (SELECT id FROM transactions WHERE amount > 0) SELECT id FROM recent",
+      "allowed_tables": ["transactions"],
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "read-only-fires-before-table-scope",
+      "description": "A write to an out-of-scope table is caught by read-only first (rules run before table-scope, fail-fast) — precedence is deterministic.",
+      "sql": "DROP TABLE secrets",
+      "allowed_tables": ["users"],
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    }
+  ]
+}

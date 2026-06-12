@@ -84,6 +84,12 @@ def run_pipeline(
             if schema_index is not None
             else schema
         )
+        # Per-db allowed-tables for the table-scope guard — the db's real tables,
+        # available only on the schema-index (RAG) path. ``None`` on the naive
+        # dump path leaves table-scope unenforced (it has no index to scope to).
+        allowed_tables = (
+            {t.name for t in schema_index.tables} if schema_index is not None else None
+        )
         re_retrievals = 0
         while True:
             state.attempts += 1
@@ -95,9 +101,32 @@ def run_pipeline(
                 model=model,
                 client=client,
             )
-            guard(state, dialect=dialect)
+            guard(state, dialect=dialect, allowed_tables=allowed_tables)
             if state.guard_rejected:
-                return state
+                # A table-scope rejection means the candidate reached for a table
+                # outside this db — the *too-narrow-retrieval* symptom. Feed it
+                # back into retrieval and widen (CLAUDE.md §5.4), exactly like a
+                # not-found error, instead of hard-stopping. Security rules
+                # (read_only/dangerous_op/cost) always end the run. When the budget
+                # is spent, even table-scope becomes a terminal guardrail rejection.
+                scope_retry = (
+                    state.guard_rule == "table_scope"
+                    and schema_index is not None
+                    and state.attempts < budget
+                )
+                if not scope_retry:
+                    return state
+                re_retrievals += 1
+                state.guard_rejected = False
+                state.guard_reason = None
+                state.guard_rule = None
+                active_schema = retrieve(
+                    state,
+                    schema_index,
+                    max_tables=max_tables,
+                    floor=max_tables * 2**re_retrievals,
+                )
+                continue
             execute(state, engine)
             if state.error is None or state.attempts >= budget:
                 return state

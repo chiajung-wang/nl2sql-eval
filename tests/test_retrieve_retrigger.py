@@ -118,6 +118,40 @@ def test_not_found_error_re_retrieves_a_wider_schema_and_recovers(abc_engine):
     assert len(state.retrieved_tables) >= 2
 
 
+def test_column_not_found_on_in_scope_table_re_retrieves_via_execution(abc_engine):
+    # Distinct from the table cases: an IN-SCOPE table with a missing column passes
+    # table-scope and actually executes, producing a genuine "no such column"
+    # execution error — exercising the not-found *execution* re-retrieve branch
+    # (#46), which the table-scope guard (#48) now intercepts for tables.
+    index = build_schema_index(abc_engine)
+    client = FakeAnthropic(
+        reply=[
+            "SELECT bad_col AS n FROM alpha",  # in scope → executes → no such column
+            "SELECT count(*) AS n FROM alpha",
+        ]
+    )
+
+    state = run_pipeline(
+        "count alpha rows",
+        schema_index=index,
+        engine=abc_engine,
+        db_id="abc",
+        dialect="SQLite",
+        client=client,
+        max_attempts=2,
+        max_tables=1,
+    )
+
+    assert state.error is None  # recovered on attempt 2
+    assert state.attempts == 2
+    assert not state.guard_rejected  # the failure was an execution error, not the gate
+    first, second = (
+        client.calls[0]["messages"][0]["content"],
+        client.calls[1]["messages"][0]["content"],
+    )
+    assert _n_tables(second) > _n_tables(first)  # the not-found error widened retrieval
+
+
 def test_non_not_found_error_regenerates_without_re_retrieving(abc_engine):
     index = build_schema_index(abc_engine)
     # An unknown-function error parses fine (so it clears the guard) but is not a
@@ -153,8 +187,11 @@ def test_non_not_found_error_regenerates_without_re_retrieving(abc_engine):
 
 def test_re_retrieve_stays_inside_the_budget(abc_engine):
     index = build_schema_index(abc_engine)
-    # Every attempt hits not-found: the loop must re-retrieve yet still stop at the
-    # budget — no infinite re-retrieval.
+    # Every attempt reaches for a table outside the db: the loop re-triggers
+    # retrieval (widening) yet still stops at the budget — no infinite re-retrieval.
+    # With table-scope wired in (Step 6, #48), the out-of-scope table is caught
+    # *pre-execution*, so budget exhaustion ends the run as a terminal
+    # GUARDRAIL_REJECTED — never executed — rather than a not-found retry-exhaust.
     client = FakeAnthropic(reply="SELECT count(*) AS n FROM ghost")
 
     state = run_pipeline(
@@ -168,7 +205,9 @@ def test_re_retrieve_stays_inside_the_budget(abc_engine):
         max_tables=1,
     )
 
-    assert state.error is not None
+    assert state.guard_rejected is True
+    assert state.guard_rule == "table_scope"
+    assert state.error is None  # the gate stopped it; it never executed
     assert state.attempts == 3
     assert len(client.calls) == 3
     # Widening eventually reached the full schema (3 tables).
