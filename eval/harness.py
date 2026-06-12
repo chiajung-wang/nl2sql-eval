@@ -16,12 +16,13 @@ stub — the harness logic is exercised offline, no DB or network required.
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from eval.compare import DEFAULT_RULES, Comparison, compare
-from eval.metrics import BatchReport, CaseResult
+from eval.metrics import BatchReport, CaseResult, TwinReport
 from nl2sql.pipeline.state import RunState, TerminalState
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,11 @@ class Case:
 # Injected per-question runner: takes a Case, returns its finished RunState. The
 # live entrypoints bind this to the import-shared pipeline; tests pass a stub.
 RunOne = Callable[[Case], RunState]
+
+# A factory that binds a retry budget into a runner: ``factory(1)`` is the
+# single-shot pass@1 runner, ``factory(k)`` the correction-on pass@k runner. The
+# twin metric runs the *same* cases through both (Step 5, issue #43).
+RunOneFactory = Callable[[int], RunOne]
 
 
 def classify_terminal_state(
@@ -123,7 +129,9 @@ def run_batch(
     """
     results: list[CaseResult] = []
     for case in cases:
+        start = time.perf_counter()
         state = run_one(case)
+        latency_ms = round((time.perf_counter() - start) * 1000, 3)
         comparison, terminal = score_run(state, case, rules=rules)
         correct = terminal is TerminalState.SUCCESS
         if state.guard_rejected:
@@ -141,13 +149,44 @@ def run_batch(
                 difficulty=case.difficulty,
                 candidate_sql=state.candidate_sql,
                 note=note,
+                # Cost of the run: attempts the correction loop spent (≥1) and the
+                # accumulated token usage, so pass@k's lift is shown against its
+                # price (Step 5, issue #43). Latency is wall-clock around the whole
+                # run — every attempt included.
+                attempts=state.attempts or 1,
+                input_tokens=int(state.meta.get("input_tokens", 0) or 0),
+                output_tokens=int(state.meta.get("output_tokens", 0) or 0),
+                latency_ms=latency_ms,
             )
         )
         logger.info(
-            "harness case=%s db=%s terminal=%s correct=%s",
+            "harness case=%s db=%s terminal=%s correct=%s attempts=%s",
             case.id,
             case.db_id,
             terminal.value,
             correct,
+            state.attempts or 1,
         )
     return BatchReport(tuple(results))
+
+
+def run_twin(
+    cases: Sequence[Case],
+    run_one_factory: RunOneFactory,
+    *,
+    k: int,
+    model: str,
+    rules: Sequence[str] = DEFAULT_RULES,
+) -> TwinReport:
+    """Run the slice twice — correction off then on — into a :class:`TwinReport`.
+
+    pass@1 is ``run_one_factory(1)`` (single shot); pass@k is
+    ``run_one_factory(k)`` (the capped correction budget). Same cases, same
+    comparator, both scored by :func:`run_batch`; the report holds the gap and the
+    added cost/latency. ``model`` prices both batches. This is the harness's job —
+    the live entrypoint only supplies the factory that binds the budget into the
+    import-shared pipeline (Step 5, issue #43).
+    """
+    pass1 = run_batch(cases, run_one_factory(1), rules=rules)
+    passk = run_batch(cases, run_one_factory(k), rules=rules)
+    return TwinReport(pass1=pass1, passk=passk, model=model)

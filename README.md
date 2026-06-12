@@ -161,7 +161,8 @@ nl2sql-eval/
 │   ├── harness.py            #   batch runner; pass@1 + pass@k; terminal-state classifier
 │   ├── prove_step1.py        #   Step-1 end-to-end proof: one seed question → result vs gold
 │   ├── compare.py            #   canonicalization + result-set comparison (heavily tested)
-│   ├── metrics.py            #   accuracy, retrieval-recall, cost/latency aggregation
+│   ├── metrics.py            #   pass@1/pass@k twin report, cost/latency aggregation
+│   ├── cost.py               #   token→USD price table (dated); pass@k cost accounting
 │   └── datasets/
 │       ├── bird/             #   benchmark backbone; frozen slice ID list lives here
 │       └── payments/         #   schema.sql + seed.sql + load.py; questions.json + questions.py + verify_gold.py
