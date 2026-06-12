@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from eval.cost import PRICES, cost_usd
-from eval.harness import Case, run_batch, run_twin
+from eval.harness import Case, derive_pass1_report, run_batch, run_twin
 from eval.metrics import BatchReport, CaseResult, TwinReport, twin_summary_lines
 from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.state import RunState, TerminalState
@@ -208,6 +208,83 @@ def test_run_twin_runs_same_cases_off_then_on():
     assert twin.recovery_rate == 1.0  # the one failure recovered
     assert twin.added_attempts == 1  # q2 took 2 vs 1; q1 unchanged
     assert twin.added_cost_usd is not None and twin.added_cost_usd > 0
+
+
+# --- derive_pass1_report: the rigorous single-run twin ----------------------
+
+
+def test_derive_pass1_report_reads_first_attempt_off_one_run():
+    # One pass@k run: a clean-correct (1 attempt), a recovered run (2 attempts,
+    # ended correct → attempt 1 errored), a clean-wrong single attempt, and a
+    # budget-exhausted run (3 attempts, errored).
+    passk = BatchReport(
+        (
+            CaseResult(
+                "ok",
+                "bird",
+                TerminalState.SUCCESS,
+                True,
+                attempts=1,
+                input_tokens=100,
+                output_tokens=10,
+                latency_ms=10.0,
+            ),
+            CaseResult(
+                "rec",
+                "bird",
+                TerminalState.SUCCESS,
+                True,
+                attempts=2,
+                input_tokens=200,
+                output_tokens=20,
+                latency_ms=20.0,
+            ),
+            CaseResult(
+                "wrong",
+                "bird",
+                TerminalState.WRONG_ANSWER,
+                False,
+                attempts=1,
+                input_tokens=100,
+                output_tokens=10,
+                latency_ms=10.0,
+            ),
+            CaseResult(
+                "exh",
+                "bird",
+                TerminalState.RETRY_EXHAUSTED,
+                False,
+                attempts=3,
+                input_tokens=300,
+                output_tokens=30,
+                latency_ms=30.0,
+            ),
+        )
+    )
+    pass1 = derive_pass1_report(passk)
+    by = {r.case_id: r for r in pass1.results}
+
+    # clean-correct on attempt 1 → still SUCCESS.
+    assert by["ok"].correct and by["ok"].terminal_state is TerminalState.SUCCESS
+    # recovered → attempt 1 errored → pass@1 wrong, EXECUTION_ERROR_FINAL.
+    assert not by["rec"].correct
+    assert by["rec"].terminal_state is TerminalState.EXECUTION_ERROR_FINAL
+    # clean-wrong single attempt → unchanged.
+    assert not by["wrong"].correct
+    assert by["wrong"].terminal_state is TerminalState.WRONG_ANSWER
+    # budget-exhausted → attempt 1 errored.
+    assert by["exh"].terminal_state is TerminalState.EXECUTION_ERROR_FINAL
+    # pass@1 is single-shot by definition.
+    assert all(r.attempts == 1 for r in pass1.results)
+    # first-attempt cost share (even split): rec 200//2=100, 20//2=10.
+    assert by["rec"].input_tokens == 100 and by["rec"].output_tokens == 10
+
+    twin = TwinReport(pass1=pass1, passk=passk, model=MODEL)
+    assert twin.pass_at_1 == 1 / 4  # only "ok" correct on attempt 1
+    assert twin.pass_at_k == 2 / 4  # ok + rec
+    assert twin.gap == 1 / 4  # rec is what self-correction recovered
+    assert twin.added_attempts == (1 + 2 + 1 + 3) - 4  # extra retry cycles
+    assert twin.recovery_rate == 1 / 3  # 1 of 3 pass@1 failures recovered
 
 
 # --- generate accumulates token usage across attempts on the state ----------

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 3 — pass@1 → pass@k gap on BIRD (Step 5 DoD)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .big{font-size:2.4rem;font-weight:800;color:var(--add);line-height:1}
+  .zero{color:var(--mod)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #67 · Step 5 · Issue 3 · DoD</span>
+    <h1>pass@1 → pass@k gap on BIRD + RESULTS.md</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #44</span>
+      <span><b>Branch:</b> <code>feat/step-5-issue-3-passk-gap-results</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview — the Step 5 Definition of Done</h2><div class="card">
+      <p class="lede"><b>Run the twin-metric harness over the frozen BIRD slice and commit the pass@1 → pass@k
+      gap — then read the result honestly, even when the honest result is "self-correction is worth nothing
+      here."</b></p>
+      <p>The finding: <b>pass@1 = pass@k = 0.420 (21/50), gap +0.000.</b> The execution-error correction loop
+      <b>never fired</b> — <b>0</b> of the 29 failures were execution errors (27 wrong-answers, 2 guardrail
+      rejections). On this slice the failures are <b>semantic, not syntactic</b>: the model writes SQL that
+      parses, passes the guard, and runs — it's just the wrong query. There is no error to feed back, so retry
+      buys nothing. Recovering these needs better <em>retrieval/generation</em> (Step 6), not correction.</p>
+      <p>This is the measurement apparatus doing its job. A naive harness might run pass@k and report a number
+      that looks fine; the twin metric <b>proves</b> the loop adds no accuracy rather than letting a headline
+      pass@k imply otherwise. And pass@1 lands at <b>exactly the Step-3 baseline (0.420)</b> — confirming
+      <code>generate/v3</code> renders byte-identical to v2 with correction off.</p>
+      <div class="stats">
+        <div><b class="zero">+0.000</b> pass@1→pass@k gap</div>
+        <div><b>0 / 29</b> failures were execution errors</div>
+        <div><b>0.420</b> = the Step-3 baseline (v3 ≡ v2)</div>
+        <div><b>294</b> tests green</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The rigor fix: one run, not two</h2><div class="card">
+      <p>The first cut ran pass@1 and pass@k as <b>two independent stochastic batches</b>. That conflates the
+      value of correction with <b>sampling noise</b> — a question can flip wrong→right just by resampling the
+      model, with no correction involved. (A throwaway two-run pass on this slice showed a spurious
+      <code>+0.060</code> gap from exactly this noise, with only one real correction firing.)</p>
+      <p>The fix — <code>derive_pass1_report</code> — runs pass@k <b>once</b> and derives pass@1 from its
+      <b>first attempts</b>. The loop only retries on an execution error, so <code>attempts&nbsp;&gt;&nbsp;1</code>
+      means attempt&nbsp;1 errored. Therefore:</p>
+      <p style="text-align:center;font-size:1.05rem;margin:1rem 0">
+        <code class="k">pass@1-correct ⟺ (final-correct AND attempts == 1)</code></p>
+      <p style="margin-bottom:0">Zero cross-run noise. The gap is now exactly the set of questions an attempt-1
+      execution error recovered from — nothing else.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> How pass@1 falls out of the pass@k run</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TD
+  R["pass@k CaseResult<br/>(correct, attempts)"] --> Q{"attempts == 1<br/>AND correct?"}
+  Q -->|yes| P1OK["pass@1 ✓ · success<br/>(clean-correct first attempt)"]:::ok
+  Q -->|no| E{"attempts &gt; 1?"}
+  E -->|yes| ERR["pass@1 ✗ · execution_error_final<br/>(attempt 1 errored → retried)"]:::err
+  E -->|no| KEEP["pass@1 ✗ · unchanged<br/>(clean-wrong / guardrail_rejected)"]:::keep
+  ERR -.recovered iff final-correct.-> GAIN["counts toward the gap"]:::live
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef err fill:#fde68a,stroke:#d97706,color:#7c2d12;
+  classDef keep fill:#e2e8f0,stroke:#64748b,color:#1e293b;
+  classDef live fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  class P1OK ok; class ERR err; class KEEP keep; class GAIN live;</pre></div>
+      <p class="diagram-caption">Validated against <code>graph.py</code>: <code>correct()</code> runs only after an
+      execution error, so a guardrail rejection or a clean-but-wrong first attempt can never produce
+      <code>attempts&nbsp;&gt;&nbsp;1</code>. The derivation's terminal-state re-bucketing matches the harness
+      classifier exactly. Cost on the derived view is the first attempt's share (exact for never-retried runs).</p>
+    </section>
+
+    <section><h2><span class="num">4</span> The committed RESULTS.md row</h2><div class="card">
+      <table>
+        <thead><tr><th>Date</th><th>Step</th><th>Metric</th><th>Number</th><th>Model</th><th>Prompt</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>2026-06-12</td><td>5</td><td>pass@1→pass@3</td>
+            <td><b>0.420 (21/50) → 0.420 (21/50) [gap +0.000]</b></td>
+            <td><code>claude-sonnet-4-6</code></td><td><code>generate/v3</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin:1rem 0 0">Full config in <code class="k">RESULTS.md</code>: slice
+      <code>step3-naive-schema-dump-baseline</code>, commit <code>7ae5bb5</code>. The finding paragraph states it
+      plainly — and explains <em>why</em> the gap is 0 (the failure breakdown: 0 execution errors, 27
+      wrong-answers, 2 guardrail rejections). Cost/latency delta is <b>exactly 0</b>: single-run derivation with
+      no retries means the two views are identical. Reproduce: <code>uv run python -m eval.eval_bird_twin</code>.</p>
+    </div></section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>eval/eval_bird_twin.py</code></td><td><span class="st A">A</span></td><td>The DoD runner: one pass@k run, derive pass@1, breakdown-aware RESULTS row + finding paragraph; <code>--dry-run</code> / <code>RETRY_BUDGET</code> override. Reuses the Step-3 BIRD plumbing.</td></tr>
+          <tr><td class="f"><code>eval/harness.py</code></td><td><span class="st M">M</span></td><td><code>derive_pass1_report</code> (the rigorous single-run twin); <code>run_twin</code> docstring now flags the two-run sampling-noise caveat.</td></tr>
+          <tr><td class="f"><code>RESULTS.md</code></td><td><span class="st M">M</span></td><td>Step-5 row + the finding paragraph (full config + commit).</td></tr>
+          <tr><td class="f"><code>tests/test_eval_bird_twin.py</code></td><td><span class="st A">A</span></td><td>Row/prose shape, table-insert-then-prose-append, the zero-gap explanatory branch, factory binding.</td></tr>
+          <tr><td class="f"><code>tests/test_twin_metrics.py</code></td><td><span class="st M">M</span></td><td>The derivation rule across clean-correct / recovered / clean-wrong / budget-exhausted, with the first-attempt cost share.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 294 passed</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>ruff check</code> + <code>ruff format</code> → clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Live finding committed to <code>RESULTS.md</code> with full config + commit (§6)</p>
+        <p style="margin:.2rem 0"><b>✓</b> pass@1 = 0.420 matches the Step-3 baseline → <code>generate/v3</code> ≡ v2 with correction off</p>
+        <p style="margin:.2rem 0"><b>✓</b> Fresh-agent review → the rigor claim validated against <code>graph.py</code>; the committed number internally consistent (21 + 29 = 50; 0 + 27 + 2 = 29); no fixes needed</p>
+        <p style="margin:.2rem 0 0" class="note">The honest "gap = 0" is a feature, not a disappointment: it scopes self-correction precisely (execution errors only) and motivates Step 6 (schema-RAG / retrieval re-trigger) for the semantic failures.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #44 / PR #67 · base <code>main</code> ← <code>feat/step-5-issue-3-passk-gap-results</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>

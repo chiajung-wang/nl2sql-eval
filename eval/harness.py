@@ -181,12 +181,59 @@ def run_twin(
     """Run the slice twice — correction off then on — into a :class:`TwinReport`.
 
     pass@1 is ``run_one_factory(1)`` (single shot); pass@k is
-    ``run_one_factory(k)`` (the capped correction budget). Same cases, same
-    comparator, both scored by :func:`run_batch`; the report holds the gap and the
-    added cost/latency. ``model`` prices both batches. This is the harness's job —
-    the live entrypoint only supplies the factory that binds the budget into the
-    import-shared pipeline (Step 5, issue #43).
+    ``run_one_factory(k)`` (the capped correction budget). Two **independent**
+    stochastic runs: this measures the honest *end-to-end cost* of each mode, but
+    the accuracy gap carries sampling noise (a question can flip wrong→right just
+    by resampling, with no correction involved). For a noise-free accuracy gap,
+    prefer :func:`derive_pass1_report` over a single pass@k run — that is what the
+    Step-5 DoD reports. ``model`` prices both batches (Step 5, issue #43).
     """
     pass1 = run_batch(cases, run_one_factory(1), rules=rules)
     passk = run_batch(cases, run_one_factory(k), rules=rules)
     return TwinReport(pass1=pass1, passk=passk, model=model)
+
+
+def derive_pass1_report(passk: BatchReport) -> BatchReport:
+    """Derive the pass@1 (single-shot) view from a single pass@k run — no resample.
+
+    The rigorous twin: rather than a second independent run (which adds sampling
+    noise), read pass@1 off the *first attempt* of the correction-on run. The
+    correction loop only retries on an **execution error**, so ``attempts > 1``
+    means attempt 1 errored — therefore a run is **pass@1-correct iff it is
+    final-correct *and* never retried** (``correct and attempts == 1``). A
+    retried-then-recovered run was an attempt-1 execution error (pass@1 wrong,
+    pass@k right) — exactly the gap self-correction earns; a clean-but-wrong or
+    guard-rejected single attempt is unchanged.
+
+    Cost on the derived single-shot view is the **first attempt's share**: equal
+    to the pass@k cost for never-retried runs, and an even per-attempt split for
+    retried ones (a modeled single-shot cost, since per-attempt token splits are
+    not recorded). The gap (``passk.accuracy − derived.accuracy``) is therefore
+    measured with zero cross-run noise; the cost delta is a faithful model.
+    """
+    derived: list[CaseResult] = []
+    for r in passk.results:
+        first_attempt_correct = r.correct and r.attempts == 1
+        if first_attempt_correct:
+            terminal = TerminalState.SUCCESS
+        elif r.attempts > 1:
+            terminal = TerminalState.EXECUTION_ERROR_FINAL  # attempt 1 errored
+        else:
+            terminal = r.terminal_state  # one clean attempt: wrong / guard-rejected
+        share = r.attempts or 1
+        derived.append(
+            CaseResult(
+                case_id=r.case_id,
+                db_id=r.db_id,
+                terminal_state=terminal,
+                correct=first_attempt_correct,
+                difficulty=r.difficulty,
+                candidate_sql=r.candidate_sql,
+                note=r.note,
+                attempts=1,
+                input_tokens=r.input_tokens // share,
+                output_tokens=r.output_tokens // share,
+                latency_ms=r.latency_ms / share,
+            )
+        )
+    return BatchReport(tuple(derived))
