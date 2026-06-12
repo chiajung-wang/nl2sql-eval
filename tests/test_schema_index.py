@@ -151,6 +151,33 @@ def test_relevant_tables_preserves_declaration_order(store_engine):
     assert tables == sorted(tables, key=order.index)
 
 
+def test_floor_widens_a_narrow_retrieval_padding_from_declaration_order(store_engine):
+    # The re-retrieve lever (#46): one lexical hit, but floor=3 pads two more
+    # tables from declaration order. The ranked pick is always kept.
+    index = build_schema_index(store_engine)
+    tables = index.relevant_tables("products", max_tables=1, floor=3)
+    assert "products" in tables
+    assert len(tables) == 3
+
+
+def test_floor_beyond_table_count_reaches_the_full_schema(store_engine):
+    index = build_schema_index(store_engine)
+    tables = index.relevant_tables("products", max_tables=1, floor=99)
+    assert tables == ["customers", "orders", "payments", "products"]
+
+
+def test_floor_pads_even_with_no_lexical_signal(store_engine):
+    # No table scores, but a floor still yields a bounded set (not the full dump).
+    index = build_schema_index(store_engine)
+    tables = index.relevant_tables("zzzqux nothing", max_tables=2, floor=2)
+    assert len(tables) == 2
+
+
+def test_floor_below_selection_is_a_noop(store_engine):
+    index = build_schema_index(store_engine)
+    assert index.relevant_tables("products", max_tables=1, floor=1) == ["products"]
+
+
 # --- rendering --------------------------------------------------------------
 
 
