@@ -216,6 +216,10 @@ def test_render_prompt_without_correction_matches_v2_shape():
     # Correction off → the block is omitted entirely (pass@1 prompt unchanged).
     prompt = render_prompt(schema="CREATE TABLE t (id INT);", question="q")
     assert "previous attempt" not in prompt.lower()
+    # The v3 bump is a no-op when correction is off (the PR's pass@1-invariance
+    # claim): the prompt ends at the question with no trailing correction
+    # whitespace, so prompt-CI sees no behavioral diff vs v2.
+    assert prompt.endswith("Question:\nq\n")
 
 
 # --- the capped self-correction loop ----------------------------------------

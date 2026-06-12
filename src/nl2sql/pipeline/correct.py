@@ -29,8 +29,9 @@ def correct(state: RunState) -> RunState:
     Reads the failed attempt's ``candidate_sql`` and ``error`` onto
     ``state.correction`` (the structured feedback the next ``generate`` renders),
     then clears ``error`` and the empty result so the next generate→execute cycle
-    starts clean. Only the error class is attached to the obs span — never row
-    values, which never reach a failed run anyway. Mutates and returns ``state``.
+    starts clean. Only a ``corrected`` flag is attached to the obs span — never
+    the error text or row values, which never reach a failed run anyway. Mutates
+    and returns ``state``.
 
     A no-op (correction stays ``None``) when there is no error to feed back, so a
     stray call cannot fabricate a correction signal.
