@@ -1,0 +1,77 @@
+{
+  "_meta": {
+    "slice": "step6-large-schema-retrieval-lift",
+    "purpose": "Frozen, seeded, stratified Step-6 slice from large-schema BIRD dbs (> Step-3's 5-table cap). The naive-dump baseline overflows context here, so this is where schema-RAG earns its keep \u2014 the retrieval lift is measured on this slice.",
+    "criteria": {
+      "min_tables": 6,
+      "size": 40,
+      "seed": 20260613
+    },
+    "eligible_dbs": {
+      "card_games": 6,
+      "codebase_community": 8,
+      "european_football_2": 7,
+      "financial": 8,
+      "formula_1": 13,
+      "student_club": 8,
+      "superhero": 10
+    },
+    "difficulty_mix": {
+      "challenging": 3,
+      "moderate": 11,
+      "simple": 26
+    },
+    "db_mix": {
+      "card_games": 7,
+      "codebase_community": 6,
+      "european_football_2": 9,
+      "financial": 4,
+      "formula_1": 3,
+      "student_club": 7,
+      "superhero": 4
+    },
+    "generated": "2026-06-13"
+  },
+  "question_ids": [
+    128,
+    159,
+    183,
+    192,
+    356,
+    460,
+    471,
+    486,
+    494,
+    525,
+    526,
+    560,
+    626,
+    631,
+    639,
+    703,
+    709,
+    748,
+    776,
+    779,
+    800,
+    847,
+    853,
+    964,
+    1030,
+    1047,
+    1066,
+    1085,
+    1086,
+    1094,
+    1112,
+    1135,
+    1140,
+    1328,
+    1335,
+    1365,
+    1400,
+    1413,
+    1444,
+    1467
+  ]
+}

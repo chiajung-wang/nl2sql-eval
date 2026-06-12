@@ -57,18 +57,23 @@ def select_slice(
     table_counts: Mapping[str, int],
     *,
     max_tables: int = MAX_TABLES,
+    min_tables: int = 0,
     n: int = SLICE_SIZE,
     seed: int = SEED,
 ) -> list[int]:
     """Return the frozen slice as a sorted list of ``question_id``s.
 
-    Eligible questions are those whose tagged db has ``<= max_tables`` tables.
+    Eligible questions are those whose tagged db has ``min_tables <= count <=
+    max_tables`` tables (Step 3 uses ``max_tables=5``; Step 6's large-schema slice
+    uses ``min_tables=6`` to draw exactly the dbs where retrieval earns its keep).
     ``n`` of them are sampled with a fixed ``seed``, stratified so the slice keeps
     the eligible pool's difficulty mix. Deterministic: same inputs + seed → same
     IDs, every time.
     """
     eligible = [
-        q for q in questions if table_counts.get(q["db_id"], math.inf) <= max_tables
+        q
+        for q in questions
+        if min_tables <= table_counts.get(q["db_id"], math.inf) <= max_tables
     ]
     n = min(n, len(eligible))
 
