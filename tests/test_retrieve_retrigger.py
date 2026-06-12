@@ -118,6 +118,40 @@ def test_not_found_error_re_retrieves_a_wider_schema_and_recovers(abc_engine):
     assert len(state.retrieved_tables) >= 2
 
 
+def test_column_not_found_on_in_scope_table_re_retrieves_via_execution(abc_engine):
+    # Distinct from the table cases: an IN-SCOPE table with a missing column passes
+    # table-scope and actually executes, producing a genuine "no such column"
+    # execution error — exercising the not-found *execution* re-retrieve branch
+    # (#46), which the table-scope guard (#48) now intercepts for tables.
+    index = build_schema_index(abc_engine)
+    client = FakeAnthropic(
+        reply=[
+            "SELECT bad_col AS n FROM alpha",  # in scope → executes → no such column
+            "SELECT count(*) AS n FROM alpha",
+        ]
+    )
+
+    state = run_pipeline(
+        "count alpha rows",
+        schema_index=index,
+        engine=abc_engine,
+        db_id="abc",
+        dialect="SQLite",
+        client=client,
+        max_attempts=2,
+        max_tables=1,
+    )
+
+    assert state.error is None  # recovered on attempt 2
+    assert state.attempts == 2
+    assert not state.guard_rejected  # the failure was an execution error, not the gate
+    first, second = (
+        client.calls[0]["messages"][0]["content"],
+        client.calls[1]["messages"][0]["content"],
+    )
+    assert _n_tables(second) > _n_tables(first)  # the not-found error widened retrieval
+
+
 def test_non_not_found_error_regenerates_without_re_retrieving(abc_engine):
     index = build_schema_index(abc_engine)
     # An unknown-function error parses fine (so it clears the guard) but is not a
