@@ -151,6 +151,7 @@ class SchemaIndex:
         *,
         max_tables: int = DEFAULT_MAX_TABLES,
         expand_fks: bool = True,
+        floor: int = 0,
     ) -> list[str]:
         """The relevant table names for ``question``, in declaration order.
 
@@ -159,8 +160,14 @@ class SchemaIndex:
         each selected table's FK-referenced tables are pulled in. The whole set is
         then capped at ``max_tables`` with **ranked picks keeping priority over FK
         neighbours**, so a fan-out table can't re-inflate the retrieval toward the
-        full dump on a wide schema. With no table scoring above zero, returns every
-        table (degrade to the full dump rather than starve the generator).
+        full dump on a wide schema.
+
+        ``floor`` (the loop-aware re-retrieve lever, issue #46) guarantees *at
+        least* that many tables, padding from declaration order beyond the lexical
+        picks — a widened re-retrieve surfaces more schema than the first attempt,
+        and a large enough floor reaches the full dump. With no table scoring above
+        zero and no floor, returns every table (degrade to the full dump rather
+        than starve the generator).
         """
         scores = self.score(question)
         ranked = [
@@ -168,7 +175,7 @@ class SchemaIndex:
             for name, s in sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))
             if s > 0
         ]
-        if not ranked:
+        if not ranked and floor <= 0:
             return [t.name for t in self.tables]
         # Ranked picks first (priority), then FK neighbours fill any budget left.
         selected = ranked[:max_tables]
@@ -180,8 +187,18 @@ class SchemaIndex:
                     if referred in by_name and referred not in chosen:
                         chosen.add(referred)
                         selected.append(referred)
+        selected = selected[:max_tables]
+        # Widen to the floor: pad with not-yet-chosen tables in declaration order.
+        if floor > len(selected):
+            chosen = set(selected)
+            for t in self.tables:
+                if len(selected) >= floor:
+                    break
+                if t.name not in chosen:
+                    selected.append(t.name)
+                    chosen.add(t.name)
         order = {t.name: i for i, t in enumerate(self.tables)}
-        return sorted(selected[:max_tables], key=lambda n: order[n])
+        return sorted(selected, key=lambda n: order[n])
 
     def render(self, table_names: Sequence[str]) -> str:
         """Render the given tables' blocks as the focused schema for the prompt."""

@@ -3,8 +3,10 @@
 Step 1 (issue 4) wired a linear ``generate → guard → execute → return``. Step 5
 (issue #42) turns that single shot into an **agent**: a capped retry loop that,
 on an execution error, feeds the failure back through ``correct`` into a fresh
-``generate``. LangGraph swaps in at Step 7 only after the logic is proven by the
-eval harness; loop-aware retrieve (re-retrieve on not-found) is Step 6.
+``generate``. Step 6 (issue #46) makes that loop **retrieval-aware**: a not-found
+execution error re-retrieves a widened schema (not only regenerates), inside the
+same capped budget. LangGraph swaps in at Step 7 only after the logic is proven by
+the eval harness.
 
 The pipeline is import-shared: ``eval/harness.py`` and ``apps/demo/`` both call
 ``run_pipeline`` with the *same* logic — never a fork. Schema text and the
@@ -23,7 +25,7 @@ from nl2sql.pipeline.correct import correct
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.guard import guard
-from nl2sql.pipeline.retrieve import retrieve
+from nl2sql.pipeline.retrieve import is_not_found_error, missing_identifier, retrieve
 from nl2sql.pipeline.state import RunState
 from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
 
@@ -76,13 +78,13 @@ def run_pipeline(
     budget = max(1, max_attempts)
     with stage_span("pipeline", db_id=db_id, max_attempts=budget):
         state = RunState(question=question, db_id=db_id, max_attempts=budget)
-        # Retrieve once up front (the loop-aware re-trigger is the next slice).
-        # ``schema`` already holds the full dump on the baseline path.
+        # Initial retrieval (schema-RAG) or the naive full dump on the baseline path.
         active_schema = (
             retrieve(state, schema_index, max_tables=max_tables)
             if schema_index is not None
             else schema
         )
+        re_retrievals = 0
         while True:
             state.attempts += 1
             generate(
@@ -99,7 +101,27 @@ def run_pipeline(
             execute(state, engine)
             if state.error is None or state.attempts >= budget:
                 return state
+            # Loop-aware re-trigger (#46): a not-found error means the schema the
+            # generator saw was too narrow — route it back into *retrieval* and
+            # widen, not only into regeneration. Capture the error before
+            # ``correct`` clears it; the re-retrieve stays inside the same budget.
+            re_retrieve = schema_index is not None and is_not_found_error(state.error)
+            # The bare missing identifier (e.g. "ghost"), captured before
+            # ``correct`` clears the error — a lexical nudge for the re-retrieve.
+            hint = missing_identifier(state.error) if re_retrieve else ""
             correct(state)
+            if re_retrieve:
+                re_retrievals += 1
+                # Widen coverage each time: max_tables → 2× → 4× …, reaching the
+                # full schema at the widest. Bounded by the retry budget above.
+                floor = max_tables * 2**re_retrievals
+                active_schema = retrieve(
+                    state,
+                    schema_index,
+                    max_tables=max_tables,
+                    floor=floor,
+                    hint=hint,
+                )
 
 
 def _smoke() -> None:
