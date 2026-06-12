@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 1 — Schema-RAG retrieve stage</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .big{font-size:2.4rem;font-weight:800;color:var(--add);line-height:1}
+  pre.code{background:#0b1120;border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;overflow-x:auto;
+           font-size:.82rem;color:var(--ink);margin:0}
+  pre.code .c{color:var(--muted)} pre.code .k{color:var(--accent-2);background:none;padding:0}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #69 · Step 6 · Issue 1</span>
+    <h1>Schema-RAG retrieve stage — relevant tables, not the full dump</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #45</span>
+      <span><b>Branch:</b> <code>step-6/issue-45-schema-rag-retrieve-stage</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>The Step-6 tracer bullet: stop dumping the whole schema into the prompt. Build an index over
+      the db's tables and retrieve only the ones relevant to <em>this</em> question — wired end-to-end through the
+      import-shared pipeline.</b></p>
+      <p>Through Step 3 the generator saw the <em>entire</em> schema — every <code>CREATE TABLE</code> in the db,
+      whether or not the question touched it (the naive-dump baseline). That is fine on a 4-table payments db and
+      fatal on BIRD's large schemas, where the relevant 2 tables drown in 40. This issue adds the
+      <code>retrieve</code> stage: a <code>SchemaIndex</code> of columns/types, foreign-key edges, and
+      <b>a few sample values per column</b>, scored against the question by deterministic <b>lexical overlap</b>,
+      so <code>generate</code> receives only the tables that matter.</p>
+      <p>Sample values are the quiet win: knowing <code class="k">status ∈ {failed, settled}</code> changes the SQL,
+      and that signal never appeared in a bare DDL dump. It rides along in the rendered block now. This is the
+      vertical the rest of Step 6 hangs off — the loop-aware re-trigger, the recall metric, the table-scope guard,
+      and the lift number all build on the table names this stage records.</p>
+      <div class="stats">
+        <div><b>309</b> tests green (+15)</div>
+        <div><b>0</b> LLM / network in retrieval — pure lexical</div>
+        <div><b>1</b> shared pipeline — no demo fork</div>
+        <div><b>—</b> no RESULTS.md row (plumbing; lift is Issue 5)</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> Key changes</h2><div class="grid">
+      <div class="group good">
+        <h3><code>schema_index/</code> — the store + retriever</h3>
+        <ul>
+          <li><code>build_schema_index(engine)</code> introspects columns/types, FK edges, and sample values via
+          SQLAlchemy's <code>Inspector</code> — <b>portable</b> across SQLite (BIRD) and Postgres (payments).</li>
+          <li><b>Deterministic relevance</b>: lexical token overlap over name + column + sample-value tokens;
+          name hits weigh more than value hits. No embeddings, no network, no LLM.</li>
+          <li><b>FK-neighbour expansion</b> pulls in join targets; the set is capped at <code>max_tables</code>
+          with ranked picks keeping priority. No lexical signal ⇒ degrade to the full schema.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>pipeline/retrieve.py</code> — the stage</h3>
+        <ul>
+          <li>Selects + renders the focused schema for <code>state.question</code>.</li>
+          <li>Records the chosen tables on <code>state.retrieved_tables</code> — the hook the recall metric reads.</li>
+          <li>Span logs only table <b>names and counts</b> — schema metadata, <b>never result rows</b> (§5.3).</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>graph.py</code> — two schema sources</h3>
+        <ul>
+          <li><code>run_pipeline</code> takes <b>exactly one</b> of <code>schema=</code> (naive baseline) or
+          <code>schema_index=</code> (retrieval) — a <code>ValueError</code> guards against both/neither.</li>
+          <li>Retrieve runs <b>once up front</b>; the loop-aware re-trigger is the next slice.</li>
+          <li>Import-shared: harness and demo build the index and call <code>retrieve</code> the same way.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>state.py</code></h3>
+        <ul>
+          <li><code>retrieved_tables: list[str] | None</code> — <b>data only</b>, no classifier logic.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Where retrieval sits in the pipeline</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart LR
+  Q["question"] --> R["retrieve<br/>(score tables → relevant subset)"]:::live
+  R --> G["generate<br/>(focused schema, not full dump)"]
+  G --> GD{"guard"}
+  GD -->|reject| GR["guardrail_rejected"]:::term
+  GD -->|allow| EX{"execute"}
+  EX -->|ok| OK["success / wrong_answer<br/>(harness scores)"]:::ok
+  EX -->|error| LOOP["correct → regenerate<br/>(capped, Step 5)"]:::live
+  SI[("SchemaIndex<br/>cols · FKs · samples")]:::store -.-> R
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef live fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  classDef term fill:#fde68a,stroke:#d97706,color:#7c2d12;
+  classDef store fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e;
+  class R,LOOP live; class OK ok; class GR term; class SI store;</pre></div>
+      <p class="diagram-caption">The retriever scores the index's tables against the question and hands
+      <code>generate</code> only the selected ones. The selected names are recorded on the state so a later slice
+      can score <b>retrieval recall</b> against the gold query's tables. The re-trigger that feeds a not-found error
+      back into <code>retrieve</code> (closing the loop on the dashed edge) is Issue 2.</p>
+    </section>
+
+    <section><h2><span class="num">4</span> What the generator sees now</h2><div class="card">
+      <p>A focused block per retrieved table — DDL <em>plus</em> the FK edges and sample values the naive dump
+      lacked:</p>
+      <pre class="code"><span class="c">-- retrieved for: "count settled payments"</span>
+CREATE TABLE payments (
+  id INTEGER,
+  status TEXT,
+  order_id INTEGER,
+  FOREIGN KEY (order_id) REFERENCES orders
+);
+<span class="c">-- sample values:</span>
+<span class="c">--   status ∈ {failed, settled}</span></pre>
+      <p class="note" style="margin-bottom:0">The <code>settled</code> value is what lets the model write
+      <code>WHERE status = 'settled'</code> instead of guessing. Sample values come from a bounded
+      <code>SELECT DISTINCT … LIMIT</code>, so a low-cardinality enum is captured wherever its values sit in the
+      table — not just within an arbitrary row prefix.</p>
+    </div></section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>src/nl2sql/schema_index/__init__.py</code></td><td><span class="st M">M</span></td><td>Implemented the store + retriever (was a stub): introspection, lexical scoring, FK expansion, sample values, rendering.</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/retrieve.py</code></td><td><span class="st M">M</span></td><td>Implemented the stage (was a stub): select + render the focused schema, record <code>retrieved_tables</code>.</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/graph.py</code></td><td><span class="st M">M</span></td><td><code>schema=</code> XOR <code>schema_index=</code>; retrieve once before the loop.</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/state.py</code></td><td><span class="st M">M</span></td><td><code>retrieved_tables</code> field (data only).</td></tr>
+          <tr><td class="f"><code>tests/test_schema_index.py</code></td><td><span class="st A">A</span></td><td>15 tests: index build, lexical retrieval (name/sample/FK/budget/fallback/order), rendering, the stage, pipeline wiring, buried-enum capture, sample cap.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 309 passed</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>ruff check</code> + <code>ruff format</code> → clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Generator proven to see only retrieved tables — an unrelated table never reaches the prompt</p>
+        <p style="margin:.2rem 0"><b>✓</b> Sample-value signal (<code>status ∈ {settled, failed}</code>) drives table selection, not just names</p>
+        <p style="margin:.2rem 0"><b>✓</b> Fresh-agent <code class="k">/review</code> flagged a row-prefix scan that could miss a buried enum value, and FK expansion that could exceed the budget — both fixed before merge, regressions pinned</p>
+        <p style="margin:.2rem 0 0" class="note">Scope held: single-shot retrieval only. Loop-aware re-trigger, retrieval-recall metric, table-scope guard, and slice expansion stay later Step-6 issues. Deterministic — no LLM/regex for SQL semantics (§4); PII never logged (§5.3); no pipeline fork (§3).</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #45 / PR #69 · base <code>main</code> ← <code>step-6/issue-45-schema-rag-retrieve-stage</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
