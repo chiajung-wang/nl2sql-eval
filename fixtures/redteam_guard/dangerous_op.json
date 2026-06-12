@@ -1,0 +1,78 @@
+{
+  "_meta": {
+    "fixture": "redteam_guard/dangerous_op",
+    "purpose": "Step 4, Issue 2 — proves the dangerous-op rule in src/nl2sql/pipeline/guard.py. Side-effecting / injection-shaped constructs that are NOT data writes (so read-only lets them by) must still be rejected: stacked statements, ATTACH/DETACH, PRAGMA, and unmodeled Commands. All sqlglot AST-typed, never a keyword regex.",
+    "format": "Same (candidate SQL, expected verdict) shape as read_only.json. Cases with expected_verdict='reject' are part of the red-team catch-rate set.",
+    "rule": "All PRAGMA are rejected (not only write-bearing ones): read- vs write-PRAGMA cannot be told apart reliably on the AST, and no PRAGMA is a valid answer to a question — default-deny is safer and simpler. A question maps to exactly one query, so >1 statement is rejected as a stacked-query injection."
+  },
+  "cases": [
+    {
+      "id": "attach-database-rejected",
+      "description": "ATTACH DATABASE reaches across the single-db boundary to a foreign file — a data-exfiltration vector. Not a write, so read-only misses it; dangerous-op must catch it.",
+      "sql": "ATTACH DATABASE 'evil.db' AS evil",
+      "expected_verdict": "reject",
+      "expected_rule": "dangerous_op"
+    },
+    {
+      "id": "detach-database-rejected",
+      "description": "DETACH DATABASE manipulates attached schemas — engine-state meddling, not a query.",
+      "sql": "DETACH DATABASE evil",
+      "expected_verdict": "reject",
+      "expected_rule": "dangerous_op"
+    },
+    {
+      "id": "pragma-writable-schema-rejected",
+      "description": "PRAGMA writable_schema=ON is the classic SQLite trick to unlock the schema table and bypass read-only protections. Must be rejected.",
+      "sql": "PRAGMA writable_schema=ON",
+      "expected_verdict": "reject",
+      "expected_rule": "dangerous_op"
+    },
+    {
+      "id": "pragma-journal-mode-rejected",
+      "description": "PRAGMA journal_mode=WAL flips engine state. A write-bearing PRAGMA — rejected.",
+      "sql": "PRAGMA journal_mode=WAL",
+      "expected_verdict": "reject",
+      "expected_rule": "dangerous_op"
+    },
+    {
+      "id": "pragma-introspection-rejected",
+      "description": "Even a read-only PRAGMA (schema introspection) is rejected: read/write PRAGMA cannot be cleanly separated on the AST and no PRAGMA is a legitimate answer, so the gate default-denies all of them.",
+      "sql": "PRAGMA table_info(users)",
+      "expected_verdict": "reject",
+      "expected_rule": "dangerous_op"
+    },
+    {
+      "id": "stacked-statements-rejected",
+      "description": "Two statements in one candidate is the stacked-query injection shape. Both are reads here (so read-only passes), but a question maps to exactly one query — dangerous-op rejects it.",
+      "sql": "SELECT 1; SELECT 2",
+      "expected_verdict": "reject",
+      "expected_rule": "dangerous_op"
+    },
+    {
+      "id": "vacuum-command-rejected",
+      "description": "VACUUM rewrites the database file; sqlglot can only parse it as a generic Command. Unmodeled engine state we will not run — rejected.",
+      "sql": "VACUUM",
+      "expected_verdict": "reject",
+      "expected_rule": "dangerous_op"
+    },
+    {
+      "id": "stacked-with-write-prefers-read-only",
+      "description": "A stacked candidate whose second statement is a DROP is caught by read-only FIRST (rules run in order, fail-fast), so the pinned rule is read_only, not dangerous_op — both would reject, but precedence is asserted.",
+      "sql": "SELECT name FROM users; DROP TABLE users",
+      "expected_verdict": "reject",
+      "expected_rule": "read_only"
+    },
+    {
+      "id": "benign-multi-join-select-allowed",
+      "description": "A single complex read with several joins is exactly what the gate must keep permitting — dangerous-op must not misfire on legitimate analytical SQL.",
+      "sql": "SELECT u.name, COUNT(t.id) FROM users u JOIN transactions t ON t.user_id = u.id JOIN merchants m ON m.id = t.merchant_id GROUP BY u.name",
+      "expected_verdict": "allow"
+    },
+    {
+      "id": "benign-trailing-semicolon-comment-allowed",
+      "description": "A single query with a trailing semicolon and comment parses into [Select, Semicolon]; the empty trailing node must be dropped so it is not mistaken for a stacked pair and wrongly rejected.",
+      "sql": "SELECT COUNT(*) FROM users; -- count the users",
+      "expected_verdict": "allow"
+    }
+  ]
+}
