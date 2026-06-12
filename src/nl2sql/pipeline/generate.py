@@ -139,7 +139,19 @@ def generate(
         extra["candidate_sql"] = state.candidate_sql
         usage = getattr(response, "usage", None)
         if usage is not None:
-            extra["input_tokens"] = getattr(usage, "input_tokens", None)
-            extra["output_tokens"] = getattr(usage, "output_tokens", None)
+            input_tokens = getattr(usage, "input_tokens", None)
+            output_tokens = getattr(usage, "output_tokens", None)
+            extra["input_tokens"] = input_tokens
+            extra["output_tokens"] = output_tokens
+            # Accumulate token usage across attempts on the state so the harness
+            # can price the run's *total* cost — a retry is never free (Step 5,
+            # issue #43). Per-call counts stay on the span; the running totals
+            # live in meta.
+            state.meta["input_tokens"] = state.meta.get("input_tokens", 0) + (
+                input_tokens or 0
+            )
+            state.meta["output_tokens"] = state.meta.get("output_tokens", 0) + (
+                output_tokens or 0
+            )
 
     return state
