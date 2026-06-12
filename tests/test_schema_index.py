@@ -75,6 +75,34 @@ def test_build_index_is_stable_and_sorted(store_engine):
     assert [t.name for t in a.tables] == sorted(t.name for t in a.tables)
 
 
+def test_samples_capture_enum_value_buried_past_a_row_prefix():
+    # A low-cardinality enum whose *second* value only appears far down the table:
+    # a row-prefix scan would miss "settled"; SELECT DISTINCT surfaces it.
+    engine = create_engine("sqlite://", future=True)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE t (id INTEGER PRIMARY KEY, status TEXT)"))
+        conn.execute(
+            text("INSERT INTO t (status) VALUES (:s)"),
+            [{"s": "failed"} for _ in range(500)] + [{"s": "settled"}],
+        )
+    index = build_schema_index(engine)
+    status = next(c for c in index.by_name()["t"].columns if c.name == "status")
+    assert set(status.sample_values) == {"failed", "settled"}
+
+
+def test_samples_are_capped_at_requested_limit():
+    engine = create_engine("sqlite://", future=True)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE t (id INTEGER PRIMARY KEY, code TEXT)"))
+        conn.execute(
+            text("INSERT INTO t (code) VALUES (:c)"),
+            [{"c": f"c{i}"} for i in range(50)],
+        )
+    index = build_schema_index(engine, sample_values=3)
+    code = next(c for c in index.by_name()["t"].columns if c.name == "code")
+    assert len(code.sample_values) == 3
+
+
 # --- lexical retrieval -------------------------------------------------------
 
 

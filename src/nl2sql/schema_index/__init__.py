@@ -25,9 +25,11 @@ from sqlalchemy.engine import Connection, Engine
 # A handful of distinct sample values per column — enough to surface enum-like
 # signal (status, type, country codes) without dumping high-cardinality noise.
 DEFAULT_SAMPLE_VALUES = 5
-# How many rows to scan per column for those samples. A bounded LIMIT keeps index
-# construction cheap on BIRD's larger tables (no full-table DISTINCT scan).
-SCAN_ROWS = 200
+# Pull a few more *distinct* values than we keep, so dropping over-long ones still
+# leaves enough short, enum-like samples — and so a bounded ``SELECT DISTINCT``
+# stays cheap (it stops as soon as this many distinct values are found, which is
+# immediate for a low-cardinality enum and naturally capped for a wide column).
+SAMPLE_OVERSAMPLE = 4
 # Skip free-text/blob-ish values: long strings are noise for lexical matching.
 MAX_SAMPLE_LEN = 40
 
@@ -154,9 +156,11 @@ class SchemaIndex:
 
         Top ``max_tables`` by score (ties broken by name for determinism), then —
         because join questions need the tables on the *other* side of a key —
-        each selected table's FK-referenced tables are pulled in. With no table
-        scoring above zero, returns every table (degrade to the full dump rather
-        than starve the generator).
+        each selected table's FK-referenced tables are pulled in. The whole set is
+        then capped at ``max_tables`` with **ranked picks keeping priority over FK
+        neighbours**, so a fan-out table can't re-inflate the retrieval toward the
+        full dump on a wide schema. With no table scoring above zero, returns every
+        table (degrade to the full dump rather than starve the generator).
         """
         scores = self.score(question)
         ranked = [
@@ -166,15 +170,18 @@ class SchemaIndex:
         ]
         if not ranked:
             return [t.name for t in self.tables]
-        selected = set(ranked[:max_tables])
+        # Ranked picks first (priority), then FK neighbours fill any budget left.
+        selected = ranked[:max_tables]
         if expand_fks:
             by_name = self.by_name()
+            chosen = set(selected)
             for name in list(selected):
                 for _local, referred in by_name[name].foreign_keys:
-                    if referred in by_name:
-                        selected.add(referred)
+                    if referred in by_name and referred not in chosen:
+                        chosen.add(referred)
+                        selected.append(referred)
         order = {t.name: i for i, t in enumerate(self.tables)}
-        return sorted(selected, key=lambda n: order[n])
+        return sorted(selected[:max_tables], key=lambda n: order[n])
 
     def render(self, table_names: Sequence[str]) -> str:
         """Render the given tables' blocks as the focused schema for the prompt."""
@@ -187,28 +194,29 @@ def _sample_values(
 ) -> tuple[str, ...]:
     """Up to ``limit`` distinct, short sample values from a column.
 
-    Scans a bounded prefix of rows (cheap on big tables) and keeps distinct
-    short, enum-like values; sorted for a deterministic index. Any failure
-    (an odd type, an unreadable column) degrades to no samples, never raising.
+    Uses a bounded ``SELECT DISTINCT … LIMIT`` so a low-cardinality enum is
+    captured **wherever its values sit** in the table — not just within an
+    arbitrary row prefix (a second enum value buried past row N would otherwise be
+    missed, breaking the ``status ∈ {failed, settled}`` signal). The DB stops once
+    it has found enough distinct values, so this stays cheap on big tables. Over-
+    long (free-text/blob) values are dropped; the result is sorted for a
+    deterministic index. Any failure degrades to no samples, never raising.
     """
     if limit <= 0:
         return ()
     try:
         rows = conn.execute(
-            text(f'SELECT "{column}" FROM "{table}" LIMIT :n'), {"n": SCAN_ROWS}
+            text(
+                f'SELECT DISTINCT "{column}" FROM "{table}" '
+                f'WHERE "{column}" IS NOT NULL LIMIT :n'
+            ),
+            {"n": limit * SAMPLE_OVERSAMPLE},
         ).fetchall()
     except Exception:
         return ()
-    seen: set[str] = set()
-    for (value,) in rows:
-        if value is None:
-            continue
-        s = str(value)
-        if len(s) <= MAX_SAMPLE_LEN:
-            seen.add(s)
-        if len(seen) >= limit:
-            break
-    return tuple(sorted(seen)[:limit])
+    short = [s for (value,) in rows if (s := str(value)) and len(s) <= MAX_SAMPLE_LEN]
+    # Already distinct from SQL; dedup defensively after str() coercion.
+    return tuple(sorted(dict.fromkeys(short))[:limit])
 
 
 def build_schema_index(
