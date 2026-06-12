@@ -60,10 +60,12 @@ def _regenerate() -> None:
     payload = {
         "_meta": {
             "slice": "step6-large-schema-retrieval-lift",
-            "purpose": "Frozen, seeded, stratified Step-6 slice from large-schema "
-            "BIRD dbs (> Step-3's 5-table cap). The naive-dump baseline overflows "
-            "context here, so this is where schema-RAG earns its keep — the "
-            "retrieval lift is measured on this slice.",
+            "purpose": "Frozen, seeded, stratified Step-6 slice from larger-schema "
+            "BIRD dev dbs (above Step-3's 5-table cap, up to 14 tables). The "
+            "naive-dump → schema-RAG retrieval lift is measured on this slice. "
+            "Note: these dev dbs still FIT the model's context, so the measured "
+            "lift quantifies retrieval's real cost/benefit here rather than "
+            "assuming overflow — and on this slice it comes out negative.",
             "criteria": {
                 "min_tables": MIN_TABLES,
                 "size": SLICE_SIZE,
