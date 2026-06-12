@@ -53,10 +53,11 @@ def classify_terminal_state(
 ) -> TerminalState:
     """Bucket a finished run into exactly one terminal state.
 
-    Reachable as of Step 4:
+    Reachable as of Step 5:
 
     - a candidate the guard gate rejected pre-execution → ``GUARDRAIL_REJECTED``;
-    - a captured error → ``EXECUTION_ERROR_FINAL``;
+    - an error after the correction loop spent its budget → ``RETRY_EXHAUSTED``;
+    - an error on a single-shot run (no retry budget) → ``EXECUTION_ERROR_FINAL``;
     - a clean run whose result the comparator judged wrong → ``WRONG_ANSWER``;
     - a clean run whose result matched gold → ``SUCCESS``.
 
@@ -65,18 +66,21 @@ def classify_terminal_state(
     is the scorer's verdict (``None`` when the run errored or was guard-rejected
     and so never scored, or for callers that only classify execution outcome —
     e.g. the Step-1 proof, which passes no comparison and so never sees
-    ``WRONG_ANSWER``). ``RETRIEVAL_EMPTY`` and ``RETRY_EXHAUSTED`` become reachable
-    only as those stages land (Step 5–6). The classifier lives in the harness,
-    never in ``state.py`` (CLAUDE.md §3).
+    ``WRONG_ANSWER``).
 
-    Step-1 caveat (unchanged): a *generation* gap (``execute`` sets ``state.error``
-    when no SQL was produced) also buckets as ``EXECUTION_ERROR_FINAL``, since
-    ``generate`` has no retry budget yet; a generation-failure state splits this
-    out when self-correction lands (Step 5).
+    The error split is keyed off ``state.attempts``: the Step-5 retry loop only
+    returns an errored run after spending its budget, so ``attempts > 1`` means
+    the correction loop ran and still failed (``RETRY_EXHAUSTED``), while a
+    single-shot failure — pass@1 mode, or a generation gap that produced no SQL —
+    keeps the prior ``EXECUTION_ERROR_FINAL`` bucket. ``RETRIEVAL_EMPTY`` becomes
+    reachable when schema-RAG lands (Step 6). The classifier lives in the harness,
+    never in ``state.py`` (CLAUDE.md §3).
     """
     if state.guard_rejected:
         return TerminalState.GUARDRAIL_REJECTED
     if state.error is not None:
+        if state.attempts > 1:
+            return TerminalState.RETRY_EXHAUSTED
         return TerminalState.EXECUTION_ERROR_FINAL
     if comparison is not None and not comparison.correct:
         return TerminalState.WRONG_ANSWER

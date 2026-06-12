@@ -30,9 +30,9 @@ MAX_TOKENS = 1024
 # Templates live at the repo-root ``prompts/`` dir (CI diffs them), three
 # parents up from src/nl2sql/pipeline/generate.py.
 PROMPTS_DIR = Path(__file__).resolve().parents[3] / "prompts"
-GENERATE_TEMPLATE = "generate/v2.jinja"
+GENERATE_TEMPLATE = "generate/v3.jinja"
 # The prompt version recorded alongside every reported number (CLAUDE.md §6).
-PROMPT_VERSION = "generate/v2"
+PROMPT_VERSION = "generate/v3"
 
 # Default dialect — the payments demo is PostgreSQL; the BIRD path passes
 # "SQLite". A variable (not hardcoded) so the prompt measures generation quality
@@ -61,16 +61,23 @@ def render_prompt(
     *,
     dialect: str = DEFAULT_DIALECT,
     evidence: str = "",
+    correction: dict[str, str] | None = None,
 ) -> str:
     """Render the externalized generate template with the schema dumped inline.
 
     ``dialect`` selects the SQL flavor named in the prompt; ``evidence`` is an
     optional external-knowledge hint (BIRD ships one per question) that is
-    omitted from the prompt when empty.
+    omitted from the prompt when empty. ``correction`` is the prior failed
+    attempt's ``{sql, error}`` (Step 5 self-correction); ``None`` on the first
+    attempt, in which case the rendered prompt is identical to v2.
     """
     template = _env().get_template(GENERATE_TEMPLATE)
     return template.render(
-        schema=schema, question=question, dialect=dialect, evidence=evidence
+        schema=schema,
+        question=question,
+        dialect=dialect,
+        evidence=evidence,
+        correction=correction,
     )
 
 
@@ -105,12 +112,18 @@ def generate(
 
     One direct Anthropic ``messages.create`` call. ``dialect``/``evidence`` are
     threaded into the prompt (SQLite + the BIRD hint on the benchmark path;
-    PostgreSQL + no hint on the payments demo). ``client`` is injectable so tests
-    can run without a network/API key. Mutates and returns ``state``.
+    PostgreSQL + no hint on the payments demo). On a retry, ``state.correction``
+    (set by the ``correct`` stage) feeds the prior failed SQL + error back into
+    the prompt. ``client`` is injectable so tests can run without a network/API
+    key. Mutates and returns ``state``.
     """
     with stage_span("generate", db_id=state.db_id, model=model) as extra:
         prompt = render_prompt(
-            schema, state.question, dialect=dialect, evidence=evidence
+            schema,
+            state.question,
+            dialect=dialect,
+            evidence=evidence,
+            correction=state.correction,
         )
         client = client or _default_client()
 

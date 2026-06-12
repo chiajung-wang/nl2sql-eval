@@ -1,9 +1,10 @@
 """Stage wiring: the hand-rolled state machine.
 
-Step 1 (issue 4) wires a linear ``generate → execute → return`` — no loop, no
-conditional edges. Guard, correct, and loop-aware retrieve arrive in later
-steps; LangGraph swaps in at Step 7 only after the logic is proven by the eval
-harness.
+Step 1 (issue 4) wired a linear ``generate → guard → execute → return``. Step 5
+(issue #42) turns that single shot into an **agent**: a capped retry loop that,
+on an execution error, feeds the failure back through ``correct`` into a fresh
+``generate``. LangGraph swaps in at Step 7 only after the logic is proven by the
+eval harness; loop-aware retrieve (re-retrieve on not-found) is Step 6.
 
 The pipeline is import-shared: ``eval/harness.py`` and ``apps/demo/`` both call
 ``run_pipeline`` with the *same* logic — never a fork. Schema text and the
@@ -18,10 +19,16 @@ from typing import Any
 from sqlalchemy.engine import Engine
 
 from nl2sql.obs import stage_span
+from nl2sql.pipeline.correct import correct
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.guard import guard
 from nl2sql.pipeline.state import RunState
+
+# Single-shot by default (the pass@1 mode): no correction unless a caller opts
+# into a budget. The harness raises this for pass@k; the cap is the explicit,
+# configurable cost/latency lever the plan calls out.
+DEFAULT_MAX_ATTEMPTS = 1
 
 
 def run_pipeline(
@@ -34,32 +41,46 @@ def run_pipeline(
     evidence: str = "",
     model: str = DEFAULT_MODEL,
     client: Any | None = None,
+    max_attempts: int = DEFAULT_MAX_ATTEMPTS,
 ) -> RunState:
-    """Run one question through ``generate → guard → execute → return``.
+    """Run one question through the capped ``generate → guard → execute`` loop.
 
-    The deterministic guard gate runs *before* execution: a rejected candidate
-    sets ``state.guard_rejected`` and never reaches the database, so the harness
-    buckets it as ``GUARDRAIL_REJECTED``. Returns the populated ``RunState`` (with
-    ``candidate_sql`` and either the result set, an ``error``, or a guard
-    rejection). ``dialect``/``evidence`` are passed to generate, and the same
-    ``dialect`` parses the candidate in guard (SQLite on the BIRD path;
-    PostgreSQL for the payments demo). Scoring and terminal-state classification
-    are the harness's job, not the pipeline's.
+    Each cycle: ``generate`` (feeding back any prior failure via
+    ``state.correction``), then the deterministic guard gate *before* execution —
+    a rejected candidate sets ``state.guard_rejected``, never reaches the
+    database, and ends the run (the guard-feedback loop is out of Step-5 scope).
+    On a clean ``execute`` the run returns immediately. On an execution error the
+    ``correct`` stage stages the failure as feedback and the loop regenerates,
+    until the candidate succeeds or the ``max_attempts`` budget is spent.
+
+    ``max_attempts=1`` (default) is the single-shot pass@1 mode — no correction.
+    Returns the populated ``RunState``; scoring and terminal-state classification
+    (a budget-exhausted error → ``RETRY_EXHAUSTED``, a single-shot error →
+    ``EXECUTION_ERROR_FINAL``) are the harness's job, keyed off ``attempts``.
+    ``dialect``/``evidence`` thread into generate, and the same ``dialect``
+    parses the candidate in guard (SQLite on the BIRD path; PostgreSQL for the
+    payments demo).
     """
-    with stage_span("pipeline", db_id=db_id):
-        state = RunState(question=question, db_id=db_id)
-        generate(
-            state,
-            schema,
-            dialect=dialect,
-            evidence=evidence,
-            model=model,
-            client=client,
-        )
-        guard(state, dialect=dialect)
-        if not state.guard_rejected:
+    budget = max(1, max_attempts)
+    with stage_span("pipeline", db_id=db_id, max_attempts=budget):
+        state = RunState(question=question, db_id=db_id, max_attempts=budget)
+        while True:
+            state.attempts += 1
+            generate(
+                state,
+                schema,
+                dialect=dialect,
+                evidence=evidence,
+                model=model,
+                client=client,
+            )
+            guard(state, dialect=dialect)
+            if state.guard_rejected:
+                return state
             execute(state, engine)
-        return state
+            if state.error is None or state.attempts >= budget:
+                return state
+            correct(state)
 
 
 def _smoke() -> None:
