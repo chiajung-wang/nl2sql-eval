@@ -23,7 +23,9 @@ from nl2sql.pipeline.correct import correct
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.guard import guard
+from nl2sql.pipeline.retrieve import retrieve
 from nl2sql.pipeline.state import RunState
+from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
 
 # Single-shot by default (the pass@1 mode): no correction unless a caller opts
 # into a budget. The harness raises this for pass@k; the cap is the explicit,
@@ -34,7 +36,8 @@ DEFAULT_MAX_ATTEMPTS = 1
 def run_pipeline(
     question: str,
     *,
-    schema: str,
+    schema: str | None = None,
+    schema_index: SchemaIndex | None = None,
     engine: Engine,
     db_id: str = "payments",
     dialect: str = DEFAULT_DIALECT,
@@ -42,8 +45,15 @@ def run_pipeline(
     model: str = DEFAULT_MODEL,
     client: Any | None = None,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
+    max_tables: int = DEFAULT_MAX_TABLES,
 ) -> RunState:
     """Run one question through the capped ``generate → guard → execute`` loop.
+
+    The generator's schema comes from one of two mutually exclusive sources. Pass
+    ``schema_index`` for **schema-RAG** (Step 6): the ``retrieve`` stage selects
+    the tables relevant to *this* question and ``generate`` sees only those.
+    Pass ``schema`` for the Step-3 **naive full-schema dump** (the retrieval-lift
+    baseline; still how the payments demo runs). Exactly one is required.
 
     Each cycle: ``generate`` (feeding back any prior failure via
     ``state.correction``), then the deterministic guard gate *before* execution —
@@ -61,14 +71,23 @@ def run_pipeline(
     parses the candidate in guard (SQLite on the BIRD path; PostgreSQL for the
     payments demo).
     """
+    if (schema is None) == (schema_index is None):
+        raise ValueError("run_pipeline needs exactly one of schema= or schema_index=")
     budget = max(1, max_attempts)
     with stage_span("pipeline", db_id=db_id, max_attempts=budget):
         state = RunState(question=question, db_id=db_id, max_attempts=budget)
+        # Retrieve once up front (the loop-aware re-trigger is the next slice).
+        # ``schema`` already holds the full dump on the baseline path.
+        active_schema = (
+            retrieve(state, schema_index, max_tables=max_tables)
+            if schema_index is not None
+            else schema
+        )
         while True:
             state.attempts += 1
             generate(
                 state,
-                schema,
+                active_schema,
                 dialect=dialect,
                 evidence=evidence,
                 model=model,

@@ -46,6 +46,13 @@ class RunState:
     attempts: int = 0
     terminal_state: TerminalState | None = None
 
+    # Schema-RAG (Step 6). The relevant table names the ``retrieve`` stage
+    # selected for this question (declaration order). The harness scores
+    # **retrieval recall** of these against the gold query's actual tables; the
+    # focused schema rendered from them is what ``generate`` sees instead of the
+    # full dump. ``None`` until retrieval runs (the naive-dump path leaves it so).
+    retrieved_tables: list[str] | None = None
+
     # Self-correction loop (Step 5). ``max_attempts`` is the capped retry budget
     # the graph runs the generate→execute cycle under (1 = single-shot, no
     # correction — the pass@1 mode). ``attempts`` counts cycles actually run.
