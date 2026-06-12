@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 3 — First BIRD pass@1 + RESULTS.md (Phase 1 DoD)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .big{font-size:2.4rem;font-weight:800;color:var(--add);line-height:1}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">Step 3 · Issue 3 · Phase 1 DoD</span>
+    <h1>First BIRD pass@1 + RESULTS.md</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #28</span>
+      <span><b>Branch:</b> <code>step-3/issue-3-first-bird-pass1</code> → <code>step-3/harness-and-first-bird-slice</code> → <code>main</code> (via PR #31)</span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>Phase 1's Definition of Done: the project's thesis made concrete — the first
+      real, trustworthy <code>pass@1</code> on BIRD, traceable to its exact config and commit.</b></p>
+      <p>Issues 1 and 2 built the batch harness and froze the slice. This issue runs the <b>validated Step-2
+      comparator</b> over that frozen slice and lands the first number in <code>RESULTS.md</code>. From here on the
+      results log is <b>mandatory</b>: no step is done until its number is committed with model, slice ID, prompt
+      version, date, and commit.</p>
+      <p>The number is deliberately the <b>naive schema-dump baseline</b> — whole schema in the prompt, one
+      generation, no retrieval, no self-correction. A modest number here is a <em>feature</em> of the narrative: it
+      is the "before" that Step 6's retrieval lift and Step 5's pass@k will be measured against.</p>
+      <div class="stats">
+        <div><b>0.420</b> pass@1 (21/50)</div>
+        <div><b>50</b> frozen, seeded, stratified questions</div>
+        <div><b>1</b> first RESULTS.md row</div>
+        <div><b>generate/v2</b> dialect-aware prompt</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The number — Phase 1 DoD</h2><div class="card">
+      <p style="text-align:center;margin:1rem 0"><span class="big">pass@1 0.420</span>
+        <span class="note"> &nbsp;(21 / 50) · naive schema-dump baseline, small-schema slice</span></p>
+      <table>
+        <thead><tr><th>Date</th><th>Metric</th><th>Number</th><th>Model</th><th>Slice ID</th><th>Prompt</th><th>Commit</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>2026-06-11</td>
+            <td>pass@1</td>
+            <td><b>0.420 (21/50)</b></td>
+            <td><code>claude-sonnet-4-6</code></td>
+            <td><code>step3-naive-schema-dump-baseline</code></td>
+            <td><code>generate/v2</code></td>
+            <td><code>5d9d8ae</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-bottom:0">Reproducible from the committed slice ID list + config:
+      <code class="k">uv run python -m eval.eval_bird</code>. Every digit traceable to model, slice, prompt
+      version, and commit (CLAUDE.md §6).</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Key changes</h2><div class="grid">
+      <div class="group good">
+        <h3><code>eval/eval_bird.py</code> — the live BIRD job</h3>
+        <ul>
+          <li>Loads the frozen slice, binds the <b>shared</b> <code>run_pipeline</code> per question with its tagged
+          SQLite db + dialect + evidence, runs the batch, prints pass@1 and the terminal mix.</li>
+          <li>Runnable offline as a job: <code>uv run python -m eval.eval_bird</code>.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>prompts/generate/v2.jinja</code> + <code>generate.py</code></h3>
+        <ul>
+          <li>New <b>dialect-aware</b> prompt: names the SQL flavor (SQLite on BIRD, PostgreSQL on payments) and
+          folds in BIRD's per-question <b>evidence</b> hint.</li>
+          <li><code>PROMPT_VERSION = "generate/v2"</code> — the version recorded with every number.</li>
+        </ul>
+      </div>
+      <div class="group warn">
+        <h3><code>eval/compare.py</code> — the dialect scoring fix</h3>
+        <ul>
+          <li>Gold SQL is parsed <b>dialect-aware</b> (<code>(None, "sqlite")</code>) for top-level
+          <code>ORDER BY</code> detection — BIRD's backtick-quoted identifiers the generic parser rejects no longer
+          silently fall back to order-insensitive.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>eval/metrics.py</code> · <code>graph.py</code> · tests</h3>
+        <ul>
+          <li>Shared <code>summary_lines</code> so payments and BIRD print the same shape; <code>dialect</code>
+          threaded through the pipeline.</li>
+          <li><code>tests/test_eval_bird.py</code> + a dialect-parse case in <code>test_compare.py</code>.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">4</span> Flow: frozen slice → proven comparator → pass@1</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart LR
+  SL["frozen slice (50 ids)<br/>seeded · stratified · committed"] --> RUN["eval_bird: shared run_pipeline<br/>per tagged SQLite db"]
+  RUN --> SQL["candidate SQL<br/>(generate/v2, dialect-aware)"]
+  SQL --> EX["execute on the tagged db"]
+  EX --> CMP["compare() — proven Step-2 scorer<br/>gold parsed SQLite-dialect"]
+  CMP -->|correct| OK["SUCCESS"]:::ok
+  CMP -->|wrong| WA["WRONG_ANSWER"]:::bad
+  EX -.->|error| EEF["EXECUTION_ERROR_FINAL"]:::bad
+  OK --> P1["pass@1 = 0.420 (21/50)"]:::ok
+  WA --> P1
+  EEF --> P1
+  P1 --> R["RESULTS.md row<br/>(model · slice · prompt · commit)"]:::live
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef bad fill:#fecaca,stroke:#dc2626,color:#7f1d1d;
+  classDef live fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  class OK,P1 ok; class WA,EEF bad; class R live;</pre></div>
+      <p class="diagram-caption">The same proven comparator from Step 2, now pointed at a frozen benchmark slice.
+      Every run buckets into one terminal state; the headline pass@1 and its config land in <code>RESULTS.md</code>.</p>
+    </section>
+
+    <section><h2><span class="num">5</span> What this number is <em>not</em></h2><div class="card">
+      <ul>
+        <li><b>Not state-of-the-art</b> — it is the naive baseline (no retrieval, no correction) that later lifts
+        are measured against. Step 5 reports the <b>pass@1 → pass@k</b> gap; Step 6 the <b>naive → retrieval</b> lift.</li>
+        <li><b>Not just one number</b> — the harness also reports the terminal-state mix and pass@1 by difficulty;
+        the failure taxonomy is the analytical payload.</li>
+        <li><b>Not a remembered claim</b> — it is committed to <code>RESULTS.md</code> with full config, the start
+        of the mandatory results discipline.</li>
+      </ul>
+    </div></section>
+
+    <section><h2><span class="num">6</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>eval/eval_bird.py</code></td><td><span class="st A">A</span></td><td>Live BIRD entrypoint: frozen slice → shared pipeline per tagged db → pass@1 + terminal mix.</td></tr>
+          <tr><td class="f"><code>prompts/generate/v2.jinja</code></td><td><span class="st A">A</span></td><td>Dialect-aware prompt with BIRD evidence hint (versioned <code>generate/v2</code>).</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/generate.py</code></td><td><span class="st M">M</span></td><td>Thread dialect/evidence; load v2 template; record <code>PROMPT_VERSION</code>.</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/graph.py</code></td><td><span class="st M">M</span></td><td>Pass <code>dialect</code> through the pipeline (SQLite on BIRD, PostgreSQL on payments).</td></tr>
+          <tr><td class="f"><code>eval/compare.py</code></td><td><span class="st M">M</span></td><td>Parse gold dialect-aware for ORDER BY detection so BIRD identifiers don't fall back to order-insensitive.</td></tr>
+          <tr><td class="f"><code>eval/metrics.py</code></td><td><span class="st M">M</span></td><td>Shared <code>summary_lines</code> so payments and BIRD print the same shape.</td></tr>
+          <tr><td class="f"><code>eval/eval_payments.py</code></td><td><span class="st M">M</span></td><td>Adopt the shared summary output.</td></tr>
+          <tr><td class="f"><code>RESULTS.md</code></td><td><span class="st M">M</span></td><td>First mandated row: pass@1 0.420 (21/50), naive schema-dump baseline, with full config + commit.</td></tr>
+          <tr><td class="f"><code>tests/test_eval_bird.py</code></td><td><span class="st A">A</span></td><td>BIRD eval-path tests.</td></tr>
+          <tr><td class="f"><code>tests/test_compare.py</code></td><td><span class="st M">M</span></td><td>Dialect-aware gold-parse case for ORDER BY detection.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">7</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> Harness runs over the frozen 50-question slice and emits pass@1 = 0.420 (21/50)</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>RESULTS.md</code> row committed with date, model, slice ID, prompt version, commit (CLAUDE.md §6)</p>
+        <p style="margin:.2rem 0"><b>✓</b> Number reproducible from the checked-in slice ID list + config (<code>uv run python -m eval.eval_bird</code>)</p>
+        <p style="margin:.2rem 0"><b>✓</b> Entry explicitly labeled the naive schema-dump baseline on the small-schema slice</p>
+        <p style="margin:.2rem 0 0" class="note">Phase 1 complete: the measurement apparatus produces a trustworthy, traceable claim — the product the project set out to build.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #28 · commits <code>3da3c4f</code> → <code>5d9d8ae</code> → <code>dbaa4ba</code> ·
+      landed on <code>main</code> via PR #31 (base <code>step-3/harness-and-first-bird-slice</code>)
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
