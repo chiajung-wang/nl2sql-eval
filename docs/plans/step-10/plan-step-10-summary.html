@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Step 10 — Polish & reach (plan)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.reach{border-left-color:var(--accent-2);border-style:dashed}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.25rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .group .meta-row{margin-top:.6rem;font-size:.78rem;color:var(--muted)}
+  .group .meta-row a{color:var(--accent-2);text-decoration:none}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .pill{display:inline-block;font-size:.74rem;font-weight:600;padding:.12rem .55rem;border-radius:999px;margin:.15rem .25rem .15rem 0}
+  .pill.tt{color:var(--accent);background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3)}
+  .pill.ok{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3)}
+  .pill.risk{color:var(--del);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3)}
+  .pill.reach{color:var(--accent-2);background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.r code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">Plan · Step 10 · Amplification · final step</span>
+    <h1>Polish &amp; reach</h1>
+    <div class="meta">
+      <span><b>Phase:</b> Amplification</span>
+      <span><b>Depends on:</b> Steps 1–9 — critically the <code>RESULTS.md</code> trail</span>
+      <span><b>Unblocks:</b> shipping — the project becomes legible</span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Headline &amp; goal</h2><div class="card">
+      <p class="lede"><b>Make the project legible — and assemble the blog from the trail of committed results.</b></p>
+      <p>Make the project readable to a reviewer and tell its story. <b>Split the work by risk:</b> README +
+      blog post are <b>non-negotiable</b>; the thin demo reveals the wrapper; <b>BigQuery is an optional
+      reach</b> that must never block the parts that make the project legible. The blog writes itself
+      <em>only if</em> the results log was kept honestly from Step 3 (PRD §9/§11, CLAUDE.md §6).</p>
+      <div class="stats">
+        <div><b>3</b> non-negotiable — README · blog · demo</div>
+        <div><b>1</b> optional reach — BigQuery</div>
+        <div><b>every</b> claim → <code class="k">RESULTS.md</code></div>
+        <div><b>consumes</b> the results trail, not adds to it</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> What to build</h2><div class="grid">
+      <div class="group">
+        <h3>README — the front door</h3>
+        <ul>
+          <li>Lead with the thesis; show the architecture diagram; surface the headline findings.</li>
+          <li>How to run it; <b>each claim links to its <code>RESULTS.md</code> entry / commit</b>.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>Technical blog post</h3>
+        <ul>
+          <li>Inversion → comparator → correction → retrieval → guardrails → operations → honest limits.</li>
+          <li><b>Every number links to its committed run</b> — the rigor is the story.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>Thin demo UI (<code>apps/demo/</code>)</h3>
+        <ul>
+          <li>Streamlit, isolated dep group; <b>reveals the wrapper</b> — guardrail decision, retry count, cost, terminal state.</li>
+          <li>Imports the <b>same shared pipeline</b> — no fork, no drift.</li>
+        </ul>
+      </div>
+      <div class="group reach">
+        <h3>BigQuery connection <span class="pill reach">optional reach</span></h3>
+        <ul>
+          <li>Cloud-warehouse checkbox via sqlglot transpilation. Real integration risk (auth, dialect, cost).</li>
+          <li>If it slips, ship without it — an unreadable repo is fatal, a missing cloud checkbox is not.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Issue breakdown (tracer-bullet slices)</h2><div class="grid">
+      <div class="group">
+        <h3>Issue 1 — README front door</h3>
+        <ul><li>Thesis + diagram + headline findings + how-to-run; every claim → <code>RESULTS.md</code>. <b>Non-negotiable.</b></li></ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · blocked by #59 (Steps 1–9) · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/60">#60</a></div>
+      </div>
+      <div class="group">
+        <h3>Issue 2 — Technical blog post</h3>
+        <ul><li>Narrates the eval-centric value; every number links to its committed run. <b>Non-negotiable.</b></li></ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · blocked by #60 · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/61">#61</a></div>
+      </div>
+      <div class="group">
+        <h3>Issue 3 — Thin demo UI</h3>
+        <ul><li>Streamlit, isolated deps, reveals the wrapper, shared pipeline. <b>Non-negotiable.</b></li></ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · blocked by #59 · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/62">#62</a></div>
+      </div>
+      <div class="group reach">
+        <h3>Issue 4 — BigQuery (optional reach)</h3>
+        <ul><li>sqlglot transpilation to BigQuery; quarantined so it never blocks the legibility deliverables.</li></ul>
+        <div class="meta-row"><span class="pill reach">AFK · optional</span> · must not block #60/#61/#62 · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/63">#63</a></div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">4</span> Risk split: legibility first, reach last</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TB
+  RES["RESULTS.md trail (Steps 3–9)"] --> README["README — front door, claims linked"]:::ok
+  RES --> BLOG["blog post — every number → committed run"]:::ok
+  PIPE["shared pipeline (Steps 1–9)"] --> DEMO["thin demo — reveals the wrapper"]:::ok
+  PIPE -. optional .-> BQ["BigQuery via sqlglot transpile"]:::reach
+  README --> SHIP["legible, open-sourced project"]:::ok
+  BLOG --> SHIP
+  DEMO --> SHIP
+  BQ -. must not block .-x SHIP
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef reach fill:#e0e7ff,stroke:#6366f1,color:#3730a3,stroke-dasharray:5 4;</pre></div>
+      <p class="diagram-caption">The non-negotiables (README, blog, demo) draw straight from the
+      <b>committed results trail</b> and the <b>shared pipeline</b>. BigQuery hangs off to the side as
+      <b>quarantined optional reach</b> — wired so its integration risk can never block shipping.</p>
+    </section>
+
+    <section><h2><span class="num">5</span> Done when &amp; results log</h2>
+      <div class="done">
+        <p style="margin:.2rem 0"><b>Non-negotiable:</b> repo is open-sourced with a clean README, and the
+        blog post is published, every claim traceable to <code>RESULTS.md</code>. <b>Reach:</b> BigQuery
+        connected (only if it didn't introduce blocking risk).</p>
+        <p style="margin:.6rem 0 .2rem" class="note">This step <em>consumes</em> <code class="k">RESULTS.md</code>
+        rather than adding metrics — but record that the blog/README are published, and add the BigQuery result
+        if completed.</p>
+      </div>
+    </section>
+
+    <section><h2><span class="num">6</span> Pitfalls</h2>
+      <div class="card" style="padding:.4rem">
+        <table><thead><tr><th>Pitfall</th><th>Severity</th><th>Why it bites</th></tr></thead><tbody>
+          <tr><td class="r">BigQuery delaying README/blog</td>
+              <td><span class="pill risk">legibility</span></td>
+              <td class="note">Don't let BigQuery's integration risk delay the README/blog — they're what make everything else legible.</td></tr>
+          <tr><td class="r">Reconstructing numbers from memory</td>
+              <td><span class="pill risk">rigor</span></td>
+              <td class="note">The blog writes itself <em>only if</em> the results log was kept honestly from Step 3; skipped entries mean reconstructing from memory (the exact failure this discipline prevents).</td></tr>
+          <tr><td class="r">A slick chatbot demo</td>
+              <td><span class="pill tt">narrative</span></td>
+              <td class="note">Keep the demo honest — revealing the machinery is the point; a chatbot that hides the wrapper undersells the project.</td></tr>
+          <tr><td class="r">Demo forking the pipeline</td>
+              <td><span class="pill risk">integrity</span></td>
+              <td class="note">The demo must import the same shared pipeline as the harness — no drift between what's demoed and what's measured.</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <section><h2><span class="num">7</span> Guardrails for this step</h2><div class="grid">
+      <div class="group warn">
+        <h3>Never (anti-patterns)</h3>
+        <ul>
+          <li>Let <b>BigQuery</b> block the README/blog.</li>
+          <li>Report a claim <b>without</b> a linked <code>RESULTS.md</code> entry.</li>
+          <li>Ship a demo that <b>hides the wrapper</b>.</li>
+          <li><b>Fork the pipeline</b> for the demo.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>Always</h3>
+        <ul>
+          <li>Lead with the <b>thesis</b>; link every claim to its commit.</li>
+          <li>Keep the demo <b>honest</b> — reveal guardrail/retry/cost/terminal state.</li>
+          <li>Treat BigQuery as <b>quarantined optional reach</b>.</li>
+          <li>Note publication (and any BigQuery result) in <code>RESULTS.md</code>.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <footer>Step 10 plan summary — source: <code>docs/plans/step-10/plan-step-10.md</code> · slices: <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/60">#60</a> · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/61">#61</a> · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/62">#62</a> · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/63">#63</a> (optional reach) · derived from PRD §9/§11 and CLAUDE.md §3/§6/§7 · diagram renders with network access (Mermaid CDN)</footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>

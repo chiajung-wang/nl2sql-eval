@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Step 9 — Prompt-CI/CD (plan)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.25rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .group .meta-row{margin-top:.6rem;font-size:.78rem;color:var(--muted)}
+  .group .meta-row a{color:var(--accent-2);text-decoration:none}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .pill{display:inline-block;font-size:.74rem;font-weight:600;padding:.12rem .55rem;border-radius:999px;margin:.15rem .25rem .15rem 0}
+  .pill.tt{color:var(--accent);background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3)}
+  .pill.ok{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3)}
+  .pill.risk{color:var(--del);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.r code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">Plan · Step 9 · Operations · senior differentiator</span>
+    <h1>Prompt-CI/CD</h1>
+    <div class="meta">
+      <span><b>Phase:</b> Operations — the senior differentiator, live</span>
+      <span><b>Depends on:</b> Step 3 (batch harness) · Steps 3 &amp; 6 (frozen slice)</span>
+      <span><b>Unblocks:</b> Step 10 (a showcase artifact for the blog)</span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Headline &amp; goal</h2><div class="card">
+      <p class="lede"><b>A prompt change automatically tells you whether you improved or regressed.</b></p>
+      <p>Externalize prompts as version-controlled templates and add a GitHub Action that runs the harness on
+      a <b>frozen, seeded, stratified</b> slice whenever a prompt changes, posting the <b>pass@1/pass@k
+      deltas</b>. Most portfolios never build this; it's a direct hit on "CI/CD for prompts and models" and
+      LLMOps requirements (PRD §9, CLAUDE.md §4/§9).</p>
+      <div class="stats">
+        <div><b>Jinja</b> templates, clean diffs</div>
+        <div><b>1</b> GitHub Action — <code class="k">eval.yml</code></div>
+        <div><b>pass@1/pass@k</b> deltas posted per change</div>
+        <div><b>cost-guarded</b> frozen subset</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> What to build</h2><div class="grid">
+      <div class="group">
+        <h3>Prompt templates (<code>prompts/</code>)</h3>
+        <ul>
+          <li>Jinja-style templates with variable substitution for injected schema / few-shots.</li>
+          <li>Structured so the static scaffold stays put; only meaningful edits show — clean CI diffs.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>.github/workflows/eval.yml</code></h3>
+        <ul>
+          <li>On change to <code>prompts/</code>, run the harness against the frozen slice and <b>post pass@1/pass@k deltas</b> (PR comment or job summary).</li>
+          <li>The slice is seeded, checked in (explicit ID list), and stratified by BIRD difficulty — a delta means a real regression, not sampling variance.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>Cost guard for CI</h3>
+        <ul>
+          <li>Keep the slice small enough that per-push LLM cost is acceptable; document the trade-off.</li>
+          <li>Full BIRD is too slow/costly per push — the frozen subset is the point.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Issue breakdown (tracer-bullet slices)</h2><div class="grid">
+      <div class="group">
+        <h3>Issue 1 — Clean Jinja prompt templates</h3>
+        <ul><li>All prompts in <code>prompts/</code> as Jinja templates; static scaffold isolated from meaningful edits; prompt-version surfaced.</li></ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · blocked by #56 (Steps 1–8) · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/57">#57</a></div>
+      </div>
+      <div class="group">
+        <h3>Issue 2 — <code>eval.yml</code> posts deltas</h3>
+        <ul><li>Action triggers on <code>prompts/</code> change, runs the frozen slice, posts pass@1/pass@k deltas; cost-guarded.</li></ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · blocked by #57 · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/58">#58</a></div>
+      </div>
+      <div class="group" style="border-left-color:var(--add)">
+        <h3>Issue 3 — Real delta demo + <code>RESULTS.md</code></h3>
+        <ul><li>A real prompt edit triggers the run; capture the before/after delta; record it. <b>Step 9 DoD.</b></li></ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · blocked by #58 · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/59">#59</a></div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">4</span> A prompt edit → an automated verdict</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TB
+  EDIT["edit a prompt in prompts/ (Jinja template)"] --> PR["open / push PR"]
+  PR --> GHA[".github/workflows/eval.yml triggers"]
+  GHA --> RUN["run harness on FROZEN, seeded, stratified slice"]
+  RUN --> DELTA["pass@1 / pass@k deltas vs baseline"]:::ok
+  DELTA --> COMMENT["post as PR comment / job summary"]:::ok
+  COST["cost guard: small fixed subset, per-push cost acceptable"] -.governs.-> RUN
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;</pre></div>
+      <p class="diagram-caption">Because the slice is <b>frozen, seeded, and stratified</b>, a posted delta is a
+      real signal — a regression caught or an improvement confirmed — not sampling noise. The cost guard keeps
+      the subset small enough to run on every push.</p>
+    </section>
+
+    <section><h2><span class="num">5</span> Done when &amp; results log</h2>
+      <div class="done">
+        <p style="margin:.2rem 0"><b>Done when:</b> a prompt edit triggers an automated eval run that reports
+        pass@1/pass@k <b>deltas</b> against the frozen slice.</p>
+        <p style="margin:.6rem 0 .2rem" class="note">Append to <code class="k">RESULTS.md</code> an example
+        <b>before/after delta</b> from a real prompt change (CI catching a regression or confirming an
+        improvement) with full config. A showcase artifact for the blog.</p>
+      </div>
+    </section>
+
+    <section><h2><span class="num">6</span> Pitfalls</h2>
+      <div class="card" style="padding:.4rem">
+        <table><thead><tr><th>Pitfall</th><th>Severity</th><th>Why it bites</th></tr></thead><tbody>
+          <tr><td class="r">Random-per-run subset</td>
+              <td><span class="pill risk">repeatability</span></td>
+              <td class="note">A random subset makes deltas indistinguishable from noise — the slice <b>must</b> be frozen, seeded, and committed.</td></tr>
+          <tr><td class="r">Accidentally-all-easy slice</td>
+              <td><span class="pill risk">signal</span></td>
+              <td class="note">Stratify by difficulty, or an all-easy slice hides real regressions.</td></tr>
+          <tr><td class="r">Per-push API cost</td>
+              <td><span class="pill tt">cost</span></td>
+              <td class="note">Mind per-push LLM cost — that's why the slice is a fixed small subset, not full BIRD.</td></tr>
+          <tr><td class="r">Inlined prompts</td>
+              <td><span class="pill tt">CI hygiene</span></td>
+              <td class="note">Prompts must live in <code>prompts/</code> as templates — inlining in Python breaks the clean-diff premise of prompt-CI (CLAUDE.md §4).</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <section><h2><span class="num">7</span> Guardrails for this step</h2><div class="grid">
+      <div class="group warn">
+        <h3>Never (anti-patterns)</h3>
+        <ul>
+          <li>Use a <b>random-per-run</b> slice — deltas become noise.</li>
+          <li>Let the slice drift to <b>all-easy</b> — regressions hide.</li>
+          <li><b>Inline prompts</b> in Python.</li>
+          <li>Run <b>full BIRD</b> per push — cost explodes.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>Always</h3>
+        <ul>
+          <li>Keep the slice <b>frozen, seeded, stratified, committed</b>.</li>
+          <li>Post <b>pass@1/pass@k deltas</b>, not just absolute numbers.</li>
+          <li>Pin the <b>prompt version</b> per run.</li>
+          <li>Document the <b>cost trade-off</b>.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <footer>Step 9 plan summary — source: <code>docs/plans/step-9/plan-step-9.md</code> · slices: <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/57">#57</a> · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/58">#58</a> · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/59">#59</a> · derived from PRD §9 and CLAUDE.md §4/§9 · diagram renders with network access (Mermaid CDN)</footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>

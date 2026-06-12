@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Step 5 — Self-correction (execution-error feedback) + pass@k (plan)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.25rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .group .meta-row{margin-top:.6rem;font-size:.78rem;color:var(--muted)}
+  .group .meta-row a{color:var(--accent-2);text-decoration:none}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .pill{display:inline-block;font-size:.74rem;font-weight:600;padding:.12rem .55rem;border-radius:999px;margin:.15rem .25rem .15rem 0}
+  .pill.tt{color:var(--accent);background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3)}
+  .pill.ok{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3)}
+  .pill.risk{color:var(--del);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.r code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">Plan · Step 5 · Measured features</span>
+    <h1>Self-correction (execution-error feedback) + pass@k</h1>
+    <div class="meta">
+      <span><b>Phase:</b> Measured features</span>
+      <span><b>Depends on:</b> Step 3 (harness/pass@1) · Step 4 (guard gate)</span>
+      <span><b>Unblocks:</b> Step 6 (retrieval re-trigger hooks into this loop)</span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Headline &amp; goal</h2><div class="card">
+      <p class="lede"><b>Quantify what self-correction is actually worth.</b></p>
+      <p>Turn the single-shot generator into an <b>agent</b> by adding a correction loop driven by
+      <b>execution-error feedback only</b>, and extend the harness to report <b>pass@1 AND pass@k</b>.
+      The gap between them is a headline finding — "self-correction recovers X% of initial failures at
+      a cost of Y% added latency" (CLAUDE.md §5/§6, PRD §9). Recovery must never look <em>free</em>:
+      the same run also reports attempts, cost, and latency.</p>
+      <div class="stats">
+        <div><b>1</b> new stage — <code class="k">correct.py</code></div>
+        <div><b>1</b> capped retry budget (configurable)</div>
+        <div><b>2</b> metrics — <code class="k">pass@1</code> + <code class="k">pass@k</code></div>
+        <div><b>1</b> of the two sharpest findings</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> What to build</h2><div class="grid">
+      <div class="group">
+        <h3><code>pipeline/correct.py</code> — the correction stage</h3>
+        <ul>
+          <li>On execution failure (syntax/runtime error), capture the error message and feed it back as a <b>correction signal</b> that re-triggers <code>generate</code>.</li>
+          <li><b>Capped retry budget</b> — prevents infinite loops and runaway cost; the cap is itself a cost/latency lever to discuss.</li>
+          <li><b>Execution-error feedback only</b> — retrieval re-trigger is deferred to Step 6.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><code>pipeline/graph.py</code> — the loop-back edge</h3>
+        <ul>
+          <li>Conditional edge <code>execute → correct → generate</code>, governed by the budget.</li>
+          <li>Terminal transitions: recovered → <code>success</code>; budget spent → <code>retry_exhausted</code>; final error → <code>execution_error_final</code>.</li>
+          <li>Enum lives in <code>state.py</code>; the classifier stays in the harness (CLAUDE.md §3).</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>Harness extension — twin metrics</h3>
+        <ul>
+          <li><b>pass@1</b>: generator alone, no correction.</li>
+          <li><b>pass@k</b>: same questions, full correction budget.</li>
+          <li>Per-question <b>attempts</b>, <b>cost</b>, <b>latency</b> — so the recovery is not free in the numbers.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Issue breakdown (tracer-bullet slices)</h2><div class="grid">
+      <div class="group">
+        <h3>Issue 1 — Correction loop + capped retry budget</h3>
+        <ul>
+          <li>The Step 5 tracer: <code>correct.py</code> + the <code>execute → correct → generate</code> loop-back edge + terminal states, proven on payments gold.</li>
+          <li>Full vertical: error → correct → regenerate → capped loop → terminal state.</li>
+        </ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · no blockers · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/42">#42</a></div>
+      </div>
+      <div class="group">
+        <h3>Issue 2 — Twin metrics: pass@1 AND pass@k</h3>
+        <ul>
+          <li>Harness emits both numbers over the same slice, plus per-question attempts/cost/latency.</li>
+          <li>The pass@1→pass@k gap is computed directly, not reconstructed later.</li>
+        </ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · blocked by #42 · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/43">#43</a></div>
+      </div>
+      <div class="group" style="border-left-color:var(--add)">
+        <h3>Issue 3 — pass@1→pass@k gap on BIRD + <code>RESULTS.md</code></h3>
+        <ul>
+          <li>Run the frozen BIRD slice both ways → the gap + added cost/latency → the mandated <code>RESULTS.md</code> row.</li>
+          <li><b>Step 5 Definition of Done.</b></li>
+        </ul>
+        <div class="meta-row"><span class="pill ok">AFK</span> · blocked by #43 · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/44">#44</a></div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">4</span> The correction loop → twin metrics</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TB
+  GEN["generate (candidate SQL)"] --> GUARD["guard (Step 4 gate)"]
+  GUARD -->|allowed| EXEC["execute"]
+  EXEC -->|ok| SCORE["score vs gold (pass@1 = first attempt only)"]:::ok
+  EXEC -->|execution error| CORRECT["correct.py — feed error back"]
+  CORRECT -->|budget left| GEN
+  CORRECT -->|budget spent| RX["retry_exhausted / execution_error_final"]:::risk
+  SCORE --> PASSK["pass@k = success within budget"]:::ok
+
+  subgraph BUDGET["capped retry budget (configurable)"]
+    CORRECT
+  end
+
+  HARNESS["harness emits: pass@1 · pass@k · gap · attempts · cost · latency"]
+  SCORE -.-> HARNESS
+  RX -.-> HARNESS
+
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef risk fill:#fecaca,stroke:#dc2626,color:#7f1d1d;</pre></div>
+      <p class="diagram-caption">pass@1 reads the <b>first attempt only</b>; pass@k reads <b>success within the
+      capped budget</b>. The correction stage feeds execution errors back into generation — but never re-triggers
+      retrieval (that is Step 6). Every run also reports attempts/cost/latency so recovery is never free.</p>
+    </section>
+
+    <section><h2><span class="num">5</span> Done when &amp; results log</h2>
+      <div class="done">
+        <p style="margin:.2rem 0"><b>Done when:</b> you can state the <b>pass@1 → pass@k gap</b> — e.g.
+        "self-correction recovers X% of initial failures at a cost of Y% added latency."</p>
+        <p style="margin:.6rem 0 .2rem" class="note">Append to <code class="k">RESULTS.md</code>:
+        <b>pass@1, pass@k, the gap, and the added cost/latency</b> with model, slice ID, prompt version,
+        date, commit. This is one of the two sharpest findings — capture it now, don't reconstruct it later
+        (CLAUDE.md §6).</p>
+      </div>
+    </section>
+
+    <section><h2><span class="num">6</span> Pitfalls</h2>
+      <div class="card" style="padding:.4rem">
+        <table><thead><tr><th>Pitfall</th><th>Severity</th><th>Why it bites</th></tr></thead><tbody>
+          <tr><td class="r">Silent retries masking problems</td>
+              <td><span class="pill risk">narrative</span></td>
+              <td class="note">Retries that eventually stumble into the right answer make accuracy look good while latency/cost quietly balloon. Reporting both numbers <em>and</em> cost is the guard against this.</td></tr>
+          <tr><td class="r">Uncapped / hard-coded budget</td>
+              <td><span class="pill risk">cost</span></td>
+              <td class="note">Keep the retry cap explicit and configurable — it's a cost/latency lever, not a magic constant.</td></tr>
+          <tr><td class="r">Re-triggering retrieval here</td>
+              <td><span class="pill tt">ordering</span></td>
+              <td class="note">Schema-RAG doesn't exist until Step 6; this loop handles execution-error feedback only. The not-found re-retrieve is a Step 6 contribution.</td></tr>
+          <tr><td class="r">Classifier creeping into <code>state.py</code></td>
+              <td><span class="pill tt">integrity</span></td>
+              <td class="note">The enum lives in <code>state.py</code>; the terminal-state classifier stays in the harness (CLAUDE.md §3).</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <section><h2><span class="num">7</span> Guardrails for this step</h2><div class="grid">
+      <div class="group warn">
+        <h3>Never (anti-patterns)</h3>
+        <ul>
+          <li>Let the correction loop run <b>uncapped</b> — runaway cost and infinite loops.</li>
+          <li><b>Re-trigger retrieval</b> here — that's Step 6 (corrected ordering).</li>
+          <li>Report pass@k <b>without its cost/latency</b> — recovery must not look free.</li>
+          <li>Put the <b>terminal-state classifier in <code>state.py</code></b>.</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>Always</h3>
+        <ul>
+          <li>Report <b>both</b> pass@1 and pass@k, plus the gap.</li>
+          <li>Keep the retry budget <b>explicit and configurable</b>.</li>
+          <li>Capture <b>attempts, cost, latency</b> per question.</li>
+          <li>Validate the loop on <b>payments gold</b> before BIRD.</li>
+        </ul>
+      </div>
+    </div></section>
+
+    <footer>Step 5 plan summary — source: <code>docs/plans/step-5/plan-step-5.md</code> · slices: <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/42">#42</a> · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/43">#43</a> · <a href="https://github.com/chiajung-wang/nl2sql-eval/issues/44">#44</a> · derived from PRD §9 and CLAUDE.md §3/§5/§6 · diagram renders with network access (Mermaid CDN)</footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
