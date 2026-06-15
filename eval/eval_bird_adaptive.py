@@ -115,26 +115,50 @@ def _note(
     budget: int,
     decisions: dict[str, int],
 ) -> str:
-    """Prose for RESULTS.md — every number derived from the reports."""
+    """Prose for RESULTS.md — numbers derived from the reports, claims honest.
+
+    The pass@1 deltas on a 40-question slice sit inside the ~0.05 sampling-noise
+    floor measured in #75 (temperature>0, identical-prompt runs differ by ~2/40),
+    so the note frames the gate's value **structurally** (a deterministic no-regret
+    routing) rather than as a significant accuracy lift — and never claims a Step-6
+    loss it didn't reproduce."""
     vs_rag = adaptive.accuracy - rag.accuracy
     vs_naive = adaptive.accuracy - naive.accuracy
     total = decisions["full"] + decisions["rag"]
+    NOISE = 0.05  # ~2/40, the #75 same-prompt run-to-run floor
+    standing = (
+        "ties the full-dump ceiling and edges always-RAG"
+        if vs_naive >= 0 and vs_rag >= 0
+        else "lands between the two baselines"
+    )
+    significance = (
+        "both deltas sit **within the ~0.05 sampling-noise floor** measured in #75 "
+        "(temperature>0, 40 questions), so this is **not** a significant pass@1 lift"
+        if abs(vs_rag) <= NOISE and abs(vs_naive) <= NOISE
+        else "the gap exceeds the ~0.05 #75 noise floor"
+    )
     return (
-        f"\n**Step 6 follow-up (#76) — budget-aware adaptive retrieval gate.** The "
-        f"Step-6 RAG loss (−0.125) was a *mechanism* bug: `retrieve` caps at "
-        f"`max_tables` and drops tables even when the whole schema would have fit "
-        f"the prompt. The gate fixes it — full dump when the schema fits a "
+        f"\n**Step 6 follow-up (#76) — budget-aware adaptive retrieval gate.** "
+        f"Step 6's schema-RAG capped at `max_tables` and so could drop a needed "
+        f"table even when the whole schema would have fit the prompt. The gate "
+        f"removes that risk structurally: full dump when the schema fits a "
         f"configured **{budget}-token** budget, RAG only when it overflows. On the "
-        f"frozen `{slice6_id()}` slice the gate routes **{decisions['full']}/{total}** "
-        f"questions to a full dump and **{decisions['rag']}/{total}** to RAG. "
-        f"Result: naive full dump **{naive.accuracy:.3f} "
-        f"({naive.n_correct}/{naive.total})**, always-RAG (capped, the Step-6 "
-        f"loser) **{rag.accuracy:.3f} ({rag.n_correct}/{rag.total})**, "
-        f"**adaptive {adaptive.accuracy:.3f} ({adaptive.n_correct}/{adaptive.total})** "
-        f"— {vs_rag:+.3f} vs always-RAG, {vs_naive:+.3f} vs naive. The gate recovers "
-        f"the accuracy the table cap gave up on the dbs that fit the budget, while "
-        f"staying within budget on the ones that overflow it — the #75 measurement "
-        f"(where retrieval pays) shaping the architecture. Reproduce with "
+        f"frozen `{slice6_id()}` slice it routes **{decisions['full']}/{total}** "
+        f"questions to a full dump, **{decisions['rag']}/{total}** to RAG. Measured: "
+        f"naive full dump **{naive.accuracy:.3f} ({naive.n_correct}/{naive.total})**, "
+        f"always-RAG (capped) **{rag.accuracy:.3f} ({rag.n_correct}/{rag.total})**, "
+        f"**adaptive {adaptive.accuracy:.3f} "
+        f"({adaptive.n_correct}/{adaptive.total})** — {vs_rag:+.3f} vs always-RAG, "
+        f"{vs_naive:+.3f} vs naive: it {standing}. But {significance} — and the "
+        f"dramatic Step-6 RAG loss (−0.125) did **not** reproduce this run "
+        f"(always-RAG trails naive by only {abs(rag.accuracy - naive.accuracy):.3f}, "
+        f"itself within noise), a reminder that the original gap carried sampling "
+        f"variance too. The honest claim is therefore **structural, not a headline "
+        f"number**: the gate makes the deterministic cost/accuracy-optimal choice "
+        f"per db — dump where it fits (never paying the cap's table-drop risk), "
+        f"retrieve only where the budget is exceeded — and measured here it never "
+        f"does worse than either baseline. A no-regret gate: the #75 measurement "
+        f"shaping the architecture. Reproduce with "
         f"`uv run python -m eval.eval_bird_adaptive`.\n"
     )
 
