@@ -44,8 +44,26 @@ DEFAULT_MAX_TABLES = 8
 NAME_WEIGHT = 3
 SAMPLE_WEIGHT = 1
 
+# Heuristic chars-per-token for the schema-token budget (Step-6 follow-up, #75).
+# A budget is a *cost/latency policy* on how much schema rides in the prompt — not
+# the model's context limit (BIRD schemas all fit that). The estimate need only be
+# monotonic and stable, so the ~4-chars/token rule of thumb is enough; we never
+# call a tokenizer (offline, deterministic, no provider dependency — PRD §5
+# heuristic-first). It is the same lever the adaptive gate (#76) will switch on.
+CHARS_PER_TOKEN = 4
+
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _CAMEL_RE = re.compile(r"(?<=[a-z])(?=[A-Z])")
+
+
+def estimate_tokens(text: str) -> int:
+    """Heuristic token count for ``text`` — ``ceil(len / CHARS_PER_TOKEN)``.
+
+    Deterministic and provider-free (no tokenizer call): the schema-token budget
+    only needs a stable, monotonic size proxy to rank "does this fit?" decisions,
+    not exact provider token counts. Empty text is 0 tokens.
+    """
+    return -(-len(text) // CHARS_PER_TOKEN)  # ceil division
 
 
 def _tokens(s: str) -> set[str]:
@@ -204,6 +222,52 @@ class SchemaIndex:
         """Render the given tables' blocks as the focused schema for the prompt."""
         by_name = self.by_name()
         return "\n\n".join(by_name[n].render() for n in table_names if n in by_name)
+
+    def render_tokens(self, table_names: Sequence[str]) -> int:
+        """Estimated token size of the rendered block for ``table_names``."""
+        return estimate_tokens(self.render(table_names))
+
+    def ranked_names(self, question: str) -> list[str]:
+        """**All** table names in relevance order for ``question``.
+
+        Score-descending, ties broken by declaration order (stable, deterministic).
+        Unlike :meth:`relevant_tables` this never truncates — it is the priority
+        order a *budget* then fills (the budget, not a table cap, decides how many
+        fit). The naive-truncation baseline uses plain declaration order instead;
+        the only difference between the two budget modes (#75) is this ordering.
+        """
+        scores = self.score(question)
+        order = {t.name: i for i, t in enumerate(self.tables)}
+        return sorted(
+            (t.name for t in self.tables), key=lambda n: (-scores[n], order[n])
+        )
+
+    def fit_budget(self, ordered_names: Sequence[str], budget_tokens: int) -> list[str]:
+        """Greedy prefix of ``ordered_names`` whose rendered size fits the budget.
+
+        Walks ``ordered_names`` in priority order and keeps each table while the
+        running rendered-token total stays within ``budget_tokens``; once a table
+        would bust the budget the walk **stops** (truncation semantics, not bin
+        packing — so a tight budget yields a clean priority prefix). At least the
+        first table is always kept, so the generator never sees an empty schema
+        even when one table alone exceeds the budget. The kept set is returned in
+        **declaration order** (the canonical render order), so only *which* tables
+        differ between modes, never the rendering. Unknown names are ignored.
+        """
+        by_name = self.by_name()
+        kept: list[str] = []
+        used = 0
+        for name in ordered_names:
+            meta = by_name.get(name)
+            if meta is None:
+                continue
+            cost = estimate_tokens(meta.render())
+            if kept and used + cost > budget_tokens:
+                break
+            kept.append(name)
+            used += cost
+        order = {t.name: i for i, t in enumerate(self.tables)}
+        return sorted(kept, key=lambda n: order[n])
 
 
 def _sample_values(

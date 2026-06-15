@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue #75 — Schema-token-budget retrieval crossover</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .big{font-size:2.4rem;font-weight:800;color:var(--mod);line-height:1}
+  .peak{color:var(--add)} .noise{color:var(--mod)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #77 · Step 6 follow-up · Issue #75</span>
+    <h1>Schema-token-budget retrieval crossover</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #75</span>
+      <span><b>Branch:</b> <code>step-6-follow-up/issue-75-budget-experiment</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>The honest other half of Step 6: schema-RAG can't win on the "it doesn't fit"
+      axis (BIRD's biggest schema is ~1.8K tokens), so measure where it <em>does</em> pay — under a
+      configured schema-token <em>budget</em>.</b></p>
+      <p>Step 6 reported retrieval lift <b>−0.125</b>: when the whole schema already fits the context,
+      RAG can only <em>drop</em> a needed table and lose. This experiment imposes a <b>schema-token budget</b>
+      (a cost/latency policy a real system sets — <em>not</em> the model's context limit) and asks the sharper
+      question: under that budget, is it better to <b>truncate</b> the schema (declaration order) or to
+      <b>retrieve</b> the relevant tables? The frozen Step-6 slice runs both ways across a budget sweep.</p>
+      <p>The headline finding is a <em>measurement-discipline</em> one: a first draft claimed RAG "beats
+      truncation at every budget," but the independent review forced the truth out — most of that gap is
+      <b>sampling noise</b>, and the robust signal is <b>recall</b>.</p>
+      <div class="stats">
+        <div><b class="peak">+0.100</b> peak pass@1 gap @512t</div>
+        <div><b class="noise">~0.050</b> sampling-noise floor</div>
+        <div><b>0.45→1.00</b> RAG recall climb</div>
+        <div><b>377</b> tests green</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The sweep — and the noise floor</h2><div class="card">
+      <table>
+        <thead><tr><th>schema-token budget</th><th>naive-truncate</th><th>RAG-select</th><th>gap</th><th>RAG recall</th><th>selection divergence</th></tr></thead>
+        <tbody>
+          <tr><td>256</td><td>0.475 (19/40)</td><td>0.500 (20/40)</td><td>+0.025</td><td>0.450</td><td>0.750</td></tr>
+          <tr><td>512</td><td>0.525 (21/40)</td><td><b class="peak">0.625 (25/40)</b></td><td><b class="peak">+0.100</b></td><td>0.569</td><td>0.750</td></tr>
+          <tr><td>1024</td><td>0.525 (21/40)</td><td>0.600 (24/40)</td><td>+0.075</td><td>0.752</td><td>0.650</td></tr>
+          <tr><td>2048</td><td>0.575 (23/40)</td><td>0.650 (26/40)</td><td>+0.075</td><td>0.900</td><td>0.350</td></tr>
+          <tr><td>4096</td><td>0.625 (25/40)</td><td>0.675 (27/40)</td><td><span class="noise">+0.050</span></td><td>1.000</td><td><b>0.000</b></td></tr>
+        </tbody>
+      </table>
+      <p style="margin-bottom:0"><b>Why 4096t is the control, not a win.</b> The largest schema in the slice
+      (<code>european_football_2</code>) renders to 3820 tokens, so at 4096t <b>every</b> schema fits and the two
+      modes select <em>identical</em> tables (<b>selection divergence 0</b> — 0/40 questions differ). Generation
+      runs at non-zero temperature, so two independent runs on the <em>same</em> prompt still differ by
+      <span class="noise">~0.050 (2/40)</span>. That is the <b>sampling-noise floor</b>. Read the tight-budget gaps
+      against it: the peak <span class="peak">+0.100 @512t</span> is ~2× noise; the rest sit within ~1 floor — so
+      on this 40-question slice the pass@1 advantage is <b>suggestive, not conclusive</b>.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> The robust signal is recall</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart LR
+  Q["question + budget"] --> N["naive: fill budget<br/>in declaration order"]:::live
+  Q --> R["RAG: fill budget<br/>by relevance"]:::live
+  N --> NR["recall stays low<br/>(blind truncation)"]:::bad
+  R --> RR["recall 0.45→1.00<br/>(keeps gold tables)"]:::ok
+  NR --> P["pass@1 gap +0.025..+0.100<br/>(small vs ~0.050 noise)"]:::warn
+  RR --> P
+  R -.->|divergence→0 at 4096t| C["modes identical<br/>→ residual = noise"]:::live
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef bad fill:#fecaca,stroke:#dc2626,color:#7f1d1d;
+  classDef warn fill:#fde68a,stroke:#d97706,color:#7c2d12;
+  classDef live fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;</pre></div>
+      <p class="diagram-caption">Recall is monotone and unambiguous: more budget lets retrieval cover more of the
+      gold tables, while truncation cuts blindly. The pass@1 effect is real but small against sampling noise —
+      so recall, not pass@1, carries the claim.</p>
+    </section>
+
+    <section><h2><span class="num">4</span> Review caught a real overclaim</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards — clean</h3><ul>
+          <li>Import-shared pipeline reused (no fork)</li>
+          <li>Budget primitives deterministic, tokenizer-free, no LLM</li>
+          <li>RESULTS row carries full config + commit (§6)</li>
+        </ul></div>
+        <div class="group warn"><h3>Spec — fixed</h3><ul>
+          <li><b>False claim removed:</b> "largest schemas exceed 4096t" — they don't (3820t); 0/40 diverge there</li>
+          <li>Reframed the +0.050 as a <b>noise floor</b> via selection divergence</li>
+          <li>Documented per-db table counts + token sizes</li>
+          <li><code>pass@k</code> intentionally skipped — single-shot isolates the budget variable from self-correction</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>src/nl2sql/schema_index/__init__.py</code></td><td><span class="st M">M</span></td><td><code>estimate_tokens</code>, <code>ranked_names</code>, <code>fit_budget</code> — shared budget primitives (reused by #76's gate).</td></tr>
+          <tr><td class="f"><code>eval/eval_bird_budget.py</code></td><td><span class="st A">A</span></td><td>The sweep harness: naive-truncate vs RAG-select per budget; <code>selection_divergence</code>; divergence-based convergence; data-driven RESULTS note.</td></tr>
+          <tr><td class="f"><code>tests/test_schema_index.py</code></td><td><span class="st M">M</span></td><td>Budget primitive tests (estimate/rank/fit, ≥1 table, declaration order).</td></tr>
+          <tr><td class="f"><code>tests/test_budget_sweep.py</code></td><td><span class="st A">A</span></td><td>Gap + divergence-based convergence (offline, no LLM/BIRD).</td></tr>
+          <tr><td class="f"><code>RESULTS.md</code></td><td><span class="st M">M</span></td><td>Budget-crossover row + table: peak +0.100 @512t, converges @4096t, full config + commit.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 377 passed; <code>ruff check</code> / <code>ruff format --check</code> clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Full 5-budget × 2-mode BIRD sweep (400 pass@1 calls, <code>claude-sonnet-4-6</code>); reproducible via <code>uv run python -m eval.eval_bird_budget</code></p>
+        <p style="margin:.2rem 0"><b>✓</b> RESULTS note regenerated and verified <b>byte-identical</b> to the generator output — prose can't drift from the table</p>
+        <p style="margin:.2rem 0"><b>✓</b> Two-axis <code>/review</code> → standards clean; spec flagged a false note claim → corrected to the divergence/noise-floor account</p>
+        <p style="margin:.2rem 0 0" class="note"><b>Next:</b> #76 adaptive gate — full dump when the schema fits the budget, RAG-select when it doesn't (calibrated to this convergence point).</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #75 / PR #77 · base <code>main</code> ← <code>step-6-follow-up/issue-75-budget-experiment</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>

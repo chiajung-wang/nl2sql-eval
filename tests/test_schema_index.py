@@ -19,6 +19,7 @@ from nl2sql.schema_index import (
     SchemaIndex,
     TableMeta,
     build_schema_index,
+    estimate_tokens,
 )
 from tests.test_pipeline_loop import FakeAnthropic
 
@@ -257,3 +258,62 @@ def test_run_pipeline_requires_exactly_one_schema_source(store_engine):
             schema_index=index,
             engine=store_engine,
         )
+
+
+# --- schema-token budget (Step-6 follow-up #75) -----------------------------
+
+
+def test_estimate_tokens_is_ceil_chars_over_four():
+    assert estimate_tokens("") == 0
+    assert estimate_tokens("a") == 1  # ceil(1/4)
+    assert estimate_tokens("abcd") == 1
+    assert estimate_tokens("abcde") == 2  # ceil(5/4)
+
+
+def test_ranked_names_orders_by_relevance_then_declaration(store_engine):
+    index = build_schema_index(store_engine)
+    ranked = index.ranked_names("how many products are there?")
+    # Every table is present (ranking never truncates) …
+    assert set(ranked) == {"customers", "orders", "payments", "products"}
+    # … and the lexical hit leads.
+    assert ranked[0] == "products"
+
+
+def test_ranked_names_ties_break_by_declaration_order(store_engine):
+    index = build_schema_index(store_engine)
+    # No lexical signal → all scores tie at 0 → declaration order preserved.
+    assert index.ranked_names("zzzqux nothing matches") == [
+        t.name for t in index.tables
+    ]
+
+
+def test_fit_budget_keeps_priority_prefix_within_budget(store_engine):
+    index = build_schema_index(store_engine)
+    ranked = index.ranked_names("how many products are there?")
+    # A generous budget keeps everything …
+    assert set(index.fit_budget(ranked, 10_000)) == {
+        "customers",
+        "orders",
+        "payments",
+        "products",
+    }
+    # … a tight budget keeps fewer, and the top-ranked table survives.
+    tight = index.fit_budget(ranked, index.render_tokens(["products"]))
+    assert "products" in tight
+    assert len(tight) < 4
+
+
+def test_fit_budget_always_keeps_at_least_one_table(store_engine):
+    index = build_schema_index(store_engine)
+    ranked = index.ranked_names("how many products are there?")
+    # Even a zero budget never starves the generator of all schema.
+    kept = index.fit_budget(ranked, 0)
+    assert kept == ["products"]
+
+
+def test_fit_budget_returns_declaration_order(store_engine):
+    index = build_schema_index(store_engine)
+    order = [t.name for t in index.tables]
+    # Relevance-ordered input, but the rendered selection is declaration-ordered.
+    kept = index.fit_budget(index.ranked_names("orders and customers"), 10_000)
+    assert kept == sorted(kept, key=order.index)
