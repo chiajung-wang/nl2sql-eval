@@ -135,16 +135,48 @@ def _sweep_row(points: list[BudgetPoint], *, commit: str) -> str:
 
 
 def _sweep_note(points: list[BudgetPoint]) -> str:
-    """Prose + per-budget table appended under the sweep row in RESULTS.md."""
+    """Prose + per-budget table appended under the sweep row in RESULTS.md.
+
+    Every quantitative claim is derived from ``points`` (peak gap, gap range,
+    recall range, where it converges) so the prose can never drift from the
+    table beneath it — the honesty discipline that lets the blog quote it
+    verbatim (PRD §10)."""
+    ordered = sorted(points, key=lambda p: p.budget)
+    peak = max(points, key=lambda p: p.gap)
+    min_gap = min(p.gap for p in points)
+    top = ordered[-1]
+    recalls = [
+        p.rag.mean_retrieval_recall
+        for p in ordered
+        if p.rag.mean_retrieval_recall is not None
+    ]
+    recall_clause = (
+        f"RAG recall climbs {recalls[0]:.3f}→{recalls[-1]:.3f} with the budget — "
+        f"the mechanism: more budget lets retrieval cover more of the gold tables, "
+        f"while truncation gets no such targeting"
+        if len(recalls) >= 2
+        else "RAG recall is reported per budget below"
+    )
     conv = convergence_budget(points)
-    conv_clause = (
-        f"the gap closes at a **{conv}-token** budget — at/above it the full schema "
-        f"effectively fits, so retrieval no longer pays and a plain dump is the "
-        f"cheaper equal-accuracy choice (the crossover the #76 adaptive gate keys "
-        f"off)"
-        if conv is not None
-        else "RAG-select leads at every budget swept — the schema never comfortably "
-        "fits the range, so retrieval pays throughout"
+    if conv is not None:
+        conv_clause = (
+            f"the gap closes at a **{conv}-token** budget — at/above it the whole "
+            f"schema fits and the two modes converge on the full dump, so retrieval "
+            f"no longer pays and a plain dump is the cheaper equal-accuracy choice "
+            f"(the crossover the #76 adaptive gate keys off)"
+        )
+    else:
+        conv_clause = (
+            f"the gap never closes within the swept range — even at **{top.budget}t** "
+            f"(RAG recall {top.rag.mean_retrieval_recall:.3f}) naive truncation still "
+            f"trails by {top.gap:+.3f}, because the largest BIRD schemas, rendered "
+            f"with sample values, exceed that budget and so truncation keeps dropping "
+            f"tables; convergence would need a larger budget"
+        )
+    lead = (
+        "RAG-select beats naive truncation at **every** budget swept"
+        if min_gap > 0
+        else "RAG-select never loses to naive truncation across the swept budgets"
     )
     rows = "\n".join(
         f"| {p.budget} | {p.naive.accuracy:.3f} ({p.naive.n_correct}/{p.naive.total}) "
@@ -153,7 +185,7 @@ def _sweep_note(points: list[BudgetPoint]) -> str:
         if p.rag.mean_retrieval_recall is not None
         else f"| {p.budget} | {p.naive.accuracy:.3f} | {p.rag.accuracy:.3f} | "
         f"{p.gap:+.3f} | — |"
-        for p in sorted(points, key=lambda p: p.budget)
+        for p in ordered
     )
     return (
         f"\n**Step 6 follow-up (#75) — schema-token-budget retrieval crossover.** "
@@ -161,12 +193,16 @@ def _sweep_note(points: list[BudgetPoint]) -> str:
         f"tokens), so this is a **controlled experiment**, not a natural-overflow "
         f"claim: under a configured schema-token *budget* (a cost/latency policy), "
         f"is it better to **truncate** the schema or to **retrieve** the relevant "
-        f"tables? On the frozen `{slice6_id()}` slice, {conv_clause}. RAG-select "
-        f"never loses to truncation — its advantage is largest when the budget is "
-        f"tight and vanishes as the budget grows to hold the whole schema. This is "
-        f"the honest other half of the Step-6 finding: retrieval's value is a "
-        f"function of the *budget*, and with today's context windows that budget is "
-        f"a policy choice, not a hard limit.\n\n"
+        f"tables? On the frozen `{slice6_id()}` slice, {lead} (gap {min_gap:+.3f}–"
+        f"{peak.gap:+.3f}); the advantage **peaks at {peak.budget}t "
+        f"({peak.gap:+.3f})** — not at the tightest budget, where even RAG is "
+        f"starved (recall "
+        f"{ordered[0].rag.mean_retrieval_recall:.3f}) and so can't fully exploit "
+        f"relevance — and {conv_clause}. {recall_clause}. This is the honest other "
+        f"half of the Step-6 finding: retrieval's value is a function of the "
+        f"*budget*. Where the full schema fits the budget the two converge; where it "
+        f"does not, targeted retrieval strictly beats truncation — and with today's "
+        f"context windows that budget is a policy choice, not a hard limit.\n\n"
         f"| schema-token budget | naive-truncate pass@1 | RAG-select pass@1 | gap | "
         f"RAG recall |\n"
         f"| --- | --- | --- | --- | --- |\n{rows}\n\n"

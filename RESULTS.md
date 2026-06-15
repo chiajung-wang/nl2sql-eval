@@ -31,3 +31,16 @@ only. Table-scope enforcement is deferred to Step 6 (needs per-db metadata).
 | 2026-06-13 | 6 | retrieval lift (pass@1) | 0.700 (28/40) → 0.575 (23/40) [lift -0.125] | claude-sonnet-4-6 | step6-large-schema-retrieval-lift | generate/v3 | ff342d7 |
 
 **Step 6 — naive-dump → schema-RAG retrieval lift (large-schema slice).** On the frozen `step6-large-schema-retrieval-lift` slice, schema-RAG moves pass@1 from **0.700 (28/40)** to **0.575 (23/40)** — a lift of **-0.125** — with retrieval recall **0.942**. On these dbs (≤14 tables) the whole schema still **fits** the model's context, so the naive dump already hands the model every table, while schema-RAG — whose job is to *drop* tables to fit a budget — occasionally drops a **needed** one. Recall **0.942** means ~5.8% of the gold tables were missed, and those become wrong answers: the recall metric diagnoses the loss directly. Retrieval is **not free** — its lift is where the schema *overflows*; here it does not, so retrieval can only lose information. This is the twin of Step 5's finding: measurement over a hoped-for headline. Reproduce with `uv run python -m eval.eval_bird_rag`.
+| 2026-06-15 | 6 | budget-crossover retrieval lift | max gap +0.100 @512t, RAG leads throughout (RAG-select vs naive-truncate, pass@1) | claude-sonnet-4-6 | step6-large-schema-retrieval-lift | generate/v3 | 1c2f5eb |
+
+**Step 6 follow-up (#75) — schema-token-budget retrieval crossover.** BIRD has no schema that overflows a modern context window (largest ~1.8K tokens), so this is a **controlled experiment**, not a natural-overflow claim: under a configured schema-token *budget* (a cost/latency policy), is it better to **truncate** the schema or to **retrieve** the relevant tables? On the frozen `step6-large-schema-retrieval-lift` slice, RAG-select beats naive truncation at **every** budget swept (gap +0.025–+0.100); the advantage **peaks at 512t (+0.100)** — not at the tightest budget, where even RAG is starved (recall 0.450) and so can't fully exploit relevance — and the gap never closes within the swept range — even at **4096t** (RAG recall 1.000) naive truncation still trails by +0.050, because the largest BIRD schemas, rendered with sample values, exceed that budget and so truncation keeps dropping tables; convergence would need a larger budget. RAG recall climbs 0.450→1.000 with the budget — the mechanism: more budget lets retrieval cover more of the gold tables, while truncation gets no such targeting. This is the honest other half of the Step-6 finding: retrieval's value is a function of the *budget*. Where the full schema fits the budget the two converge; where it does not, targeted retrieval strictly beats truncation — and with today's context windows that budget is a policy choice, not a hard limit.
+
+| schema-token budget | naive-truncate pass@1 | RAG-select pass@1 | gap | RAG recall |
+| --- | --- | --- | --- | --- |
+| 256 | 0.475 (19/40) | 0.500 (20/40) | +0.025 | 0.450 |
+| 512 | 0.525 (21/40) | 0.625 (25/40) | +0.100 | 0.569 |
+| 1024 | 0.525 (21/40) | 0.600 (24/40) | +0.075 | 0.752 |
+| 2048 | 0.575 (23/40) | 0.650 (26/40) | +0.075 | 0.900 |
+| 4096 | 0.625 (25/40) | 0.675 (27/40) | +0.050 | 1.000 |
+
+Reproduce with `uv run python -m eval.eval_bird_budget`.
