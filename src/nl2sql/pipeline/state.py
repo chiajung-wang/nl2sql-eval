@@ -53,6 +53,15 @@ class RunState:
     # full dump. ``None`` until retrieval runs (the naive-dump path leaves it so).
     retrieved_tables: list[str] | None = None
 
+    # Adaptive retrieval gate (Step 6 follow-up, #76). Which branch the gate took
+    # this run: ``"full"`` (the whole schema fit the configured schema-token
+    # budget, so it was dumped — no retrieval, no dropped tables) or ``"rag"`` (the
+    # schema exceeded the budget, so the relevant tables were retrieved). ``None``
+    # when the gate is off (no budget configured) or on the naive-dump path that
+    # never calls ``retrieve``. Surfaced on the span so a trace shows *why* a given
+    # schema was sent.
+    retrieval_mode: str | None = None
+
     # Self-correction loop (Step 5). ``max_attempts`` is the capped retry budget
     # the graph runs the generate→execute cycle under (1 = single-shot, no
     # correction — the pass@1 mode). ``attempts`` counts cycles actually run.

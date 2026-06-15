@@ -26,6 +26,14 @@ from nl2sql.obs import stage_span
 from nl2sql.pipeline.state import RunState
 from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
 
+# Default schema-token budget for the adaptive gate (#76) — the explicit config
+# key, not a magic number inline. It is a *cost/latency policy* on how much schema
+# rides in each prompt, not the model's context limit. 2048 sits in the regime the
+# #75 sweep mapped: the smaller BIRD dbs fit it (gate → full dump, recovering the
+# accuracy schema-RAG's table cap gave up), while the largest overflow it (gate →
+# RAG). ``budget_tokens=None`` leaves the gate off (the prior always-RAG path).
+DEFAULT_SCHEMA_TOKEN_BUDGET = 2048
+
 # Substrings that mark a not-found-class execution error across the engines we
 # run: SQLite ("no such table/column: x"), PostgreSQL ('relation/column "x" does
 # not exist'). Matching the message — not the SQL — so this is plain string
@@ -80,6 +88,7 @@ def retrieve(
     max_tables: int = DEFAULT_MAX_TABLES,
     floor: int = 0,
     hint: str = "",
+    budget_tokens: int | None = None,
 ) -> str:
     """Select the relevant tables for ``state.question`` and render their schema.
 
@@ -92,13 +101,34 @@ def retrieve(
     query — it helps only when the reached-for name lexically resembles a real
     table. Only table *names* and counts reach the span — schema metadata, never
     result rows.
+
+    **Adaptive gate (#76).** When ``budget_tokens`` is set and this is the initial
+    retrieval (``floor == 0`` and no ``hint``), the gate first checks whether the
+    *whole* schema fits the budget; if it does it dumps the full schema
+    (``retrieval_mode = "full"``) rather than retrieving, because retrieval can
+    only *drop* a needed table when everything already fits — the Step-6 −0.125
+    mechanism. Only when the full schema exceeds the budget does it fall back to
+    RAG selection (``retrieval_mode = "rag"``). The decision is deterministic and
+    threshold-driven (no LLM); re-retrievals (``floor > 0``) are always
+    RAG-widening, so the gate applies to the first pass only. With
+    ``budget_tokens=None`` the gate is off and behaviour is the prior always-RAG.
     """
     with stage_span("retrieve", db_id=state.db_id) as extra:
-        query = f"{state.question} {hint}".strip() if hint else state.question
-        tables = index.relevant_tables(query, max_tables=max_tables, floor=floor)
+        full = [t.name for t in index.tables]
+        gate_open = budget_tokens is not None and floor == 0 and not hint
+        if gate_open and index.render_tokens(full) <= budget_tokens:
+            tables, mode = full, "full"
+        else:
+            query = f"{state.question} {hint}".strip() if hint else state.question
+            tables = index.relevant_tables(query, max_tables=max_tables, floor=floor)
+            mode = "rag"
         state.retrieved_tables = tables
+        state.retrieval_mode = mode
         extra["retrieved_tables"] = tables
         extra["n_tables"] = len(tables)
+        extra["retrieval_mode"] = mode
+        if budget_tokens is not None:
+            extra["budget_tokens"] = budget_tokens
         if floor:
             extra["floor"] = floor
         return index.render(tables)
