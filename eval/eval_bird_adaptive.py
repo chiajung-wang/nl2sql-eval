@@ -51,7 +51,7 @@ from eval.harness import Case, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
 from nl2sql.pipeline.graph import run_pipeline
-from nl2sql.pipeline.retrieve import DEFAULT_SCHEMA_TOKEN_BUDGET
+from nl2sql.pipeline.retrieve import DEFAULT_SCHEMA_TOKEN_BUDGET, schema_fits_budget
 from nl2sql.pipeline.state import RunState
 
 
@@ -78,11 +78,9 @@ def gate_decisions(cases: list[Case], budget_tokens: int) -> dict[str, int]:
     ``{"full": n_full, "rag": n_rag}`` — how many cases sit on a schema that fits
     the budget (→ full dump) vs overflows it (→ RAG). Makes the gate's behaviour
     on this slice concrete and explains the adaptive number."""
-    full = 0
-    for case in cases:
-        index = _index(case.db_id)
-        if index.render_tokens([t.name for t in index.tables]) <= budget_tokens:
-            full += 1
+    full = sum(
+        1 for case in cases if schema_fits_budget(_index(case.db_id), budget_tokens)
+    )
     return {"full": full, "rag": len(cases) - full}
 
 

@@ -34,6 +34,16 @@ from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
 # RAG). ``budget_tokens=None`` leaves the gate off (the prior always-RAG path).
 DEFAULT_SCHEMA_TOKEN_BUDGET = 2048
 
+
+def schema_fits_budget(index: SchemaIndex, budget_tokens: int) -> bool:
+    """True if the *whole* schema renders within ``budget_tokens``.
+
+    The single source of truth for the adaptive gate's full-vs-RAG decision —
+    used both here (to route a run) and by the eval harness (to report, offline,
+    how the gate would route each case), so the threshold is defined once."""
+    return index.render_tokens([t.name for t in index.tables]) <= budget_tokens
+
+
 # Substrings that mark a not-found-class execution error across the engines we
 # run: SQLite ("no such table/column: x"), PostgreSQL ('relation/column "x" does
 # not exist'). Matching the message — not the SQL — so this is plain string
@@ -116,7 +126,7 @@ def retrieve(
     with stage_span("retrieve", db_id=state.db_id) as extra:
         full = [t.name for t in index.tables]
         gate_open = budget_tokens is not None and floor == 0 and not hint
-        if gate_open and index.render_tokens(full) <= budget_tokens:
+        if gate_open and schema_fits_budget(index, budget_tokens):
             tables, mode = full, "full"
         else:
             query = f"{state.question} {hint}".strip() if hint else state.question
