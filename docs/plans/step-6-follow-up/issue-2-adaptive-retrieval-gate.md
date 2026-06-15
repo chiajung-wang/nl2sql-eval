@@ -61,10 +61,27 @@ grading it.
 - Budget estimate can stay heuristic (a cheap token estimate of the rendered
   schema) — consistent with the heuristic-first stance (PRD §5).
 
+## Outcome (shipped — 2026-06-15)
+
+Done, merged. The gate (`schema_fits_budget` → full dump when the schema fits the
+budget, RAG when it overflows) is deterministic, config-driven
+(`DEFAULT_SCHEMA_TOKEN_BUDGET = 2048`), records `retrieval_mode` on state + span,
+and is import-shared via `run_pipeline` (`budget_tokens=None` keeps the prior
+always-RAG). Three-mode run: naive full dump **0.675** / always-RAG (capped)
+**0.650** / adaptive@2048t **0.675** (gate routed 24/40 full, 16/40 RAG).
+
+The expected "adaptive ≥ max(naive, always-RAG)" held this run, **but** the deltas
+(+0.025 vs always-RAG, +0.000 vs naive) sit **within the ~0.05 sampling-noise
+floor** from #75, and the Step-6 −0.125 loss did **not** reproduce. So the honest
+claim is **structural / no-regret** — a deterministic per-db full-vs-RAG choice
+that never pays the table-cap's drop risk where the schema fits — not a measured
+accuracy lift. Reproduce: `uv run python -m eval.eval_bird_adaptive`. Walkthrough
+in `issue-76-summary.html`.
+
 ## Tracking
 
 **GitHub:** [#76](https://github.com/chiajung-wang/nl2sql-eval/issues/76) · label `agent-ready`, `step-6`
 
-**PR:** _pending_
+**PR:** [#78](https://github.com/chiajung-wang/nl2sql-eval/pull/78) (merged)
 
 **Blocked by:** [#75](https://github.com/chiajung-wang/nl2sql-eval/issues/75) (needs the crossover budget to calibrate the gate threshold).
