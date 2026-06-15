@@ -1,9 +1,9 @@
 """Step-6 follow-up (#75): the budget-crossover harness's pure logic.
 
 Exercises the offline pieces of ``eval.eval_bird_budget`` — the
-RAG-over-truncate gap and the convergence-budget detection — without any LLM
-call or BIRD download, by assembling :class:`BatchReport`s from canned results.
-The paid sweep itself just feeds these the real per-budget reports.
+RAG-over-truncate gap and the divergence-based convergence detection — without
+any LLM call or BIRD download, by assembling :class:`BatchReport`s from canned
+results. The paid sweep itself just feeds these the real per-budget reports.
 """
 
 from __future__ import annotations
@@ -32,34 +32,40 @@ def _report(n_correct: int, total: int, *, recall: float | None = None) -> Batch
     return BatchReport(results)
 
 
+def _point(budget: int, naive_nc: int, rag_nc: int, divergence: float) -> BudgetPoint:
+    return BudgetPoint(
+        budget=budget,
+        naive=_report(naive_nc, 10),
+        rag=_report(rag_nc, 10),
+        divergence=divergence,
+    )
+
+
 def test_budget_point_gap_is_rag_minus_naive():
-    point = BudgetPoint(budget=256, naive=_report(5, 10), rag=_report(8, 10))
-    assert point.gap == approx(0.3)
+    assert _point(256, 5, 8, 0.5).gap == approx(0.3)
 
 
-def test_convergence_budget_is_smallest_budget_where_naive_catches_up():
-    # Tight budget: RAG leads. Generous budget: the schema fits, gap closes.
+def test_convergence_is_smallest_zero_divergence_budget_not_gap_crossing():
+    # The gap stays POSITIVE at 1024 (8 vs 7) yet divergence hits 0 there — both
+    # modes send identical prompts, so the residual gap is noise, not a crossover.
+    # Convergence must key off divergence, not the gap.
     points = [
-        BudgetPoint(budget=256, naive=_report(4, 10), rag=_report(7, 10)),
-        BudgetPoint(budget=512, naive=_report(6, 10), rag=_report(7, 10)),
-        BudgetPoint(budget=1024, naive=_report(7, 10), rag=_report(7, 10)),  # gap 0
+        _point(256, 4, 7, 0.75),
+        _point(512, 6, 7, 0.50),
+        _point(1024, 7, 8, 0.0),  # gap +0.1 but identical selections → converged
     ]
     assert convergence_budget(points) == 1024
 
 
-def test_convergence_budget_none_when_rag_leads_throughout():
-    points = [
-        BudgetPoint(budget=256, naive=_report(4, 10), rag=_report(7, 10)),
-        BudgetPoint(budget=512, naive=_report(5, 10), rag=_report(7, 10)),
-    ]
+def test_convergence_none_when_no_budget_reaches_zero_divergence():
+    points = [_point(256, 4, 7, 0.75), _point(512, 5, 7, 0.40)]
     assert convergence_budget(points) is None
 
 
-def test_convergence_picks_lowest_qualifying_budget_regardless_of_input_order():
-    # Out-of-order input: convergence must still be the smallest budget with gap≤0.
+def test_convergence_picks_lowest_zero_divergence_budget_regardless_of_order():
     points = [
-        BudgetPoint(budget=1024, naive=_report(7, 10), rag=_report(7, 10)),
-        BudgetPoint(budget=256, naive=_report(4, 10), rag=_report(7, 10)),
-        BudgetPoint(budget=512, naive=_report(7, 10), rag=_report(7, 10)),
+        _point(1024, 7, 7, 0.0),
+        _point(256, 4, 7, 0.75),
+        _point(512, 7, 7, 0.0),  # earliest zero-divergence budget
     ]
     assert convergence_budget(points) == 512

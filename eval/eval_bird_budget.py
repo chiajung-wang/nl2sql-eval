@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -56,8 +57,20 @@ from nl2sql.pipeline.state import RunState
 
 # The budget sweep, in estimated schema tokens (see schema_index.estimate_tokens).
 # Spans tight (only a few tables fit) to generous (the whole schema fits, so the
-# two modes converge). Rendered blocks carry sample values, so they run larger
-# than raw DDL — the top of the sweep is sized to hold the biggest BIRD schemas.
+# two modes converge). Calibrated to the frozen Step-6 slice's per-db full-schema
+# sizes (rendered with sample values, so larger than raw DDL):
+#
+#   db                   tables   full render tokens
+#   superhero               10       729
+#   financial                8      1041
+#   student_club             8      1449
+#   codebase_community       8      1850
+#   formula_1               13      1979
+#   card_games               6      2613
+#   european_football_2      7      3820
+#
+# So budgets ≤ 2048 truncate the three largest dbs; 4096 holds every schema, which
+# is why the two modes converge there (selection divergence → 0).
 DEFAULT_BUDGETS = (256, 512, 1024, 2048, 4096)
 
 
@@ -93,13 +106,41 @@ def make_budget_run_one(evidence: dict[str, str], *, budget_tokens: int, mode: s
     return run_one
 
 
+def selection_divergence(cases: Sequence[Case], budget_tokens: int) -> float:
+    """Fraction of cases where the two modes pick **different** tables at a budget.
+
+    Deterministic and offline (no LLM): for each case, does naive truncation
+    (declaration order) select a different table *set* than RAG (relevance order)
+    once both are fit to ``budget_tokens``? When this is **zero** the budget holds
+    every schema, so the two modes send the generator *identical* prompts — and any
+    residual pass@1 gap there is sampling noise, not a retrieval effect. This is
+    what makes the convergence point principled rather than a gap that merely
+    happens to cross zero through noise."""
+    if not cases:
+        return 0.0
+    differ = 0
+    for case in cases:
+        index = _index(case.db_id)
+        naive = index.fit_budget([t.name for t in index.tables], budget_tokens)
+        rag = index.fit_budget(index.ranked_names(case.question), budget_tokens)
+        if set(naive) != set(rag):
+            differ += 1
+    return differ / len(cases)
+
+
 @dataclass(frozen=True)
 class BudgetPoint:
-    """One budget's outcome: both modes' reports and the RAG-over-truncate gap."""
+    """One budget's outcome: both modes' reports, the gap, and their divergence.
+
+    ``divergence`` (fraction of cases where the modes select different tables) is
+    the honesty anchor: at ``divergence == 0`` the prompts are identical, so the
+    gap there measures sampling noise — the floor every other gap is read against.
+    """
 
     budget: int
     naive: BatchReport
     rag: BatchReport
+    divergence: float
 
     @property
     def gap(self) -> float:
@@ -107,14 +148,16 @@ class BudgetPoint:
 
 
 def convergence_budget(points: list[BudgetPoint]) -> int | None:
-    """Smallest budget at which naive truncation catches up (gap ≤ 0).
+    """Smallest budget at which the two modes converge — i.e. ``divergence == 0``.
 
-    The crossover the adaptive gate keys off: at or above this budget the full
-    schema effectively fits, so retrieval no longer pays and a plain dump is the
-    cheaper equal-accuracy choice. ``None`` if RAG still leads at every budget in
-    the sweep (the schema never comfortably fits the swept range)."""
+    The principled crossover the adaptive gate keys off: at/above this budget the
+    full schema fits, so both modes send identical prompts and retrieval can no
+    longer change the answer — a plain dump is the cheaper equal-accuracy choice.
+    Defined on *divergence*, not on the pass@1 gap crossing zero, so sampling
+    noise can't move it. ``None`` if every swept budget still truncates some
+    schema (no budget holds them all)."""
     for p in sorted(points, key=lambda p: p.budget):
-        if p.gap <= 0:
+        if p.divergence == 0:
             return p.budget
     return None
 
@@ -123,7 +166,9 @@ def _sweep_row(points: list[BudgetPoint], *, commit: str) -> str:
     """The compact RESULTS.md row summarising the whole sweep."""
     best = max(points, key=lambda p: p.gap)
     conv = convergence_budget(points)
-    conv_str = f"converges @{conv}t" if conv is not None else "RAG leads throughout"
+    conv_str = (
+        f"converges @{conv}t" if conv is not None else "no convergence in swept range"
+    )
     number = (
         f"max gap {best.gap:+.3f} @{best.budget}t, {conv_str} "
         f"(RAG-select vs naive-truncate, pass@1)"
@@ -138,13 +183,11 @@ def _sweep_note(points: list[BudgetPoint]) -> str:
     """Prose + per-budget table appended under the sweep row in RESULTS.md.
 
     Every quantitative claim is derived from ``points`` (peak gap, gap range,
-    recall range, where it converges) so the prose can never drift from the
-    table beneath it — the honesty discipline that lets the blog quote it
-    verbatim (PRD §10)."""
+    recall range, divergence, the noise floor at the convergence budget) so the
+    prose can never drift from the table beneath it — the honesty discipline that
+    lets the blog quote it verbatim (PRD §10)."""
     ordered = sorted(points, key=lambda p: p.budget)
     peak = max(points, key=lambda p: p.gap)
-    min_gap = min(p.gap for p in points)
-    top = ordered[-1]
     recalls = [
         p.rag.mean_retrieval_recall
         for p in ordered
@@ -152,39 +195,41 @@ def _sweep_note(points: list[BudgetPoint]) -> str:
     ]
     recall_clause = (
         f"RAG recall climbs {recalls[0]:.3f}→{recalls[-1]:.3f} with the budget — "
-        f"the mechanism: more budget lets retrieval cover more of the gold tables, "
-        f"while truncation gets no such targeting"
+        f"the robust signal: more budget lets retrieval cover more of the gold "
+        f"tables, while truncation gets no such targeting"
         if len(recalls) >= 2
         else "RAG recall is reported per budget below"
     )
     conv = convergence_budget(points)
     if conv is not None:
-        conv_clause = (
-            f"the gap closes at a **{conv}-token** budget — at/above it the whole "
-            f"schema fits and the two modes converge on the full dump, so retrieval "
-            f"no longer pays and a plain dump is the cheaper equal-accuracy choice "
-            f"(the crossover the #76 adaptive gate keys off)"
+        floor = next(p for p in ordered if p.budget == conv)
+        floor_clause = (
+            f"the modes **converge at {conv}t** (selection divergence 0 — every "
+            f"schema fits, so both send the generator identical prompts). The "
+            f"residual {floor.gap:+.3f} there is therefore **sampling noise**, not "
+            f"retrieval: generation runs at non-zero temperature, so two independent "
+            f"runs on the *same* prompt differ by ~{abs(floor.gap):.3f} "
+            f"({abs(floor.naive.n_correct - floor.rag.n_correct)}/{floor.naive.total} "
+            f"questions). Read the tight-budget gaps against that floor: the pass@1 "
+            f"advantage peaks at **{peak.budget}t ({peak.gap:+.3f})** but is modest "
+            f"relative to it, so on this 40-question slice the gap is suggestive, not "
+            f"conclusive"
         )
     else:
-        conv_clause = (
-            f"the gap never closes within the swept range — even at **{top.budget}t** "
-            f"(RAG recall {top.rag.mean_retrieval_recall:.3f}) naive truncation still "
-            f"trails by {top.gap:+.3f}, because the largest BIRD schemas, rendered "
-            f"with sample values, exceed that budget and so truncation keeps dropping "
-            f"tables; convergence would need a larger budget"
+        floor_clause = (
+            f"no budget in the sweep reaches selection divergence 0, so every point "
+            f"still truncates some schema; the advantage peaks at **{peak.budget}t "
+            f"({peak.gap:+.3f})**. Without a zero-divergence point there is no "
+            f"in-range noise floor to calibrate significance against — widen the "
+            f"sweep to bound it"
         )
-    lead = (
-        "RAG-select beats naive truncation at **every** budget swept"
-        if min_gap > 0
-        else "RAG-select never loses to naive truncation across the swept budgets"
-    )
     rows = "\n".join(
         f"| {p.budget} | {p.naive.accuracy:.3f} ({p.naive.n_correct}/{p.naive.total}) "
         f"| {p.rag.accuracy:.3f} ({p.rag.n_correct}/{p.rag.total}) | {p.gap:+.3f} | "
-        f"{p.rag.mean_retrieval_recall:.3f} |"
+        f"{p.rag.mean_retrieval_recall:.3f} | {p.divergence:.3f} |"
         if p.rag.mean_retrieval_recall is not None
         else f"| {p.budget} | {p.naive.accuracy:.3f} | {p.rag.accuracy:.3f} | "
-        f"{p.gap:+.3f} | — |"
+        f"{p.gap:+.3f} | — | {p.divergence:.3f} |"
         for p in ordered
     )
     return (
@@ -193,19 +238,17 @@ def _sweep_note(points: list[BudgetPoint]) -> str:
         f"tokens), so this is a **controlled experiment**, not a natural-overflow "
         f"claim: under a configured schema-token *budget* (a cost/latency policy), "
         f"is it better to **truncate** the schema or to **retrieve** the relevant "
-        f"tables? On the frozen `{slice6_id()}` slice, {lead} (gap {min_gap:+.3f}–"
-        f"{peak.gap:+.3f}); the advantage **peaks at {peak.budget}t "
-        f"({peak.gap:+.3f})** — not at the tightest budget, where even RAG is "
-        f"starved (recall "
-        f"{ordered[0].rag.mean_retrieval_recall:.3f}) and so can't fully exploit "
-        f"relevance — and {conv_clause}. {recall_clause}. This is the honest other "
-        f"half of the Step-6 finding: retrieval's value is a function of the "
-        f"*budget*. Where the full schema fits the budget the two converge; where it "
-        f"does not, targeted retrieval strictly beats truncation — and with today's "
-        f"context windows that budget is a policy choice, not a hard limit.\n\n"
+        f"tables? On the frozen `{slice6_id()}` slice, {floor_clause}. "
+        f"{recall_clause}. "
+        f"This is the honest other half of the Step-6 finding: where the full schema "
+        f"fits the budget the two modes are identical; where it does not, retrieval "
+        f"keeps the *right* tables and truncation cuts blindly — the recall gap is "
+        f"real and monotone, the pass@1 gap real but small against sampling noise. "
+        f"With today's context windows that budget is a policy choice, not a hard "
+        f"limit.\n\n"
         f"| schema-token budget | naive-truncate pass@1 | RAG-select pass@1 | gap | "
-        f"RAG recall |\n"
-        f"| --- | --- | --- | --- | --- |\n{rows}\n\n"
+        f"RAG recall | selection divergence |\n"
+        f"| --- | --- | --- | --- | --- | --- |\n{rows}\n\n"
         f"Reproduce with `uv run python -m eval.eval_bird_budget`.\n"
     )
 
@@ -239,10 +282,15 @@ def main(argv: list[str] | None = None) -> int:
             cases, make_budget_run_one(evidence, budget_tokens=budget, mode="rag")
         )
         print("\n".join(summary_lines(rag)))
-        points.append(BudgetPoint(budget=budget, naive=naive, rag=rag))
+        divergence = selection_divergence(cases, budget)
+        points.append(
+            BudgetPoint(budget=budget, naive=naive, rag=rag, divergence=divergence)
+        )
 
     print("\n=== budget crossover (RAG-select vs naive-truncate) ===")
-    print(f"{'budget':>8} {'naive':>8} {'RAG':>8} {'gap':>8} {'recall':>8}")
+    print(
+        f"{'budget':>8} {'naive':>8} {'RAG':>8} {'gap':>8} {'recall':>8} {'diverge':>8}"
+    )
     for p in points:
         recall = (
             "—"
@@ -251,10 +299,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(
             f"{p.budget:>8} {p.naive.accuracy:>8.3f} {p.rag.accuracy:>8.3f} "
-            f"{p.gap:>+8.3f} {recall:>8}"
+            f"{p.gap:>+8.3f} {recall:>8} {p.divergence:>8.3f}"
         )
     conv = convergence_budget(points)
-    print(f"convergence budget: {conv if conv is not None else 'none in range'}")
+    print(f"convergence budget (divergence→0): {conv if conv is not None else 'none'}")
 
     row = _sweep_row(points, commit=_git_commit())
     print("\nRESULTS.md row:\n" + row)
