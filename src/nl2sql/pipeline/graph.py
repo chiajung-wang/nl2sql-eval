@@ -48,6 +48,7 @@ def run_pipeline(
     client: Any | None = None,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
     max_tables: int = DEFAULT_MAX_TABLES,
+    budget_tokens: int | None = None,
 ) -> RunState:
     """Run one question through the capped ``generate → guard → execute`` loop.
 
@@ -72,6 +73,13 @@ def run_pipeline(
     ``dialect``/``evidence`` thread into generate, and the same ``dialect``
     parses the candidate in guard (SQLite on the BIRD path; PostgreSQL for the
     payments demo).
+
+    ``budget_tokens`` (schema-RAG path only) arms the **adaptive retrieval gate**
+    (#76): when the whole schema fits the configured schema-token budget the
+    generator gets the full dump (no retrieval, no dropped tables); when it
+    overflows, the ``retrieve`` stage selects the relevant tables. ``None``
+    (default) leaves the gate off — the prior always-RAG behaviour. The demo and
+    the harness pass the *same* value, so the gate is import-shared, never forked.
     """
     if (schema is None) == (schema_index is None):
         raise ValueError("run_pipeline needs exactly one of schema= or schema_index=")
@@ -79,8 +87,12 @@ def run_pipeline(
     with stage_span("pipeline", db_id=db_id, max_attempts=budget):
         state = RunState(question=question, db_id=db_id, max_attempts=budget)
         # Initial retrieval (schema-RAG) or the naive full dump on the baseline path.
+        # ``budget_tokens`` arms the adaptive gate (#76): full dump when the whole
+        # schema fits the budget, RAG selection when it overflows it.
         active_schema = (
-            retrieve(state, schema_index, max_tables=max_tables)
+            retrieve(
+                state, schema_index, max_tables=max_tables, budget_tokens=budget_tokens
+            )
             if schema_index is not None
             else schema
         )
