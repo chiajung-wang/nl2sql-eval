@@ -1,6 +1,6 @@
 ---
 title: "Step 6, Follow-up — When Retrieval Actually Pays"
-subtitle: "Step 6 said schema-RAG only earns its keep where the schema overflows the prompt. So we went looking for that regime — and found that on a public benchmark, with today's context windows, it barely exists. Two experiments, one adaptive gate, and three more overclaims the apparatus caught."
+subtitle: "Step 6 said schema-RAG only earns its keep where the schema overflows the prompt. So we went looking for that regime — and found that on a public benchmark, with today's context windows, it barely exists. Two experiments, one adaptive gate, a cost axis, and four overclaims the apparatus caught on its own author."
 series: "nl2sql-eval: a case study in evaluating an LLM system"
 part: 6.5
 date: 2026-06-15
@@ -115,16 +115,16 @@ full dump and **16** to RAG. Three modes, same slice:
 | mode | pass@1 |
 |---|---|
 | naive full dump (the ceiling, ignores budget) | 0.675 (27/40) |
-| always-RAG (capped — the Step-6 loser) | 0.650 (26/40) |
+| always-RAG (capped — the Step-6 loser) | 0.625 (25/40) |
 | **adaptive @2048t** | **0.675 (27/40)** |
 
-Adaptive ties the full-dump ceiling and edges always-RAG by +0.025. And by now you
-know the discipline: **+0.025 is within the noise floor.** Worse for the tidy
+Adaptive ties the full-dump ceiling and edges always-RAG by +0.050. And by now you
+know the discipline: **that is within the noise floor.** Worse for the tidy
 story — the dramatic −0.125 from Step 6 **did not reproduce this run at all**;
-always-RAG trailed naive by only 0.025 here. The original gap, like these, carried
+always-RAG trailed naive by only 0.050 here. The original gap, like these, carried
 sampling variance.
 
-So I am not going to tell you the gate bought 2.5 points. It didn't, measurably.
+So I am not going to tell you the gate bought five points. It didn't, measurably.
 What it bought is **structural**:
 
 > The gate makes the deterministic cost/accuracy-optimal choice *per database* — it
@@ -132,16 +132,42 @@ What it bought is **structural**:
 > budget on a schema that doesn't. Measured on this slice it never does worse than
 > either baseline. It is a **no-regret** routing, not an accuracy lift.
 
-That is a real, defensible improvement to the architecture — and the *reason* it
-exists is a number we measured in #75. The measurement shaped the system. That was
-always the point.
+## 3. The cost axis — and the bug it found
+
+A reviewer made the sharp objection: the whole thesis is *"with big windows, RAG's
+job becomes cost control"* — so where are the cost numbers? Fair. The gate's lever
+is **which tables ride in the prompt**, so the honest cost metric is the rendered-
+schema token footprint, representation held constant across modes:
+
+| mode | pass@1 | schema tokens (mean) | (max) |
+|---|---|---|---|
+| naive full dump | 0.675 | 2,173 | 3,820 |
+| always-RAG (capped) | 0.625 | 1,470 | 3,820 |
+| **adaptive @2048t** | 0.675 | **1,403** | **2,038** |
+
+There's the cost-control win, quantified: adaptive matches the full-dump accuracy
+at **35% fewer schema tokens**, and — the point of the gate — its **per-call max is
+bounded by the budget** (2,038 ≤ 2,048), where naive's runs to 3,820.
+
+But writing that table is what caught the bug. The *first* version of the gate
+bounded the full-vs-RAG **decision** by the budget, then ran its RAG branch with
+the old `max_tables=8` cap. On a db with few-but-large tables (`european_football_2`:
+7 tables, 3,820 tokens) the gate correctly said "too big, retrieve" — and then RAG
+returned all 7 tables anyway, because 7 ≤ 8. The gate's max was still **3,820**: it
+did not enforce the ceiling it advertised. You could not see this in the accuracy
+numbers; you could only see it by **measuring the tokens**. The fix is one line —
+the RAG branch fits the *budget*, not a table count — and the max drops to 2,038.
+
+That is a real, defensible improvement to the architecture — the *reason* it exists
+is a number we measured in #75, and the *bound it actually enforces* is a number we
+only got right by measuring cost. The measurement shaped the system, twice.
 
 ---
 
-## The apparatus caught me three times
+## The apparatus caught me four times
 
 This follow-up is, more than anything, a story about an eval harness doing its job
-on its own author. In two issues it caught three overclaims:
+on its own author. Across the work it caught four overclaims:
 
 1. **"The largest schemas exceed 4096t, so truncation keeps dropping tables."**
    False — the largest is 3,820t; at 4096t nothing truncates. The review forced
@@ -150,6 +176,10 @@ on its own author. In two issues it caught three overclaims:
    gap is sampling noise; the honest signal is recall.
 3. **"The adaptive gate recovers the −0.125 loss."** The −0.125 didn't even
    reproduce, and the gate's edge is within noise. The honest claim is structural.
+4. **"The gate bounds per-call cost at the budget."** False until the cost table
+   was written: its RAG branch was table-capped, not budget-bounded, so it still
+   blew the ceiling on a few-but-large-table db. Measuring cost found it; one line
+   fixed it.
 
 Each correction made the result *less* of a headline and *more* of a finding. A
 portfolio that only ever reports clean wins is indistinguishable from one that
