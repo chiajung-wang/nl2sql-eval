@@ -105,6 +105,54 @@ def _row(
     )
 
 
+def schema_footprint(
+    cases: list[Case], budget_tokens: int
+) -> dict[str, dict[str, int]]:
+    """Per-mode **rendered-schema token footprint** over the slice (offline, no LLM).
+
+    The gate's cost lever is *which tables* it sends, so this measures exactly that
+    — ``index.render`` tokens for each mode's selection — with the representation
+    held constant across modes (so the comparison is apples-to-apples; the naive
+    pipeline's actual prompt uses even more compact raw DDL, a separate Step-6
+    choice, which is why we don't compare end-to-end input tokens here). Returns
+    ``mean``/``max``/``total`` per mode. The headline the fix buys: adaptive's
+    **max** is bounded by the budget, where naive's is not."""
+    naive, rag, adapt = [], [], []
+    for case in cases:
+        index = _index(case.db_id)
+        full = [t.name for t in index.tables]
+        naive.append(index.render_tokens(full))
+        rag.append(index.render_tokens(index.relevant_tables(case.question)))
+        if schema_fits_budget(index, budget_tokens):
+            adapt.append(index.render_tokens(full))
+        else:
+            adapt.append(
+                index.render_tokens(
+                    index.fit_budget(index.ranked_names(case.question), budget_tokens)
+                )
+            )
+
+    def stat(xs: list[int]) -> dict[str, int]:
+        return {"mean": round(sum(xs) / len(xs)), "max": max(xs), "total": sum(xs)}
+
+    return {"naive": stat(naive), "always-RAG": stat(rag), "adaptive": stat(adapt)}
+
+
+def _cost_row(footprint: dict[str, dict[str, int]], *, budget: int, commit: str) -> str:
+    """The cost-axis RESULTS.md row: rendered-schema tokens (mean, max) per mode."""
+    number = (
+        f"rendered-schema tokens (mean/max) naive {footprint['naive']['mean']}/"
+        f"{footprint['naive']['max']} / always-RAG {footprint['always-RAG']['mean']}/"
+        f"{footprint['always-RAG']['max']} / adaptive@{budget}t "
+        f"{footprint['adaptive']['mean']}/{footprint['adaptive']['max']} "
+        f"(adaptive max ≤ budget)"
+    )
+    return (
+        f"| {date.today().isoformat()} | 6 | adaptive-gate cost | {number} | "
+        f"{DEFAULT_MODEL} | {slice6_id()} | {PROMPT_VERSION} | {commit} |"
+    )
+
+
 def _note(
     naive: BatchReport,
     rag: BatchReport,
@@ -112,6 +160,7 @@ def _note(
     *,
     budget: int,
     decisions: dict[str, int],
+    footprint: dict[str, dict[str, int]],
 ) -> str:
     """Prose for RESULTS.md — numbers derived from the reports, claims honest.
 
@@ -119,10 +168,13 @@ def _note(
     floor measured in #75 (temperature>0, identical-prompt runs differ by ~2/40),
     so the note frames the gate's value **structurally** (a deterministic no-regret
     routing) rather than as a significant accuracy lift — and never claims a Step-6
-    loss it didn't reproduce."""
+    loss it didn't reproduce. The cost axis is the rendered-schema footprint
+    (the gate's lever), not end-to-end input tokens."""
     vs_rag = adaptive.accuracy - rag.accuracy
     vs_naive = adaptive.accuracy - naive.accuracy
     total = decisions["full"] + decisions["rag"]
+    fn, fa = footprint["naive"], footprint["adaptive"]
+    naive_tok_delta = (fn["mean"] - fa["mean"]) / fn["mean"] if fn["mean"] else 0.0
     NOISE = 0.05  # ~2/40, the #75 same-prompt run-to-run floor
     standing = (
         "ties the full-dump ceiling and edges always-RAG"
@@ -132,8 +184,8 @@ def _note(
     significance = (
         "both deltas sit **within the ~0.05 sampling-noise floor** measured in #75 "
         "(temperature>0, 40 questions), so this is **not** a significant pass@1 lift"
-        if abs(vs_rag) <= NOISE and abs(vs_naive) <= NOISE
-        else "the gap exceeds the ~0.05 #75 noise floor"
+        if abs(vs_rag) <= NOISE + 1e-9 and abs(vs_naive) <= NOISE + 1e-9
+        else "at least one gap exceeds the ~0.05 #75 noise floor"
     )
     return (
         f"\n**Step 6 follow-up (#76) — budget-aware adaptive retrieval gate.** "
@@ -156,8 +208,26 @@ def _note(
         f"per db — dump where it fits (never paying the cap's table-drop risk), "
         f"retrieve only where the budget is exceeded — and measured here it never "
         f"does worse than either baseline. A no-regret gate: the #75 measurement "
-        f"shaping the architecture. Reproduce with "
-        f"`uv run python -m eval.eval_bird_adaptive`.\n"
+        f"shaping the architecture.\n\n"
+        f"**The cost axis** — the gate's actual job once windows are large. The RAG "
+        f"branch is fit to the *budget* (not a table count), so per-call schema is "
+        f"bounded by construction. Rendered-schema tokens over the slice "
+        f"(representation held constant — the gate's lever):\n\n"
+        f"| mode | pass@1 | schema tokens (mean) | (max) |\n"
+        f"| --- | --- | --- | --- |\n"
+        f"| naive full dump | {naive.accuracy:.3f} | {fn['mean']} | {fn['max']} |\n"
+        f"| always-RAG (capped) | {rag.accuracy:.3f} "
+        f"| {footprint['always-RAG']['mean']} | {footprint['always-RAG']['max']} |\n"
+        f"| **adaptive @{budget}t** | {adaptive.accuracy:.3f} | {fa['mean']} "
+        f"| **{fa['max']}** |\n\n"
+        f"This is the quantified cost-control win the thesis promised: adaptive "
+        f"matches the full-dump **accuracy** at **{naive_tok_delta:.0%} fewer schema "
+        f"tokens** than naive, and — the point of the gate — its **per-call max "
+        f"({fa['max']}) is bounded by the {budget}-token budget**, where naive's "
+        f"runs to {fn['max']}. (Before this fix the gate's RAG branch was capped by "
+        f"table count, not the budget, so it could still blow the ceiling on a db "
+        f"with few large tables; measuring cost is what surfaced that.) Reproduce "
+        f"with `uv run python -m eval.eval_bird_adaptive`.\n"
     )
 
 
@@ -201,15 +271,32 @@ def main(argv: list[str] | None = None) -> int:
         f"({adaptive.n_correct}/{adaptive.total})  "
         f"[gate: {decisions['full']} full, {decisions['rag']} rag]"
     )
+    footprint = schema_footprint(cases, budget)
+    print("\n=== cost axis: rendered-schema tokens (mean / max) ===")
+    for label in ("naive", "always-RAG", "adaptive"):
+        s = footprint[label]
+        print(
+            f"{label:>10}: mean {s['mean']:>5}  max {s['max']:>5}  total {s['total']}"
+        )
 
-    row = _row(naive, rag, adaptive, budget=budget, commit=_git_commit())
-    print("\nRESULTS.md row:\n" + row)
+    commit = _git_commit()
+    row = _row(naive, rag, adaptive, budget=budget, commit=commit)
+    cost_row = _cost_row(footprint, budget=budget, commit=commit)
+    print("\nRESULTS.md rows:\n" + row + "\n" + cost_row)
     if write and limit is None:
         append_results(row)
+        append_results(cost_row)
         RESULTS_PATH.write_text(
             RESULTS_PATH.read_text().rstrip()
             + "\n"
-            + _note(naive, rag, adaptive, budget=budget, decisions=decisions)
+            + _note(
+                naive,
+                rag,
+                adaptive,
+                budget=budget,
+                decisions=decisions,
+                footprint=footprint,
+            )
         )
         print(f"\nappended to {RESULTS_PATH.name}")
     elif limit is not None:

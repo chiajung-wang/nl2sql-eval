@@ -64,6 +64,19 @@ def test_gate_retrieves_when_schema_exceeds_the_budget(store_engine):
     assert "CREATE TABLE payments (" not in schema
 
 
+def test_gate_rag_branch_is_bounded_by_budget_not_table_count(store_engine):
+    # The cost-ceiling fix: when the gate routes to RAG (full schema over budget),
+    # the selection is fit to the BUDGET, so it drops tables — unlike the old
+    # max_tables cap, which returned every table on a schema of ≤8 tables and so
+    # blew the budget it was supposed to enforce.
+    index = build_schema_index(store_engine)
+    # Question names every table, so a table-capped RAG would keep all four.
+    state = RunState(question="orders customers payments products", db_id="store")
+    retrieve(state, index, budget_tokens=_full_tokens(index) - 1)
+    assert state.retrieval_mode == "rag"
+    assert len(state.retrieved_tables) < len(index.tables)  # budget actually pruned
+
+
 def test_gate_off_without_a_budget_is_the_prior_always_rag(store_engine):
     index = build_schema_index(store_engine)
     state = RunState(question="how many products are there?", db_id="store")

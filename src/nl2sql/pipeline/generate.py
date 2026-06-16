@@ -27,6 +27,11 @@ from nl2sql.pipeline.state import RunState
 DEFAULT_MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 1024
 
+# Per-request timeout (seconds) and retry budget for the default client, so a
+# batch eval can't stall indefinitely on a hung connection under congestion.
+REQUEST_TIMEOUT_S = 45.0
+REQUEST_MAX_RETRIES = 8
+
 # Templates live at the repo-root ``prompts/`` dir (CI diffs them), three
 # parents up from src/nl2sql/pipeline/generate.py.
 PROMPTS_DIR = Path(__file__).resolve().parents[3] / "prompts"
@@ -93,10 +98,15 @@ def _extract_sql(text: str) -> str:
 
 
 def _default_client() -> Any:
-    """Construct the Anthropic client lazily so importing this module needs no key."""
+    """Construct the Anthropic client lazily so importing this module needs no key.
+
+    A bounded per-request timeout with retries keeps a stalled connection from
+    hanging a batch eval indefinitely — under provider congestion a stuck socket
+    fails fast and the SDK retries on a fresh one, rather than blocking the run.
+    """
     from anthropic import Anthropic
 
-    return Anthropic()
+    return Anthropic(timeout=REQUEST_TIMEOUT_S, max_retries=REQUEST_MAX_RETRIES)
 
 
 def generate(
