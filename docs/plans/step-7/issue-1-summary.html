@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 1 — LangGraph state machine (behavior-preserving refactor)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .good-txt{color:var(--add)} .noise{color:var(--mod)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #85 · Step 7 · Issue #50</span>
+    <h1>LangGraph state machine — a behavior-preserving refactor</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #50</span>
+      <span><b>Branch:</b> <code>step-7/issue-50-langgraph-refactor</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>Introduce the framework where it earned its place — and use the harness to prove
+      the refactor changed nothing.</b></p>
+      <p>Steps 1–6 ran on a hand-rolled <code>while</code> loop on purpose: framework churn must never mask
+      logic bugs while the logic is still being proven. With the pipeline now measured end-to-end, Step 7
+      re-expresses that <em>proven</em> loop as a compiled <b>LangGraph <code>StateGraph</code></b>. The
+      architecture already <em>was</em> a graph — a capped correction loop, a retrieval re-trigger, and
+      terminal-state branching — so this is a genuine fit, not framework-for-its-own-sake.</p>
+      <p>The discipline that matters: this is a <b>behavior-preserving</b> refactor. <code>run_pipeline</code>
+      keeps its exact signature and <code>RunState</code> return, so no caller (eval harness, demo, tests)
+      changes; the conditional edges encode <em>exactly</em> the branches the hand-rolled loop had. The whole
+      offline suite — which drives <code>run_pipeline</code> with an injected fake client — proves the loop,
+      the not-found re-trigger, the end-to-end guard, and the adaptive gate all behave identically.</p>
+      <div class="stats">
+        <div><b>385</b> tests green (1:1 parity)</div>
+        <div><b class="good-txt">0</b> caller changes (public surface unchanged)</div>
+        <div><b>6</b> nodes · 2 conditional routers</div>
+        <div><b>1</b> compiled graph, reused per question</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The translation — node-by-node, no behavior change</h2><div class="card">
+      <p>The hand-rolled <code>while</code> loop mapped onto LangGraph with no semantic drift. The mutable
+      <code>RunState</code> is one channel (the stage functions mutate it in place, as before); the loop-local
+      bookkeeping rides alongside it; static per-run inputs pass via <code>config["configurable"]</code> so the
+      graph compiles <b>once at import</b> and every question reuses it.</p>
+      <table>
+        <thead><tr><th>hand-rolled control flow</th><th>LangGraph equivalent</th></tr></thead>
+        <tbody>
+          <tr><td>pre-loop schema setup (RAG / naive dump)</td><td><code>init_retrieve</code> node → <code>generate</code></td></tr>
+          <tr><td><code>attempts += 1</code>; <code>generate(...)</code></td><td><code>generate</code> node</td></tr>
+          <tr><td><code>guard(...)</code> then branch on rejection</td><td><code>guard</code> node → <code>_route_after_guard</code>: <code>{execute · scope_re_retrieve · END}</code></td></tr>
+          <tr><td>table-scope rejection → widen &amp; retry</td><td><code>scope_re_retrieve</code> node → <code>generate</code></td></tr>
+          <tr><td><code>execute(...)</code>; return on clean / spent budget</td><td><code>execute</code> node → <code>_route_after_execute</code>: <code>{correct · END}</code></td></tr>
+          <tr><td>not-found → re-retrieve, else regenerate</td><td><code>correct</code> node (re-retrieve inside it) → <code>generate</code></td></tr>
+        </tbody>
+      </table>
+      <p style="margin-bottom:0">The scope-retry predicate
+      (<code>guard_rule == "table_scope" and schema_index is not None and attempts &lt; budget</code>), the
+      <code>floor = max_tables * 2**re_retrievals</code> widening, and the pre-<code>correct</code> hint capture
+      are all reproduced verbatim. <b>Both pipeline exits</b> (raw verified result; presented/redacted result)
+      and <b>every terminal state</b> are untouched — and the terminal-state classifier still lives in the
+      harness, never in <code>graph.py</code> or <code>state.py</code>.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> The graph</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TD
+  S["START"] --> I["init_retrieve<br/>RAG or naive dump"]
+  I --> G["generate<br/>attempts += 1"]
+  G --> GU["guard<br/>sqlglot AST checks"]
+  GU --> RG{"_route_after_guard"}
+  RG -->|clean| E["execute"]
+  RG -->|table_scope · budget left| SR["scope_re_retrieve<br/>widen schema"]:::live
+  RG -->|security rule · budget spent| X1["END"]:::stop
+  SR --> G
+  E --> RE{"_route_after_execute"}
+  RE -->|ok · or budget spent| X2["END"]:::stop
+  RE -->|error · budget left| C["correct<br/>not-found → re-retrieve"]:::live
+  C --> G
+  classDef live fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  classDef stop fill:#bbf7d0,stroke:#16a34a,color:#14532d;</pre></div>
+      <p class="diagram-caption">Compiled once at import. <code>run_pipeline</code> sizes the graph's recursion
+      ceiling to the retry budget (<code>recursion_limit = budget * 6 + 25</code>) so a legitimate pass@k run
+      never trips LangGraph's default guard of 25, while a genuine unbounded-loop bug still surfaces.</p>
+    </section>
+
+    <section><h2><span class="num">4</span> Two-axis review — both clean</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards — conformant</h3><ul>
+          <li><code>graph.py</code> stays pure <em>wiring</em>: nodes call existing stage modules, nothing inlined (§3)</li>
+          <li>Two exits + terminal classifier still out of <code>graph.py</code>/<code>state.py</code></li>
+          <li>Import-shared <code>run_pipeline</code> — single entry, single <code>_GRAPH</code>, no fork</li>
+          <li>Public surface byte-identical; prompts still externalized; guard still deterministic</li>
+        </ul></div>
+        <div class="group good"><h3>Spec — faithful</h3><ul>
+          <li>1:1 control-flow translation confirmed against <code>origin/main</code></li>
+          <li>No scope creep — no LiteLLM leaked in (held for #51)</li>
+          <li>Live harness-parity numbers defensibly deferred to <b>#52</b> (needs a key); behavioral parity proven offline</li>
+          <li><b>Fix applied:</b> regression test for the budget-scaled <code>recursion_limit</code>; typed the compiled graph</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>src/nl2sql/pipeline/graph.py</code></td><td><span class="st M">M</span></td><td>The refactor: 6 nodes + 2 conditional routers; one compiled <code>_GRAPH</code>; static inputs via <code>config["configurable"]</code>; <code>run_pipeline</code> signature/return unchanged.</td></tr>
+          <tr><td class="f"><code>tests/test_pipeline_loop.py</code></td><td><span class="st M">M</span></td><td>Review fix: regression test that a never-recovering pass@k budget of 8 (ceiling ~33 &gt; default 25) runs to exhaustion, not cut short by the framework.</td></tr>
+          <tr><td class="f"><code>pyproject.toml</code></td><td><span class="st M">M</span></td><td>Add <code>langgraph</code> + <code>langchain-core</code> (the latter declared because <code>RunnableConfig</code> is imported directly).</td></tr>
+          <tr><td class="f"><code>uv.lock</code></td><td><span class="st M">M</span></td><td>Lock the new dependency tree.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 385 passed; <code>ruff check</code> / <code>ruff format --check</code> clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Behavioral parity proven offline: the 385-test suite drives <code>run_pipeline</code> with an injected fake client — loop, not-found re-trigger, end-to-end guard, and adaptive gate all unchanged under LangGraph</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>recursion_limit</code> sizing measured: ~4 supersteps/attempt; budget-8 needs ceiling ≥33, above LangGraph's default 25 — the regression test would fail without the budget-scaled ceiling</p>
+        <p style="margin:.2rem 0"><b>✓</b> Two-axis <code>/review</code> → standards conformant, spec faithful; recursion-limit test + compiled-graph type added</p>
+        <p style="margin:.2rem 0 0" class="note"><b>Deferred to #52 (Step-7 DoD):</b> live-model harness parity numbers on the frozen BIRD slice (accuracy unchanged post-refactor) land with the cross-provider table, once a provider key is available. The <code>RESULTS.md</code> parity entry is logged there, not here.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #50 / PR #85 · base <code>main</code> ← <code>step-7/issue-50-langgraph-refactor</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
