@@ -113,21 +113,30 @@ def retrieve(
     result rows.
 
     **Adaptive gate (#76).** When ``budget_tokens`` is set and this is the initial
-    retrieval (``floor == 0`` and no ``hint``), the gate first checks whether the
-    *whole* schema fits the budget; if it does it dumps the full schema
+    retrieval (``floor == 0`` and no ``hint``), the gate checks whether the *whole*
+    schema fits the budget; if it does it dumps the full schema
     (``retrieval_mode = "full"``) rather than retrieving, because retrieval can
     only *drop* a needed table when everything already fits — the Step-6 −0.125
-    mechanism. Only when the full schema exceeds the budget does it fall back to
-    RAG selection (``retrieval_mode = "rag"``). The decision is deterministic and
-    threshold-driven (no LLM); re-retrievals (``floor > 0``) are always
-    RAG-widening, so the gate applies to the first pass only. With
-    ``budget_tokens=None`` the gate is off and behaviour is the prior always-RAG.
+    mechanism. When the full schema exceeds the budget it falls back to RAG, and
+    that selection is **fit to the budget** (``fit_budget``), not a table count —
+    so the gate is a genuine per-call cost ceiling: the rendered schema never
+    exceeds the budget (modulo a single table larger than the budget, always
+    kept). The decision is deterministic and threshold-driven (no LLM);
+    re-retrievals (``floor > 0``) are always RAG-widening by table count, so the
+    gate applies to the first pass only. With ``budget_tokens=None`` the gate is
+    off and behaviour is the prior always-RAG (``relevant_tables``, table-capped).
     """
     with stage_span("retrieve", db_id=state.db_id) as extra:
         full = [t.name for t in index.tables]
         gate_open = budget_tokens is not None and floor == 0 and not hint
         if gate_open and schema_fits_budget(index, budget_tokens):
             tables, mode = full, "full"
+        elif gate_open:
+            # Gate routed to RAG because the full schema exceeds the budget. Bound
+            # the selection by the *budget* (not max_tables) so the gate actually
+            # enforces the cost ceiling it promises.
+            tables = index.fit_budget(index.ranked_names(state.question), budget_tokens)
+            mode = "rag"
         else:
             query = f"{state.question} {hint}".strip() if hint else state.question
             tables = index.relevant_tables(query, max_tables=max_tables, floor=floor)
