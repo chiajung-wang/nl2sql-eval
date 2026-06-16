@@ -68,15 +68,18 @@ budget, RAG when it overflows) is deterministic, config-driven
 (`DEFAULT_SCHEMA_TOKEN_BUDGET = 2048`), records `retrieval_mode` on state + span,
 and is import-shared via `run_pipeline` (`budget_tokens=None` keeps the prior
 always-RAG). Three-mode run: naive full dump **0.675** / always-RAG (capped)
-**0.650** / adaptive@2048t **0.675** (gate routed 24/40 full, 16/40 RAG).
+**0.625** / adaptive@2048t **0.675** (gate routed 24/40 full, 16/40 RAG).
 
 The expected "adaptive ≥ max(naive, always-RAG)" held this run, **but** the deltas
-(+0.025 vs always-RAG, +0.000 vs naive) sit **within the ~0.05 sampling-noise
+(+0.050 vs always-RAG, +0.000 vs naive) sit **within the ~0.05 sampling-noise
 floor** from #75, and the Step-6 −0.125 loss did **not** reproduce. So the honest
 claim is **structural / no-regret** — a deterministic per-db full-vs-RAG choice
 that never pays the table-cap's drop risk where the schema fits — not a measured
-accuracy lift. Reproduce: `uv run python -m eval.eval_bird_adaptive`. Walkthrough
-in `issue-76-summary.html`.
+accuracy lift. **Cost axis** (the gate's lever, rendered-schema tokens): adaptive
+matches naive's accuracy at **35% fewer schema tokens**, per-call max **bounded by
+the budget (2,038 ≤ 2,048)** vs naive's 3,820. Quantifying cost caught a defect —
+the RAG branch was table-capped, not budget-bounded — fixed in PR #81. Reproduce:
+`uv run python -m eval.eval_bird_adaptive`. Walkthrough in `issue-76-summary.html`.
 
 ## Tracking
 

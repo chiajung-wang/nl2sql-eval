@@ -82,9 +82,9 @@
       within sampling noise, so the honest claim is <b>structural (no-regret)</b>, not an accuracy lift.</p>
       <div class="stats">
         <div><b>24 / 16</b> gate routing (full / rag) @2048t</div>
-        <div><b class="good-txt">+0.025</b> vs always-RAG (within noise)</div>
-        <div><b>+0.000</b> vs naive ceiling</div>
-        <div><b>383</b> tests green</div>
+        <div><b class="good-txt">35%</b> fewer schema tokens vs naive (equal accuracy)</div>
+        <div><b>2038 ≤ 2048</b> per-call schema bounded by budget</div>
+        <div><b>384</b> tests green</div>
       </div>
     </div></section>
 
@@ -93,18 +93,39 @@
         <thead><tr><th>mode</th><th>pass@1</th><th>note</th></tr></thead>
         <tbody>
           <tr><td>naive full dump</td><td><b>0.675 (27/40)</b></td><td>The accuracy ceiling — but ignores the budget; blows it on the largest schemas.</td></tr>
-          <tr><td>always-RAG (capped)</td><td>0.650 (26/40)</td><td>The Step-6 RAG: <code>max_tables</code> cap drops tables even when they'd fit.</td></tr>
+          <tr><td>always-RAG (capped)</td><td>0.625 (25/40)</td><td>The Step-6 RAG: <code>max_tables</code> cap drops tables even when they'd fit.</td></tr>
           <tr><td><b>adaptive @2048t</b></td><td><b class="good-txt">0.675 (27/40)</b></td><td>Gate routes 24/40 → full dump, 16/40 → RAG. Ties the ceiling, edges always-RAG.</td></tr>
         </tbody>
       </table>
-      <p style="margin-bottom:0"><b>Within noise, by design no-regret.</b> The +0.025 vs always-RAG and
+      <p style="margin-bottom:0"><b>Within noise, by design no-regret.</b> The +0.050 vs always-RAG and
       +0.000 vs naive both sit <span class="noise">within the ~0.05 sampling-noise floor</span> measured in
       #75 (temperature&gt;0, 40 questions) — so this is <b>not</b> a significant pass@1 lift. Tellingly, the
       dramatic Step-6 RAG loss (−0.125) <b>did not reproduce</b> this run (always-RAG trailed naive by only
-      0.025), confirming the original gap carried sampling variance too. The gate's real value is
+      0.050), confirming the original gap carried sampling variance too. The gate's real value is
       <b>structural</b>: it makes the deterministic cost/accuracy-optimal choice per db — never paying the
       cap's table-drop risk where the schema fits, retrieving only where the budget is exceeded — and
       measured here it never does worse than either baseline.</p>
+    </div></section>
+
+    <section><h2><span class="num">2b</span> The cost axis (and the bug it found)</h2><div class="card">
+      <p>The gate's lever is <em>which tables</em> ride in the prompt, so the honest cost metric is the
+      rendered-schema token footprint (representation held constant):</p>
+      <table>
+        <thead><tr><th>mode</th><th>pass@1</th><th>schema tokens (mean)</th><th>(max)</th></tr></thead>
+        <tbody>
+          <tr><td>naive full dump</td><td>0.675</td><td>2,173</td><td>3,820</td></tr>
+          <tr><td>always-RAG (capped)</td><td>0.625</td><td>1,470</td><td>3,820</td></tr>
+          <tr><td><b>adaptive @2048t</b></td><td>0.675</td><td><b>1,403</b></td><td><b class="good-txt">2,038</b></td></tr>
+        </tbody>
+      </table>
+      <p style="margin-bottom:0"><b>Cost-control win, quantified — and a bug caught by quantifying it.</b>
+      Adaptive matches the full-dump accuracy at <b>35% fewer schema tokens</b>, and its per-call max is now
+      <b>bounded by the budget (2,038 ≤ 2,048)</b>, where naive runs to 3,820. Writing this table is what
+      surfaced a defect: the first gate bounded the full-vs-RAG <em>decision</em> by the budget but ran its
+      RAG branch with the old <code>max_tables</code> cap — so on <code>european_football_2</code> (7 tables,
+      3,820t) RAG returned all 7 and blew the ceiling (max was still 3,820). The one-line fix fits the RAG
+      branch to the <em>budget</em>. Invisible in accuracy; only <b>measuring tokens</b> caught it — a fourth
+      overclaim the apparatus caught on its own author.</p>
     </div></section>
 
     <section><h2><span class="num">3</span> How the gate routes</h2>
@@ -147,7 +168,7 @@
           <tr><td class="f"><code>src/nl2sql/pipeline/state.py</code></td><td><span class="st M">M</span></td><td><code>retrieval_mode</code> field (full / rag / None).</td></tr>
           <tr><td class="f"><code>eval/eval_bird_adaptive.py</code></td><td><span class="st A">A</span></td><td>3-mode harness; gate routing counts; RESULTS row + data-driven note.</td></tr>
           <tr><td class="f"><code>tests/test_adaptive_gate.py</code></td><td><span class="st A">A</span></td><td>Gate threshold (fits→full, over→rag), gate-off, floor-bypass, pipeline wiring.</td></tr>
-          <tr><td class="f"><code>RESULTS.md</code></td><td><span class="st M">M</span></td><td>Adaptive-gate row: 0.675 / 0.650 / 0.675, within-noise caveat, full config + commit.</td></tr>
+          <tr><td class="f"><code>RESULTS.md</code></td><td><span class="st M">M</span></td><td>Adaptive-gate pass@1 (0.675 / 0.625 / 0.675) + cost row (schema tokens, max ≤ budget), within-noise caveat, full config + commit.</td></tr>
         </tbody>
       </table>
     </section>

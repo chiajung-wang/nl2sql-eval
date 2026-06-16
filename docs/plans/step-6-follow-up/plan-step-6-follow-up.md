@@ -107,13 +107,18 @@ prompts), where they still differ by +0.050: that is a **sampling-noise floor**
 not conclusive*; **recall is the robust signal**. Convergence is defined on
 selection divergence (which noise can't move), not on the accuracy gap.
 
-**#76 — adaptive gate.** naive full dump **0.675** / always-RAG (capped) **0.650**
-/ adaptive@2048t **0.675** (gate routed 24/40 full, 16/40 RAG). Adaptive ties the
-ceiling and edges always-RAG by +0.025 — **within the ~0.05 noise floor**, and the
-Step-6 −0.125 loss did **not** reproduce this run. So the gate's value is
-**structural / no-regret** (a deterministic per-db full-vs-RAG choice that never
-pays the table-cap's drop risk where the schema fits), not a measured accuracy
-lift. `budget_tokens=None` keeps the prior always-RAG behaviour.
+**#76 — adaptive gate (+ cost-axis fix).** naive full dump **0.675** / always-RAG
+(capped) **0.625** / adaptive@2048t **0.675** (gate routed 24/40 full, 16/40 RAG).
+Adaptive ties the ceiling and edges always-RAG by +0.050 — **within the ~0.05 noise
+floor**, and the Step-6 −0.125 loss did **not** reproduce this run. So the gate's
+value is **structural / no-regret** (a deterministic per-db full-vs-RAG choice that
+never pays the table-cap's drop risk where the schema fits), not a measured accuracy
+lift. `budget_tokens=None` keeps the prior always-RAG behaviour. **Cost axis** (the
+gate's lever, rendered-schema tokens): adaptive matches naive's accuracy at **35%
+fewer schema tokens** with a **per-call max bounded by the budget (2,038 ≤ 2,048)**,
+where naive runs to 3,820. Quantifying cost also caught a defect — the gate's RAG
+branch was table-capped, not budget-bounded, so it could blow the ceiling on a
+few-but-large-table db; the fix fits the RAG branch to the budget.
 
 **Net.** The honest thesis the blog tells: with modern context windows, schema-RAG's
 value on a public benchmark has migrated from *fitting the schema* to *cost
