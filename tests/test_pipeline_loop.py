@@ -282,3 +282,28 @@ def test_single_shot_default_makes_one_attempt(sqlite_engine):
     assert state.error is not None
     assert state.attempts == 1
     assert len(client.calls) == 1
+
+
+def test_high_budget_passk_does_not_trip_langgraph_recursion_limit(sqlite_engine):
+    # Regression guard for the Step-7 LangGraph swap: each attempt costs ~4
+    # supersteps (generate → guard → execute → correct), so a high pass@k budget
+    # must scale the graph's recursion ceiling (run_pipeline sets
+    # recursion_limit = budget * 6 + 25). A never-recovering budget of 8 needs a
+    # ceiling of ~33 — above LangGraph's *default* of 25 — so it would raise
+    # GraphRecursionError if the ceiling weren't sized to the budget. The
+    # guard-passing count(*) SQL reaches execute every attempt (a SELECT * would be
+    # rejected pre-execution and end at attempt 1). Asserting the whole budget is
+    # spent proves the loop runs to exhaustion, not cut short by the framework.
+    client = FakeAnthropic(reply="SELECT count(*) AS n FROM nonexistent_table")
+
+    state = run_pipeline(
+        "broken",
+        schema="CREATE TABLE users (id INT);",
+        engine=sqlite_engine,
+        client=client,
+        max_attempts=8,
+    )
+
+    assert state.error is not None
+    assert state.attempts == 8  # full budget spent, no premature recursion cutoff
+    assert len(client.calls) == 8

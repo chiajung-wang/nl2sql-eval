@@ -38,6 +38,7 @@ from typing import Any, TypedDict
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.engine import Engine
 
 from nl2sql.obs import stage_span
@@ -220,7 +221,7 @@ def _correct(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
     return updates
 
 
-def _build_graph() -> Any:
+def _build_graph() -> CompiledStateGraph:
     """Compile the pipeline graph once; ``run_pipeline`` reuses it per question."""
     g = StateGraph(_GraphState)
     g.add_node("init_retrieve", _init_retrieve)
