@@ -1,23 +1,44 @@
-"""Stage wiring: the hand-rolled state machine.
+"""Stage wiring: the pipeline as a LangGraph state machine.
 
 Step 1 (issue 4) wired a linear ``generate → guard → execute → return``. Step 5
-(issue #42) turns that single shot into an **agent**: a capped retry loop that,
+(issue #42) turned that single shot into an **agent**: a capped retry loop that,
 on an execution error, feeds the failure back through ``correct`` into a fresh
-``generate``. Step 6 (issue #46) makes that loop **retrieval-aware**: a not-found
+``generate``. Step 6 (issue #46) made that loop **retrieval-aware**: a not-found
 execution error re-retrieves a widened schema (not only regenerates), inside the
-same capped budget. LangGraph swaps in at Step 7 only after the logic is proven by
-the eval harness.
+same capped budget.
+
+Step 7 (issue #50) re-expresses that *proven* hand-rolled loop as **LangGraph**
+nodes + conditional edges. The architecture already *was* a graph — a correction
+loop, a retrieval re-trigger, and terminal-state branching — so this is a genuine
+fit, not framework-for-its-own-sake. Crucially it is a **behavior-preserving**
+refactor: the eval harness numbers must be unchanged, which is exactly what the
+harness is for. The two pipeline exits (raw verified result; presented/redacted
+result) and every terminal state are untouched — terminal-state classification
+still lives in the harness, never here.
 
 The pipeline is import-shared: ``eval/harness.py`` and ``apps/demo/`` both call
-``run_pipeline`` with the *same* logic — never a fork. Schema text and the
+``run_pipeline`` with the *same* logic — never a fork. ``run_pipeline`` keeps its
+exact signature and ``RunState`` return so no caller changes. Schema text and the
 ``Engine`` are inputs so this module depends on neither the dataset packages nor
 the eval layer.
+
+LangGraph wiring. The mutating run is threaded as a single ``RunState`` channel
+(the stage functions mutate it in place, just as before); the loop-local
+bookkeeping (``active_schema``, ``allowed_tables``, ``re_retrievals``) rides
+alongside it. The static per-run inputs (engine, schema/index, model, client,
+budget, …) are passed via ``config["configurable"]`` so the graph compiles once
+at import and every question reuses it. Each node returns only the channels it
+changed; the conditional edges encode exactly the branches the hand-rolled
+``while`` loop had.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypedDict
 
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.engine import Engine
 
 from nl2sql.obs import stage_span
@@ -33,6 +54,201 @@ from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
 # into a budget. The harness raises this for pass@k; the cap is the explicit,
 # configurable cost/latency lever the plan calls out.
 DEFAULT_MAX_ATTEMPTS = 1
+
+
+class _GraphState(TypedDict):
+    """Channels threaded between LangGraph nodes for one question.
+
+    ``run`` is the mutable ``RunState`` the stage functions write to in place (the
+    same object every superstep — LangGraph just carries the reference). The other
+    three are the loop-local bookkeeping the hand-rolled ``while`` kept in
+    locals: the schema text the next ``generate`` will see, the per-db allowed
+    tables for the table-scope guard, and the re-retrieval widening counter.
+    """
+
+    run: RunState
+    active_schema: str
+    allowed_tables: set[str] | None
+    re_retrievals: int
+
+
+def _cfg(config: RunnableConfig) -> dict[str, Any]:
+    """Pull the per-run static inputs out of the LangGraph config."""
+    return config["configurable"]
+
+
+# --- nodes ------------------------------------------------------------------
+
+
+def _init_retrieve(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """Initial schema: schema-RAG retrieval, or the naive full dump baseline.
+
+    Mirrors the pre-loop setup of the hand-rolled machine. ``budget_tokens`` arms
+    the adaptive gate (#76); ``allowed_tables`` is the per-db scope set, available
+    only on the RAG path (``None`` on the naive dump leaves table-scope
+    unenforced — it has no index to scope to).
+    """
+    c = _cfg(config)
+    run = state["run"]
+    index: SchemaIndex | None = c["schema_index"]
+    if index is not None:
+        active_schema = retrieve(
+            run,
+            index,
+            max_tables=c["max_tables"],
+            budget_tokens=c["budget_tokens"],
+        )
+        allowed_tables: set[str] | None = {t.name for t in index.tables}
+    else:
+        active_schema = c["schema"]
+        allowed_tables = None
+    return {
+        "active_schema": active_schema,
+        "allowed_tables": allowed_tables,
+        "re_retrievals": 0,
+    }
+
+
+def _generate(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """One generation cycle: count the attempt, then produce candidate SQL.
+
+    ``state.correction`` (set by a prior ``correct``) feeds the last failure back
+    into the prompt; ``None`` on the first attempt.
+    """
+    c = _cfg(config)
+    run = state["run"]
+    run.attempts += 1
+    generate(
+        run,
+        state["active_schema"],
+        dialect=c["dialect"],
+        evidence=c["evidence"],
+        model=c["model"],
+        client=c["client"],
+    )
+    return {"run": run}
+
+
+def _guard(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """The deterministic pre-execution gate (sqlglot AST checks)."""
+    guard(
+        state["run"],
+        dialect=_cfg(config)["dialect"],
+        allowed_tables=state["allowed_tables"],
+    )
+    return {"run": state["run"]}
+
+
+def _route_after_guard(state: _GraphState, config: RunnableConfig) -> str:
+    """Branch on the guard outcome — exactly the hand-rolled decision.
+
+    A table-scope rejection on the RAG path with budget left is the
+    *too-narrow-retrieval* symptom: widen and retry (CLAUDE.md §5.4). Any other
+    rejection — a security rule, or table-scope with the budget spent — ends the
+    run as a terminal guardrail rejection. A clean candidate proceeds to execute.
+    """
+    run = state["run"]
+    if not run.guard_rejected:
+        return "execute"
+    c = _cfg(config)
+    scope_retry = (
+        run.guard_rule == "table_scope"
+        and c["schema_index"] is not None
+        and run.attempts < c["budget"]
+    )
+    return "scope_re_retrieve" if scope_retry else END
+
+
+def _scope_re_retrieve(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """Table-scope rejection → clear it and widen the retrieval, then regenerate."""
+    c = _cfg(config)
+    run = state["run"]
+    re_retrievals = state["re_retrievals"] + 1
+    run.guard_rejected = False
+    run.guard_reason = None
+    run.guard_rule = None
+    active_schema = retrieve(
+        run,
+        c["schema_index"],
+        max_tables=c["max_tables"],
+        floor=c["max_tables"] * 2**re_retrievals,
+    )
+    return {"run": run, "active_schema": active_schema, "re_retrievals": re_retrievals}
+
+
+def _execute(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """Run the verified candidate against the database."""
+    execute(state["run"], _cfg(config)["engine"])
+    return {"run": state["run"]}
+
+
+def _route_after_execute(state: _GraphState, config: RunnableConfig) -> str:
+    """A clean result, or a spent budget, ends the run; otherwise correct & retry."""
+    run = state["run"]
+    if run.error is None or run.attempts >= _cfg(config)["budget"]:
+        return END
+    return "correct"
+
+
+def _correct(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """Stage the failure as feedback; re-retrieve when the schema was too narrow.
+
+    A not-found error on the RAG path means the generator saw too little schema —
+    route it back into *retrieval* and widen (capture the missing identifier as a
+    lexical hint before ``correct`` clears the error), not only into regeneration.
+    Otherwise ``correct`` just stages the failure for the next ``generate``. Both
+    stay inside the same capped budget enforced by ``_route_after_execute``.
+    """
+    c = _cfg(config)
+    run = state["run"]
+    re_retrieve = c["schema_index"] is not None and is_not_found_error(run.error)
+    hint = missing_identifier(run.error) if re_retrieve else ""
+    correct(run)
+    updates: dict[str, Any] = {"run": run}
+    if re_retrieve:
+        re_retrievals = state["re_retrievals"] + 1
+        # Widen coverage each time: max_tables → 2× → 4× …, reaching the full
+        # schema at the widest. Bounded by the retry budget above.
+        floor = c["max_tables"] * 2**re_retrievals
+        updates["active_schema"] = retrieve(
+            run,
+            c["schema_index"],
+            max_tables=c["max_tables"],
+            floor=floor,
+            hint=hint,
+        )
+        updates["re_retrievals"] = re_retrievals
+    return updates
+
+
+def _build_graph() -> CompiledStateGraph:
+    """Compile the pipeline graph once; ``run_pipeline`` reuses it per question."""
+    g = StateGraph(_GraphState)
+    g.add_node("init_retrieve", _init_retrieve)
+    g.add_node("generate", _generate)
+    g.add_node("guard", _guard)
+    g.add_node("scope_re_retrieve", _scope_re_retrieve)
+    g.add_node("execute", _execute)
+    g.add_node("correct", _correct)
+
+    g.add_edge(START, "init_retrieve")
+    g.add_edge("init_retrieve", "generate")
+    g.add_edge("generate", "guard")
+    g.add_conditional_edges(
+        "guard",
+        _route_after_guard,
+        {"execute": "execute", "scope_re_retrieve": "scope_re_retrieve", END: END},
+    )
+    g.add_edge("scope_re_retrieve", "generate")
+    g.add_conditional_edges(
+        "execute", _route_after_execute, {"correct": "correct", END: END}
+    )
+    g.add_edge("correct", "generate")
+    return g.compile()
+
+
+# Compiled once at import — the wiring is static; only the per-run inputs vary.
+_GRAPH = _build_graph()
 
 
 def run_pipeline(
@@ -80,89 +296,36 @@ def run_pipeline(
     overflows, the ``retrieve`` stage selects the relevant tables. ``None``
     (default) leaves the gate off — the prior always-RAG behaviour. The demo and
     the harness pass the *same* value, so the gate is import-shared, never forked.
+
+    Step 7: the loop above is now executed by a compiled LangGraph state machine
+    (``_GRAPH``); the control flow and the ``RunState`` it returns are identical —
+    a behavior-preserving refactor the harness verifies.
     """
     if (schema is None) == (schema_index is None):
         raise ValueError("run_pipeline needs exactly one of schema= or schema_index=")
     budget = max(1, max_attempts)
     with stage_span("pipeline", db_id=db_id, max_attempts=budget):
         state = RunState(question=question, db_id=db_id, max_attempts=budget)
-        # Initial retrieval (schema-RAG) or the naive full dump on the baseline path.
-        # ``budget_tokens`` arms the adaptive gate (#76): full dump when the whole
-        # schema fits the budget, RAG selection when it overflows it.
-        active_schema = (
-            retrieve(
-                state, schema_index, max_tables=max_tables, budget_tokens=budget_tokens
-            )
-            if schema_index is not None
-            else schema
-        )
-        # Per-db allowed-tables for the table-scope guard — the db's real tables,
-        # available only on the schema-index (RAG) path. ``None`` on the naive
-        # dump path leaves table-scope unenforced (it has no index to scope to).
-        allowed_tables = (
-            {t.name for t in schema_index.tables} if schema_index is not None else None
-        )
-        re_retrievals = 0
-        while True:
-            state.attempts += 1
-            generate(
-                state,
-                active_schema,
-                dialect=dialect,
-                evidence=evidence,
-                model=model,
-                client=client,
-            )
-            guard(state, dialect=dialect, allowed_tables=allowed_tables)
-            if state.guard_rejected:
-                # A table-scope rejection means the candidate reached for a table
-                # outside this db — the *too-narrow-retrieval* symptom. Feed it
-                # back into retrieval and widen (CLAUDE.md §5.4), exactly like a
-                # not-found error, instead of hard-stopping. Security rules
-                # (read_only/dangerous_op/cost) always end the run. When the budget
-                # is spent, even table-scope becomes a terminal guardrail rejection.
-                scope_retry = (
-                    state.guard_rule == "table_scope"
-                    and schema_index is not None
-                    and state.attempts < budget
-                )
-                if not scope_retry:
-                    return state
-                re_retrievals += 1
-                state.guard_rejected = False
-                state.guard_reason = None
-                state.guard_rule = None
-                active_schema = retrieve(
-                    state,
-                    schema_index,
-                    max_tables=max_tables,
-                    floor=max_tables * 2**re_retrievals,
-                )
-                continue
-            execute(state, engine)
-            if state.error is None or state.attempts >= budget:
-                return state
-            # Loop-aware re-trigger (#46): a not-found error means the schema the
-            # generator saw was too narrow — route it back into *retrieval* and
-            # widen, not only into regeneration. Capture the error before
-            # ``correct`` clears it; the re-retrieve stays inside the same budget.
-            re_retrieve = schema_index is not None and is_not_found_error(state.error)
-            # The bare missing identifier (e.g. "ghost"), captured before
-            # ``correct`` clears the error — a lexical nudge for the re-retrieve.
-            hint = missing_identifier(state.error) if re_retrieve else ""
-            correct(state)
-            if re_retrieve:
-                re_retrievals += 1
-                # Widen coverage each time: max_tables → 2× → 4× …, reaching the
-                # full schema at the widest. Bounded by the retry budget above.
-                floor = max_tables * 2**re_retrievals
-                active_schema = retrieve(
-                    state,
-                    schema_index,
-                    max_tables=max_tables,
-                    floor=floor,
-                    hint=hint,
-                )
+        config: RunnableConfig = {
+            "configurable": {
+                "schema": schema,
+                "schema_index": schema_index,
+                "engine": engine,
+                "dialect": dialect,
+                "evidence": evidence,
+                "model": model,
+                "client": client,
+                "max_tables": max_tables,
+                "budget_tokens": budget_tokens,
+                "budget": budget,
+            },
+            # Each attempt costs a few supersteps; size the ceiling to the budget
+            # so a legitimate pass@k run never trips LangGraph's recursion guard,
+            # while a genuine wiring bug (an unbounded loop) still surfaces.
+            "recursion_limit": budget * 6 + 25,
+        }
+        result = _GRAPH.invoke({"run": state}, config=config)
+        return result["run"]
 
 
 def _smoke() -> None:
