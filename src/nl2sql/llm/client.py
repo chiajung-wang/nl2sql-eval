@@ -37,11 +37,18 @@ class LLMResponse:
     ``input_tokens``/``output_tokens``) so the harness can price a run's total
     cost identically regardless of backend. Counts are ``None`` when a provider
     omits usage.
+
+    ``cost_usd`` is the **provider-reported** cost of this call, when LiteLLM
+    surfaces one (e.g. via OpenRouter). It is the authentic cost basis for the
+    cross-provider table (#52) — OpenRouter's own normalized/marked-up price, not
+    the direct-list table in ``eval.cost`` — and ``None`` when no provider cost is
+    available (then the caller falls back to the dated list table by model).
     """
 
     text: str
     input_tokens: int | None = None
     output_tokens: int | None = None
+    cost_usd: float | None = None
 
 
 @runtime_checkable
@@ -93,10 +100,14 @@ class LiteLLMClient:
         )
         text = response.choices[0].message.content or ""
         usage = getattr(response, "usage", None)
+        # LiteLLM stashes the computed/provider-returned cost here (USD); present
+        # for OpenRouter and most backends, absent for some — then ``None``.
+        hidden = getattr(response, "_hidden_params", None) or {}
         return LLMResponse(
             text=text,
             input_tokens=getattr(usage, "prompt_tokens", None) if usage else None,
             output_tokens=getattr(usage, "completion_tokens", None) if usage else None,
+            cost_usd=hidden.get("response_cost"),
         )
 
 

@@ -141,5 +141,12 @@ def generate(
             state.meta["output_tokens"] = state.meta.get("output_tokens", 0) + (
                 response.output_tokens or 0
             )
+        # Provider-reported cost (when LiteLLM surfaces one) accumulates across
+        # attempts too — the authentic cost basis for the cross-provider table
+        # (#52). ``None`` when no provider cost is available; the harness then
+        # prices from the dated list table by model instead.
+        if response.cost_usd is not None:
+            extra["cost_usd"] = response.cost_usd
+            state.meta["cost_usd"] = state.meta.get("cost_usd", 0.0) + response.cost_usd
 
     return state
