@@ -83,6 +83,27 @@ def test_complete_routes_openrouter_identifier_unchanged(monkeypatch):
     assert seen["model"] == "openrouter/anthropic/claude-sonnet-4"
 
 
+def test_extra_params_forwarded_for_provider_routing(monkeypatch):
+    # The hook #52 needs: pin OpenRouter routing so a frozen-slice row can't switch
+    # backend mid-run (PRD §9). extra_params reach litellm.completion verbatim.
+    seen: dict = {}
+
+    def fake_completion(*, model, messages, max_tokens, **kwargs):
+        seen.update(kwargs)
+        return _fake_litellm_response("SELECT 4;", 1, 1)
+
+    import litellm
+
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+
+    pin = {"provider": {"allow_fallbacks": False, "order": ["Anthropic"]}}
+    LiteLLMClient(extra_params=pin).complete(
+        "q", model="openrouter/anthropic/claude-sonnet-4", max_tokens=8
+    )
+
+    assert seen["provider"] == {"allow_fallbacks": False, "order": ["Anthropic"]}
+
+
 def test_complete_tolerates_missing_usage(monkeypatch):
     def fake_completion(*, model, messages, max_tokens, **kwargs):
         return SimpleNamespace(

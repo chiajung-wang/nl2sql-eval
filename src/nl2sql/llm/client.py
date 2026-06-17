@@ -69,9 +69,16 @@ class LiteLLMClient:
         *,
         timeout: float = REQUEST_TIMEOUT_S,
         max_retries: int = REQUEST_MAX_RETRIES,
+        extra_params: dict[str, object] | None = None,
     ) -> None:
         self._timeout = timeout
         self._max_retries = max_retries
+        # Extra keyword args forwarded verbatim to ``litellm.completion`` — the
+        # hook for backend-specific routing without touching the seam. The
+        # cross-provider run (#52) uses it to pin OpenRouter routing
+        # (``provider={"allow_fallbacks": False, ...}``) so an ``openrouter/…`` row
+        # can't silently switch backend mid-slice and break repeatability (PRD §9).
+        self._extra_params = extra_params or {}
 
     def complete(self, prompt: str, *, model: str, max_tokens: int) -> LLMResponse:
         import litellm
@@ -82,6 +89,7 @@ class LiteLLMClient:
             max_tokens=max_tokens,
             timeout=self._timeout,
             num_retries=self._max_retries,
+            **self._extra_params,
         )
         text = response.choices[0].message.content or ""
         usage = getattr(response, "usage", None)
