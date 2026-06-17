@@ -346,10 +346,12 @@ def main() -> int:
     print(f"terminal: {trace.terminal.value}  (attempts={trace.state.attempts})\n")
     print("\n".join(_span_lines(trace.root)))
 
-    # Defensive: the captured trace must never carry a raw PII value.
+    # Defensive: the captured trace must never carry a raw PII value. A hard
+    # raise, not an ``assert`` — a security gate must not vanish under ``python -O``.
     rendered = render_html(trace)
     for secret in ("alice@secret.example", "Alice Lee"):
-        assert secret not in rendered, f"PII leaked into the trace: {secret!r}"
+        if secret in rendered:
+            raise RuntimeError(f"PII leaked into the trace: {secret!r}")
 
     ARTIFACT.write_text(rendered)
     print(f"\nwrote example trace → {ARTIFACT.relative_to(ARTIFACT.parents[3])}")
