@@ -98,9 +98,11 @@ def score_run(
 ) -> tuple[Comparison | None, TerminalState]:
     """Score a finished run against gold and bucket its terminal state.
 
-    Scoring is on the **raw verified result** — ``state.result_rows`` — which is
-    correct only because the pipeline has no ``redact`` stage yet; once it does,
-    this must score the raw exit, never the presented one (CLAUDE.md §5.2). A run
+    Scoring is on the **raw verified result** — ``state.result_rows`` — the
+    upstream pipeline exit (CLAUDE.md §3). The pipeline now has a ``redact`` stage
+    that produces a separate ``presented_rows`` exit, so this deliberately reads
+    the raw rows, never the presented (redacted) ones: scoring stays upstream of
+    redaction and the masking can never corrupt the verdict (CLAUDE.md §5.2). A run
     that errored or was guard-rejected is not scored (there is no candidate result
     to compare).
     """

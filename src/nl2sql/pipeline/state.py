@@ -31,8 +31,9 @@ class TerminalState(StrEnum):
 class RunState:
     """Mutable state threaded through the pipeline for a single question.
 
-    The db identity is an input (single-db per run); fields below are populated
-    as the run advances through retrieve → generate → guard → execute → correct.
+    The db identity is an input (single-db per run); fields below are populated as
+    the run advances through retrieve → generate → guard → execute → correct →
+    redact.
     """
 
     question: str
@@ -45,6 +46,17 @@ class RunState:
     error: str | None = None
     attempts: int = 0
     terminal_state: TerminalState | None = None
+
+    # The two pipeline exits (CLAUDE.md §3). ``result_rows``/``result_columns``
+    # above are the **raw verified result** — what the harness scores against gold,
+    # upstream of redaction. ``presented_*`` are the **presented result**: the
+    # redact stage's column-aware PII masking of the raw rows, and the *only*
+    # result the demo shows or that anything writes to logs/traces. ``None`` until
+    # ``redact`` runs (and on a run that errored or was guard-rejected, which has
+    # no result to present). Redaction never mutates the raw exit, so scoring is
+    # never corrupted (CLAUDE.md §5.2).
+    presented_rows: list[tuple[Any, ...]] | None = None
+    presented_columns: list[str] | None = None
 
     # Schema-RAG (Step 6). The relevant table names the ``retrieve`` stage
     # selected for this question (declaration order). The harness scores

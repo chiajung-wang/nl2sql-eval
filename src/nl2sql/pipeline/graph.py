@@ -46,6 +46,7 @@ from nl2sql.pipeline.correct import correct
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.guard import guard
+from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy, redact
 from nl2sql.pipeline.retrieve import is_not_found_error, missing_identifier, retrieve
 from nl2sql.pipeline.state import RunState
 from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
@@ -265,6 +266,7 @@ def run_pipeline(
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
     max_tables: int = DEFAULT_MAX_TABLES,
     budget_tokens: int | None = None,
+    redaction_policy: RedactionPolicy = NO_REDACTION,
 ) -> RunState:
     """Run one question through the capped ``generate → guard → execute`` loop.
 
@@ -300,6 +302,13 @@ def run_pipeline(
     Step 7: the loop above is now executed by a compiled LangGraph state machine
     (``_GRAPH``); the control flow and the ``RunState`` it returns are identical —
     a behavior-preserving refactor the harness verifies.
+
+    Step 8: ``redact`` runs as the final stage and produces the **presented exit**
+    (``state.presented_rows``/``presented_columns``) — the raw ``result_rows`` are
+    untouched so the harness still scores upstream of redaction (CLAUDE.md §3/§5).
+    ``redaction_policy`` is the schema-driven PII column set; the demo and the
+    harness pass the *same* policy, so the presented exit is import-shared, never
+    forked. The default :data:`NO_REDACTION` masks nothing (the BIRD path).
     """
     if (schema is None) == (schema_index is None):
         raise ValueError("run_pipeline needs exactly one of schema= or schema_index=")
@@ -325,7 +334,11 @@ def run_pipeline(
             "recursion_limit": budget * 6 + 25,
         }
         result = _GRAPH.invoke({"run": state}, config=config)
-        return result["run"]
+        run: RunState = result["run"]
+        # The second pipeline exit: mask PII into the presented result, leaving the
+        # raw verified result the harness scores untouched (CLAUDE.md §3/§5.2).
+        redact(run, redaction_policy)
+        return run
 
 
 def _smoke() -> None:

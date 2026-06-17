@@ -27,6 +27,7 @@ from eval.harness import Case, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql.pipeline.execute import get_engine
 from nl2sql.pipeline.graph import run_pipeline
+from nl2sql.pipeline.redact import RedactionPolicy
 from nl2sql.pipeline.state import RunState
 
 SCHEMA_SQL = Path(__file__).resolve().parent / "datasets/payments/schema.sql"
@@ -66,10 +67,18 @@ def main() -> int:
     schema = SCHEMA_SQL.read_text()
     engine = get_engine()
     cases = build_payments_cases()
+    # Schema-driven redaction: the payments schema carries the natural PII surface
+    # (users.email/full_name/phone, payment_methods.last4), so the presented exit
+    # masks those columns — the harness still scores the raw rows (CLAUDE.md §3/§5).
+    redaction_policy = RedactionPolicy.from_ddl(schema)
 
     def run_one(case: Case) -> RunState:
         return run_pipeline(
-            case.question, schema=schema, engine=engine, db_id=case.db_id
+            case.question,
+            schema=schema,
+            engine=engine,
+            db_id=case.db_id,
+            redaction_policy=redaction_policy,
         )
 
     report = run_batch(cases, run_one)
