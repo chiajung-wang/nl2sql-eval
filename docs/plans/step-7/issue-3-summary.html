@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 3 — Cross-provider table (accuracy × cost × latency)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .pending{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .pending b{color:var(--mod)}
+  .good-txt{color:var(--add)} .noise{color:var(--mod)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #87 · Step 7 · Issue #52 · Step-7 DoD</span>
+    <h1>Cross-provider table — accuracy × cost × latency</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #52 · builds on #50 + #51</span>
+      <span><b>Branch:</b> <code>step-7/issue-52-cross-provider</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>Model selection as a measured artifact: one harness runs the frozen slice through
+      every model and lays accuracy, cost, and latency side by side — through the LiteLLM boundary, so
+      a provider is just a string.</b></p>
+      <p>With LangGraph (#50) and the LiteLLM boundary (#51) in place, the Step-7 DoD turns
+      "cost-latency-quality trade-offs" into a table. <code>eval.eval_cross_provider</code> runs the
+      <em>import-shared</em> pipeline over the frozen BIRD slice once per model in
+      <code>CROSS_PROVIDER_MODELS</code> and reports <b>pass@1 / pass@k × cost × latency</b> per row. One
+      <code>OPENROUTER_API_KEY</code> reaches many providers via <code>openrouter/&lt;provider&gt;/&lt;model&gt;</code>.</p>
+      <p>The work here is the <em>apparatus</em> and its two honesty rails; the live numbers are a keyed run
+      away (deferred, below). pass@1 is derived from each pass@k run's first attempts — the
+      sampling-noise-free twin, same convention as Step 5.</p>
+      <div class="stats">
+        <div><b>403</b> tests green (harness logic offline)</div>
+        <div><b class="good-txt">1</b> key → many providers</div>
+        <div><b>2</b> honesty rails (cost basis · routing pin)</div>
+        <div><b>0</b> forked pipeline (import-shared)</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The two honesty rails</h2><div class="card">
+      <div class="grid">
+        <div class="group good"><h3>Cost basis noted per row</h3><ul>
+          <li>An <code>openrouter</code> row is priced by OpenRouter's <b>own reported cost</b> (surfaced by LiteLLM on the response), not the direct-list table</li>
+          <li>A direct <code>anthropic/…</code> row uses the dated list table in <code>eval.cost</code></li>
+          <li>The two aren't comparable dollar-for-dollar — so the table has a <b>cost basis</b> column; a missing cost renders <code>n/a</code>, never a fabricated number</li>
+        </ul></div>
+        <div class="group good"><h3>OpenRouter routing pinned</h3><ul>
+          <li><code>allow_fallbacks: false</code> via the #51 <code>extra_params</code> hook</li>
+          <li>So a frozen-slice row can't silently switch backend (or quantization) mid-run</li>
+          <li>Repeatability is a Step-7 / PRD §9 invariant — the seeded slice must mean the same thing twice</li>
+        </ul></div>
+      </div>
+      <p style="margin-bottom:0">Capturing the authentic OpenRouter price needed a thin extension of the
+      boundary: <code>LLMResponse.cost_usd</code> (from LiteLLM's <code>response_cost</code>) →
+      <code>state.meta["cost_usd"]</code> → <code>CaseResult.provider_cost_usd</code> →
+      <code>BatchReport.provider_cost_usd</code>. Additive, defaults preserve every existing behaviour — and
+      it's the <em>only</em> way to price OpenAI/Google rows the Claude-only list table can't.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> How a row is built</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TD
+  M["CROSS_PROVIDER_MODELS<br/>(comma list)"] --> L["for each model"]
+  L --> C{"openrouter/… ?"}
+  C -->|yes| P["LiteLLMClient<br/>+ routing pin"]:::live
+  C -->|no| D["default client<br/>(direct key)"]:::ok
+  P --> RB["run_batch over frozen slice<br/>(import-shared run_pipeline)"]
+  D --> RB
+  RB --> PK["pass@k report"]
+  PK --> P1["derive pass@1<br/>(first attempts, no resample)"]
+  PK --> CO{"cost basis"}
+  CO -->|openrouter| OR["provider-reported $"]:::live
+  CO -->|direct| LT["dated list table"]:::ok
+  P1 --> ROW["table row:<br/>pass@1 · pass@k · cost · basis · latency"]
+  OR --> ROW
+  LT --> ROW
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef live fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;</pre></div>
+      <p class="diagram-caption">Unset <code>CROSS_PROVIDER_MODELS</code> → the default single model, which
+      doubles as the <b>#50/#51 post-refactor parity run</b> (same model, same slice — the number must match
+      the Step-3/Step-5 baseline).</p>
+    </section>
+
+    <section><h2><span class="num">4</span> Two-axis review — both clean</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards — conformant</h3><ul>
+          <li>Import-shared <code>run_pipeline</code> — no fork; classifier stays in the harness</li>
+          <li>No result rows in logs; cost is a number only</li>
+          <li>No fabricated cost — <code>None → "n/a"</code>; basis recorded per row</li>
+          <li>§6 honored: no number reported until the keyed run writes it with full config</li>
+          <li><b>Fix applied:</b> README documents the new command + <code>CROSS_PROVIDER_MODELS</code> (§9)</li>
+        </ul></div>
+        <div class="group good"><h3>Spec — faithful</h3><ul>
+          <li>All acceptance criteria met to the extent provable offline</li>
+          <li>Cost-capture chain is <em>required</em> by "OpenRouter reports its own price" — not gold-plating</li>
+          <li>Routing pin + cost-basis column wired correctly</li>
+          <li>RESULTS.md numbers defensibly deferred to the live keyed run</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>eval/eval_cross_provider.py</code></td><td><span class="st A">A</span></td><td>The harness: model list from env, per-model pass@k run (pass@1 derived), routing pin, cost-basis row, table + RESULTS writer.</td></tr>
+          <tr><td class="f"><code>tests/test_cross_provider.py</code></td><td><span class="st A">A</span></td><td>Model parsing, routing-pin selection, cost-basis split, pass@1 derivation, table rendering — all offline.</td></tr>
+          <tr><td class="f"><code>src/nl2sql/llm/client.py</code></td><td><span class="st M">M</span></td><td><code>LLMResponse.cost_usd</code> from LiteLLM's <code>response_cost</code>.</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/generate.py</code></td><td><span class="st M">M</span></td><td>Accumulate <code>state.meta["cost_usd"]</code> across attempts.</td></tr>
+          <tr><td class="f"><code>eval/metrics.py</code></td><td><span class="st M">M</span></td><td><code>CaseResult.provider_cost_usd</code> + <code>BatchReport.provider_cost_usd</code> (additive).</td></tr>
+          <tr><td class="f"><code>eval/harness.py</code></td><td><span class="st M">M</span></td><td><code>run_batch</code> records provider cost from <code>state.meta</code>.</td></tr>
+          <tr><td class="f"><code>README.md</code> · <code>.env.example</code></td><td><span class="st M">M</span></td><td>Document the cross-provider command + <code>CROSS_PROVIDER_MODELS</code> and the OpenRouter routing.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification &amp; the deferred run</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 403 passed; <code>ruff check</code> / <code>ruff format --check</code> clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Harness core proven offline with synthetic reports — no network, no key</p>
+        <p style="margin:.2rem 0"><b>✓</b> Two-axis <code>/review</code> → standards conformant, spec faithful; README sync fixed</p>
+      </div>
+      <div class="pending" style="margin-top:1rem">
+        <p style="margin:.2rem 0"><b>⧗ Deferred — needs a live provider key.</b> The actual cross-provider <b>table</b> and the
+        <b>post-refactor parity</b> numbers land in <code>RESULTS.md</code> when the run executes:
+        <code>OPENROUTER_API_KEY</code> + <code>CROSS_PROVIDER_MODELS</code> set, then
+        <code>uv run python -m eval.eval_cross_provider</code>. Numbers are written by the harness with full
+        config (slice id, prompt version, date, commit) — never fabricated here.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #52 / PR #87 · base <code>main</code> ← <code>step-7/issue-52-cross-provider</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
