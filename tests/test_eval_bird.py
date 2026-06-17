@@ -8,13 +8,13 @@ API), so it is tested whenever the BIRD data is present and skipped otherwise.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 from eval import eval_bird
 from eval.datasets.bird.loader import bird_data_dir
 from eval.metrics import BatchReport, CaseResult
+from nl2sql.llm import LLMResponse
 from nl2sql.pipeline.generate import PROMPT_VERSION, generate, render_prompt
 from nl2sql.pipeline.state import RunState, TerminalState
 
@@ -33,22 +33,15 @@ def test_render_prompt_includes_evidence_only_when_given():
     assert "External knowledge" not in without
 
 
-class _CaptureResponse:
-    def __init__(self, text: str) -> None:
-        self.content = [type("Block", (), {"text": text})()]
-        self.usage = type("Usage", (), {"input_tokens": 1, "output_tokens": 1})()
-
-
 class _CaptureClient:
-    """A stub Anthropic client that records the prompt it was sent."""
+    """A stub ``nl2sql.llm.LLMClient`` that records the prompt it was sent."""
 
     def __init__(self) -> None:
         self.prompt: str | None = None
-        self.messages = self
 
-    def create(self, *, model: str, max_tokens: int, messages: list[dict[str, Any]]):
-        self.prompt = messages[0]["content"]
-        return _CaptureResponse("SELECT 1;")
+    def complete(self, prompt: str, *, model: str, max_tokens: int) -> LLMResponse:
+        self.prompt = prompt
+        return LLMResponse(text="SELECT 1;", input_tokens=1, output_tokens=1)
 
 
 def test_generate_threads_dialect_and_evidence_into_the_prompt():

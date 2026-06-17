@@ -37,7 +37,7 @@ The PRD (`docs/prd.md`) does not specify everything needed to run a project end-
 - **[uv](https://github.com/astral-sh/uv)** — package and project manager
 - **SQLite** — for the BIRD benchmark (bundled with Python)
 - **PostgreSQL** — for the payments demo database
-- **An LLM provider API key** — accessed through LiteLLM (e.g. Anthropic / OpenAI). Multi-provider runs land in Step 7.
+- **An LLM provider API key** — every model call goes through LiteLLM (Step 7); the backend is chosen by the model identifier (`anthropic/…` for a direct key, `openrouter/…` to reach many models through one key) and the matching key is read from the environment.
 - **A Langfuse account / keys** — for observability (Step 8 onward)
 - **(Optional, Phase 3 reach)** Google Cloud project with BigQuery access
 - **BIRD benchmark data** — downloaded separately (see `eval/datasets/bird/`)
@@ -92,7 +92,8 @@ uv run streamlit run apps/demo/app.py
 While the harness and demo are still being built, the thinnest pipeline loop
 (Step 1) is runnable directly as a smoke check — it feeds one question through
 `generate → execute → return` against the payments db (needs a live, seeded
-Postgres and `ANTHROPIC_API_KEY`):
+Postgres and a provider key for the default model — `ANTHROPIC_API_KEY` for the
+default `anthropic/claude-sonnet-4-6`):
 
 ```bash
 uv run python -m nl2sql.pipeline.graph "How many users are based in the US?"
@@ -117,9 +118,8 @@ Configuration is supplied via environment variables (e.g. an `.env` file). Names
 
 | Variable | Description | Required | Example |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | Anthropic key for the direct-SDK generate stage (Step 1) | Generate stage | `sk-ant-...` |
-| `LLM_PROVIDER` | LiteLLM provider/model identifier (supersedes the above at Step 7) | Step 7+ | `anthropic/claude-opus-4-8` |
-| `LLM_API_KEY` | API key for the LiteLLM-selected provider | Step 7+ | `sk-...` |
+| `ANTHROPIC_API_KEY` | Read by LiteLLM for `anthropic/…` models (the default `anthropic/claude-sonnet-4-6`) | Generate stage | `sk-ant-...` |
+| `OPENROUTER_API_KEY` | Read by LiteLLM for `openrouter/…` models — one key, many backends | When using an `openrouter/…` model | `sk-or-...` |
 | `PAYMENTS_DB_URL` | SQLAlchemy URL for the Postgres demo db | Demo only | `postgresql://payments:payments@localhost:5432/payments` |
 | `BIRD_DATA_DIR` | Path to downloaded BIRD SQLite databases | BIRD runs | `./eval/datasets/bird/data` |
 | `LANGFUSE_PUBLIC_KEY` | Langfuse public key (observability) | Step 8+ | `pk-lf-...` |
@@ -128,6 +128,8 @@ Configuration is supplied via environment variables (e.g. an `.env` file). Names
 | `RETRY_BUDGET` | Max self-correction attempts per question | No | `3` |
 | `BIGQUERY_PROJECT` | GCP project for BigQuery (Phase 3 reach) | No | `my-gcp-project` |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service-account JSON | No | `./gcp-key.json` |
+
+The **model is chosen per run** by the provider-prefixed `model` argument to `run_pipeline` (default `anthropic/claude-sonnet-4-6`); LiteLLM routes to the matching backend and reads the corresponding key above. No separate provider/key env var is needed — the identifier *is* the selector.
 
 ## Project Structure
 
@@ -155,7 +157,7 @@ nl2sql-eval/
 │   │   ├── correct.py        #   error / retrieval feedback loop (capped retries)
 │   │   └── redact.py         #   column-aware PII masking (post-scoring)
 │   ├── schema_index/         # retrievable schema-metadata store
-│   ├── llm/                  # LiteLLM provider abstraction
+│   ├── llm/                  # LiteLLM provider boundary (the LLMClient seam)
 │   └── obs/                  # Langfuse instrumentation helpers (thin seams)
 ├── eval/                     # CENTERPIECE — peer of src/, imports the pipeline
 │   ├── harness.py            #   batch runner; pass@1 + pass@k; terminal-state classifier

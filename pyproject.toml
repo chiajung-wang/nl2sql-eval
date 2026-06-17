@@ -8,10 +8,10 @@ requires-python = ">=3.11"
 # dependency pinned now (PRD §7); SQLAlchemy/Anthropic/Jinja arrive with the
 # issues that first use them (Step 1 issues 2 and 4).
 dependencies = [
-    "anthropic>=0.109.1",
     "jinja2>=3.1.6",
     "langchain-core>=1.4.7",
     "langgraph>=1.2.5",
+    "litellm>=1.89.1",
     "psycopg2-binary>=2.9",
     "python-dotenv>=1.2.2",
     "sqlalchemy>=2.0",

@@ -2,7 +2,7 @@
 
 Offline and deterministic: the index is built from an in-memory SQLite db and the
 retriever scores by lexical overlap (no embeddings, no network). The pipeline
-wiring is exercised with the injected FakeAnthropic so we can assert the generator
+wiring is exercised with the injected FakeLLMClient so we can assert the generator
 saw only the *relevant* tables, never the full dump.
 """
 
@@ -21,7 +21,7 @@ from nl2sql.schema_index import (
     build_schema_index,
     estimate_tokens,
 )
-from tests.test_pipeline_loop import FakeAnthropic
+from tests.test_pipeline_loop import FakeLLMClient
 
 
 @pytest.fixture
@@ -228,7 +228,7 @@ def test_retrieve_records_selected_tables_on_state(store_engine):
 
 def test_run_pipeline_feeds_only_retrieved_tables_to_generate(store_engine):
     index = build_schema_index(store_engine)
-    client = FakeAnthropic(reply="SELECT count(*) AS n FROM products")
+    client = FakeLLMClient(reply="SELECT count(*) AS n FROM products")
 
     state = run_pipeline(
         "how many products are there?",

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 2 — LiteLLM provider boundary (backend selectable by model id)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .st.D{color:var(--del);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .good-txt{color:var(--add)} .noise{color:var(--mod)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #86 · Step 7 · Issue #51</span>
+    <h1>LiteLLM provider boundary — backend selectable by model id</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #51 · builds on #50</span>
+      <span><b>Branch:</b> <code>step-7/issue-51-litellm-swap</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>One seam, many backends. The pipeline stops knowing about a vendor SDK and starts
+      depending on a single <code>complete</code> call — so a provider is now just a string.</b></p>
+      <p>Step 1 hard-wired the Anthropic SDK into the generate stage. Step 7 (issue #51) replaces it with the
+      <code>nl2sql.llm</code> boundary backed by <b>LiteLLM</b> — mirroring JKOPay's actual "LiteLLM Gateway"
+      stack. The pipeline now imports only a tiny <code>LLMClient</code> protocol; <code>LiteLLMClient</code>
+      adapts LiteLLM's OpenAI-shaped response and normalizes token usage so the harness prices <em>any</em>
+      backend identically. This is the plumbing that makes the cross-provider cost/accuracy table (#52)
+      trivial.</p>
+      <p>The design choice that matters: <b>the backend is selected purely by the model identifier</b> —
+      <code>anthropic/…</code> for a direct key, <code>openrouter/…</code> to reach many models through one
+      key. OpenRouter is a provider <em>behind</em> LiteLLM, not a replacement; there is zero provider
+      branching in our code.</p>
+      <div class="stats">
+        <div><b>1</b> seam (<code>complete → LLMResponse</code>)</div>
+        <div><b class="good-txt">0</b> vendor SDK imports in any stage</div>
+        <div><b>392</b> tests green</div>
+        <div><b>−1</b> dead dep (<code>anthropic</code> removed)</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The boundary</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart LR
+  G["generate stage"] --> P["LLMClient.complete<br/>(prompt, model, max_tokens)"]
+  P --> L["LiteLLMClient<br/>(litellm.completion)"]
+  L --> R{"model identifier"}
+  R -->|"anthropic/…"| A["Anthropic<br/>(ANTHROPIC_API_KEY)"]:::ok
+  R -->|"openrouter/…"| O["OpenRouter aggregator<br/>(OPENROUTER_API_KEY)"]:::live
+  A --> N["LLMResponse<br/>text + normalized tokens"]
+  O --> N
+  G -.->|tests| F["FakeLLMClient<br/>(no key, no network)"]:::test
+  classDef ok fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef live fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  classDef test fill:#fde68a,stroke:#d97706,color:#713f12;</pre></div>
+      <p class="diagram-caption">The pipeline depends only on the <code>LLMClient</code> protocol. Production
+      uses <code>LiteLLMClient</code>; tests inject a fake implementing the same one method. The provider is
+      the model string — no <code>if provider ==</code> anywhere.</p>
+    </section>
+
+    <section><h2><span class="num">3</span> Parity by construction</h2><div class="card">
+      <p>A faithful seam replacement: same externalized prompt, same <code>max_tokens</code>, same fence
+      stripping, same per-attempt token accumulation for the twin-metric cost accounting. The only visible
+      change is the model identifier format — now provider-prefixed (<code>anthropic/claude-sonnet-4-6</code>),
+      the LiteLLM routing convention.</p>
+      <table>
+        <thead><tr><th>concern</th><th>before (Anthropic SDK)</th><th>after (LiteLLM boundary)</th></tr></thead>
+        <tbody>
+          <tr><td>call</td><td><code>client.messages.create(...)</code></td><td><code>client.complete(prompt, model=…)</code></td></tr>
+          <tr><td>response text</td><td><code>resp.content[0].text</code></td><td><code>resp.text</code></td></tr>
+          <tr><td>token usage</td><td><code>input_tokens</code> / <code>output_tokens</code></td><td>normalized from <code>prompt_tokens</code> / <code>completion_tokens</code></td></tr>
+          <tr><td>provider</td><td>Anthropic only</td><td>any LiteLLM backend, by model id</td></tr>
+          <tr><td>pricing</td><td><code>cost_usd("claude-sonnet-4-6")</code></td><td>provider prefix normalized to the bare-model table</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-bottom:0"><b>Behavioral parity is proven offline</b> by the 392-test suite (injected
+      fake client) — the loop, re-trigger, guard, adaptive gate, and cost accounting all unchanged. The
+      <em>live</em> single-provider parity number (same model, same harness numbers vs the pre-swap call)
+      needs a key and lands with the cross-provider table in <b>#52</b>.</p>
+    </div></section>
+
+    <section><h2><span class="num">4</span> Two-axis review — both clean</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards — conformant</h3><ul>
+          <li>LiteLLM is the provider layer (§2); no vendor SDK in any stage</li>
+          <li>Thin seam; prompts still externalized; fence regex is presentation-only, not SQL semantics</li>
+          <li>Provider chosen by model string — no inlined branching (§7)</li>
+          <li>Dated price-table discipline kept; README + <code>.env</code> reconciled (§9)</li>
+        </ul></div>
+        <div class="group good"><h3>Spec — faithful</h3><ul>
+          <li>All in-scope acceptance criteria met; no scope creep (dep drop + cost fix are necessary consequences)</li>
+          <li>Live parity defensibly deferred to <b>#52</b>; behavioral parity proven offline</li>
+          <li><b>Fix applied:</b> <code>extra_params</code> pass-through so #52 can pin OpenRouter routing (<code>allow_fallbacks: false</code>) for frozen-slice repeatability (PRD §9)</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>src/nl2sql/llm/client.py</code></td><td><span class="st A">A</span></td><td>The boundary: <code>LLMResponse</code>, <code>LLMClient</code> protocol, <code>LiteLLMClient</code> (response + token normalization, <code>extra_params</code> routing hook), <code>default_client</code>.</td></tr>
+          <tr><td class="f"><code>src/nl2sql/llm/__init__.py</code></td><td><span class="st M">M</span></td><td>Re-export the boundary (was a stub).</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/generate.py</code></td><td><span class="st M">M</span></td><td>Route through <code>client.complete</code>; default model provider-prefixed; no Anthropic SDK.</td></tr>
+          <tr><td class="f"><code>eval/cost.py</code></td><td><span class="st M">M</span></td><td>Normalize the provider prefix to the bare-model price key (OpenRouter basis reconciled in #52).</td></tr>
+          <tr><td class="f"><code>tests/test_llm_client.py</code></td><td><span class="st A">A</span></td><td>Adapter normalization, model passthrough (anthropic + openrouter), routing-pin forwarding, missing-usage, prefix pricing.</td></tr>
+          <tr><td class="f"><code>tests/test_*.py</code> (6 files)</td><td><span class="st M">M</span></td><td>Fakes implement the new <code>complete</code> seam; recorded call shape preserved, so assertions unchanged.</td></tr>
+          <tr><td class="f"><code>pyproject.toml</code></td><td><span class="st M">M</span></td><td>Add <code>litellm</code>; <span class="st D">drop</span> the now-unused <code>anthropic</code> SDK.</td></tr>
+          <tr><td class="f"><code>README.md</code> · <code>.env.example</code></td><td><span class="st M">M</span></td><td>Provider chosen by model id; <code>ANTHROPIC_API_KEY</code> / <code>OPENROUTER_API_KEY</code> replace the dead <code>LLM_PROVIDER</code>/<code>LLM_API_KEY</code> placeholders.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 392 passed; <code>ruff check</code> / <code>ruff format --check</code> clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Adapter proven offline by monkeypatching <code>litellm.completion</code>: model passthrough, token normalization, routing-pin forwarding, missing-usage tolerance</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>anthropic</code> SDK removed — confirmed no remaining imports in <code>src/</code>, <code>eval/</code>, <code>apps/</code>, or tests</p>
+        <p style="margin:.2rem 0"><b>✓</b> Two-axis <code>/review</code> → standards conformant, spec faithful; OpenRouter routing-pin hook added</p>
+        <p style="margin:.2rem 0 0" class="note"><b>Deferred to #52 (Step-7 DoD):</b> live single-provider parity + the cross-provider accuracy × cost × latency table (with OpenRouter routing pinned and cost basis noted per row), once a provider key is available.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #51 / PR #86 · base <code>main</code> ← <code>step-7/issue-51-litellm-swap</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>

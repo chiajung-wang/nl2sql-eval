@@ -2,7 +2,7 @@
 
 A ``column/table-not-found`` execution error routes back into retrieval and
 widens the schema the generator sees, inside the Step-5 capped budget. Offline:
-an in-memory SQLite db + the injected FakeAnthropic, so we can assert the *second*
+an in-memory SQLite db + the injected FakeLLMClient, so we can assert the *second*
 attempt's prompt carried more of the schema than the first.
 """
 
@@ -14,7 +14,7 @@ from sqlalchemy import create_engine, text
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.retrieve import is_not_found_error, missing_identifier
 from nl2sql.schema_index import build_schema_index
-from tests.test_pipeline_loop import FakeAnthropic
+from tests.test_pipeline_loop import FakeLLMClient
 
 
 @pytest.fixture
@@ -86,7 +86,7 @@ def test_not_found_error_re_retrieves_a_wider_schema_and_recovers(abc_engine):
     index = build_schema_index(abc_engine)
     # Attempt 1 reaches for a table that doesn't exist → not-found. Attempt 2 (a
     # wider retrieval) writes valid SQL against a real, retrieved table.
-    client = FakeAnthropic(
+    client = FakeLLMClient(
         reply=[
             "SELECT count(*) AS n FROM ghost",
             "SELECT count(*) AS n FROM alpha",
@@ -124,7 +124,7 @@ def test_column_not_found_on_in_scope_table_re_retrieves_via_execution(abc_engin
     # execution error — exercising the not-found *execution* re-retrieve branch
     # (#46), which the table-scope guard (#48) now intercepts for tables.
     index = build_schema_index(abc_engine)
-    client = FakeAnthropic(
+    client = FakeLLMClient(
         reply=[
             "SELECT bad_col AS n FROM alpha",  # in scope → executes → no such column
             "SELECT count(*) AS n FROM alpha",
@@ -156,7 +156,7 @@ def test_non_not_found_error_regenerates_without_re_retrieving(abc_engine):
     index = build_schema_index(abc_engine)
     # An unknown-function error parses fine (so it clears the guard) but is not a
     # retrieval problem: regenerate, don't widen the schema.
-    client = FakeAnthropic(
+    client = FakeLLMClient(
         reply=[
             "SELECT no_such_func(n) AS n FROM alpha",  # → "no such function: …"
             "SELECT count(*) AS n FROM alpha",
@@ -192,7 +192,7 @@ def test_re_retrieve_stays_inside_the_budget(abc_engine):
     # With table-scope wired in (Step 6, #48), the out-of-scope table is caught
     # *pre-execution*, so budget exhaustion ends the run as a terminal
     # GUARDRAIL_REJECTED — never executed — rather than a not-found retry-exhaust.
-    client = FakeAnthropic(reply="SELECT count(*) AS n FROM ghost")
+    client = FakeLLMClient(reply="SELECT count(*) AS n FROM ghost")
 
     state = run_pipeline(
         "count alpha rows",
@@ -217,7 +217,7 @@ def test_re_retrieve_stays_inside_the_budget(abc_engine):
 def test_baseline_path_does_not_re_retrieve(abc_engine):
     # No index → the not-found error can only drive regeneration (no retrieval to
     # re-trigger). Confirms the re-trigger is gated on schema-RAG being in use.
-    client = FakeAnthropic(
+    client = FakeLLMClient(
         reply=[
             "SELECT count(*) AS n FROM ghost",
             "SELECT count(*) AS n FROM alpha",
