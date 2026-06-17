@@ -50,6 +50,16 @@ class RedactionPolicy:
     schema actually carries. A result column is masked when its (normalized) name
     is in :attr:`pii_columns` — so ``SELECT email FROM users`` and
     ``SELECT u.email FROM users u`` both redact, regardless of table aliasing.
+
+    **Known limitation (deliberate, tested):** matching is on the *output* column
+    name, so a PII column **aliased to a non-PII name** — ``SELECT email AS
+    contact`` — escapes masking. Closing that needs sqlglot projection resolution
+    (output column → base column, through aliases / ``SELECT *`` / expressions),
+    which is deeper than this stage and would belong with the trace-debugging work.
+    The conservative, honest position for now: name-based masking catches the
+    direct and table-qualified cases; the alias escape is pinned by a test
+    (``test_redact_aliased_pii_is_a_known_limitation``) so the trade-off is a
+    conscious one, not a silent hole.
     """
 
     pii_columns: frozenset[str]

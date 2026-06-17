@@ -84,6 +84,23 @@ def test_redact_masks_pii_and_leaves_raw_exit_untouched():
     assert state.result_rows == [(SECRET_EMAIL, "US"), ("bob@secret.example", "ES")]
 
 
+def test_redact_aliased_pii_is_a_known_limitation():
+    """Pin the deliberate gap: a PII column aliased to a non-PII name escapes.
+
+    Masking is on the *output* column name, so ``SELECT email AS contact`` yields a
+    column named ``contact`` that the policy doesn't recognize. Documented in
+    ``RedactionPolicy``; closing it needs sqlglot projection resolution (deeper than
+    this stage). This test makes the trade-off conscious rather than silent — if a
+    later change masks it, update the docstring too.
+    """
+    state = RunState(question="q", db_id="payments")
+    state.result_columns = ["contact"]  # email aliased AS contact
+    state.result_rows = [(SECRET_EMAIL,)]
+    redact(state, RedactionPolicy.from_ddl(PII_DDL))
+    # Current behavior: the aliased PII value is NOT masked.
+    assert state.presented_rows == [(SECRET_EMAIL,)]
+
+
 def test_redact_without_pii_columns_copies_through():
     state = _state_with_result()
     redact(state, NO_REDACTION)  # empty policy masks nothing (the BIRD path)
