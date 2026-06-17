@@ -158,6 +158,33 @@ def test_nested_spans_form_one_trace(fake_client):
     assert by_name["execute"].parent is by_name["pipeline"]
 
 
+def test_raising_stage_marks_span_errored_and_reraises(fake_client):
+    """A stage that raises stays diagnosable: span level=ERROR, exception re-raised."""
+    with pytest.raises(ValueError):
+        with obs.stage_span("execute", db_id="payments") as extra:
+            extra["row_count"] = 0
+            raise ValueError("boom")
+
+    (ob,) = fake_client.observations
+    assert ob.update_kwargs["level"] == "ERROR"
+    # The exception *class* is recorded — never its message (which could echo PII).
+    assert ob.update_kwargs["status_message"] == "ValueError"
+
+
+def test_raising_stage_logs_error_class_without_client(caplog):
+    """Even with no Langfuse, the stage-end log records the exception class."""
+    obs.set_client(None)
+    try:
+        with caplog.at_level("INFO", logger="nl2sql"):
+            with pytest.raises(RuntimeError):
+                with obs.stage_span("guard", db_id="payments"):
+                    raise RuntimeError("nope")
+        end = json.loads(caplog.records[-1].getMessage())
+    finally:
+        obs.reset_client()
+    assert end["event"] == "end" and end["error"] == "RuntimeError"
+
+
 def test_span_update_failure_never_breaks_the_stage(fake_client):
     """A Langfuse hiccup on update is swallowed — obs is a seam, not a dependency."""
 

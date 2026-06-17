@@ -104,10 +104,10 @@ def log_stage(stage: str, **fields: Any) -> None:
     logger.info("%s", json.dumps({"stage": stage, **fields}, default=str))
 
 
-# Result keys that map to Langfuse's native cost/latency/tokens, captured on the
-# span instead of (or as well as) generic metadata so the trace surfaces them on
-# its own axes — this is what feeds the pass@1-vs-pass@k cost analysis.
-_TOKEN_KEYS = ("input_tokens", "output_tokens")
+# Result key that maps to Langfuse's native cost axis (tokens map to
+# ``usage_details``), captured on the span instead of generic metadata so the
+# trace surfaces it on its own axis — this is what feeds the pass@1-vs-pass@k
+# cost analysis.
 _COST_KEY = "cost_usd"
 
 
@@ -117,19 +117,24 @@ def _span_update(
     fields: dict[str, Any],
     extra: dict[str, Any],
     duration_ms: float,
+    error: BaseException | None = None,
 ) -> None:
     """Fold a finished stage's safe fields into its Langfuse observation.
 
     Counts/SQL/verdict ride in ``output`` + ``metadata``; tokens and cost are
     promoted to Langfuse's native ``usage_details``/``cost_details`` so the trace
-    aggregates them. A ``generation`` also records the model. Best-effort: a
+    aggregates them. A ``generation`` also records the model. A stage whose body
+    *raised* is marked ``level="ERROR"`` with the exception class as the status
+    message, so a failing question's trace shows *which* span failed — the Step 8
+    "diagnosable from its trace" goal. (The exception *type*, never its message:
+    a message can echo query text; the class name cannot leak PII.) Best-effort: a
     Langfuse hiccup must never surface as a pipeline failure.
     """
     metadata = {"duration_ms": duration_ms}
     update: dict[str, Any] = {"output": extra, "metadata": metadata}
 
     usage = {
-        "input": extra[k] if (k := "input_tokens") in extra else None,
+        "input": extra["input_tokens"] if "input_tokens" in extra else None,
         "output": extra["output_tokens"] if "output_tokens" in extra else None,
     }
     usage = {k: v for k, v in usage.items() if v is not None}
@@ -139,6 +144,9 @@ def _span_update(
         update["cost_details"] = {"total": extra[_COST_KEY]}
     if as_type == "generation" and fields.get("model"):
         update["model"] = fields["model"]
+    if error is not None:
+        update["level"] = "ERROR"
+        update["status_message"] = type(error).__name__
 
     try:
         span.update(**update)
@@ -160,8 +168,11 @@ def stage_span(
     marks an LLM call so token/cost usage attributes to a generation span and the
     model is recorded — the ``generate`` stage opts in.
 
-    The span is best-effort and strictly additive: if Langfuse is absent or
-    errors, this is exactly the prior log-only seam.
+    If the wrapped body raises, the exception propagates unchanged (the stage's
+    own error handling is untouched) but the span is first marked errored and the
+    stage-end log records the exception class — so a failing run stays diagnosable
+    on the trace. The span is best-effort and strictly additive: if Langfuse is
+    absent or errors, this is exactly the prior log-only seam.
     """
     extra: dict[str, Any] = {}
     start = time.perf_counter()
@@ -176,10 +187,17 @@ def stage_span(
         span_cm = nullcontext(None)
 
     with span_cm as span:
+        error: BaseException | None = None
         try:
             yield extra
+        except BaseException as exc:
+            error = exc
+            raise
         finally:
             duration_ms = round((time.perf_counter() - start) * 1000, 3)
             if span is not None:
-                _span_update(span, as_type, fields, extra, duration_ms)
-            log_stage(stage, event="end", duration_ms=duration_ms, **extra)
+                _span_update(span, as_type, fields, extra, duration_ms, error=error)
+            end_fields = dict(extra)
+            if error is not None:
+                end_fields.setdefault("error", type(error).__name__)
+            log_stage(stage, event="end", duration_ms=duration_ms, **end_fields)
