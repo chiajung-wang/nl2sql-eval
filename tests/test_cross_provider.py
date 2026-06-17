@@ -180,6 +180,37 @@ def test_results_row_points_at_best_model():
     assert "abc1234" in row
 
 
+# --- RESULTS.md insertion (skip embedded prose tables) ----------------------
+
+
+def test_append_results_inserts_after_last_dated_log_row(tmp_path):
+    # A later step's prose embeds its own markdown table; the Log row must land
+    # after the last *dated* Log row, not wedged inside that embedded table.
+    results = tmp_path / "RESULTS.md"
+    results.write_text(
+        "## Log\n"
+        "| Date | Step | Metric |\n"
+        "| ---- | ---- | ------ |\n"
+        "| 2026-06-11 | 3 | pass@1 |\n"
+        "\n"
+        "**Step 6 prose.**\n"
+        "\n"
+        "| mode | pass@1 | tokens |\n"  # an embedded, non-dated table
+        "| --- | --- | --- |\n"
+        "| naive | 0.7 | 2173 |\n"
+    )
+    xp.append_results("| 2026-06-17 | 7 | cross |", "**Step 7 prose.**", results)
+
+    out = results.read_text().splitlines()
+    log_idx = out.index("| 2026-06-11 | 3 | pass@1 |")
+    new_idx = out.index("| 2026-06-17 | 7 | cross |")
+    embedded_idx = out.index("| naive | 0.7 | 2173 |")
+    # The new Log row sits right after the dated row, *before* the embedded table.
+    assert new_idx == log_idx + 1
+    assert new_idx < embedded_idx
+    assert out[-1] == "**Step 7 prose.**"  # prose appended at EOF
+
+
 # --- resilience: a provider error must not abort the whole run ---------------
 
 

@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
 from dataclasses import dataclass
 from datetime import date
@@ -60,6 +61,10 @@ DEFAULT_RETRY_BUDGET = 3
 # (or quantization) mid-run — repeatability is a Step-7/PRD §9 invariant. Passed
 # verbatim to litellm.completion via the LiteLLMClient extra_params hook (#51).
 OPENROUTER_ROUTING_PIN: dict[str, object] = {"provider": {"allow_fallbacks": False}}
+
+# A RESULTS.md Log-table row starts with a date: ``| YYYY-MM-DD |``. Used to
+# anchor the insert past any markdown tables embedded in later steps' prose.
+_LOG_ROW_RE = re.compile(r"\| \d{4}-\d{2}-\d{2} \|")
 
 
 def cross_provider_models() -> list[str]:
@@ -266,14 +271,22 @@ def results_prose(rows: list[ProviderRow], *, k: int) -> str:
 
 
 def append_results(row: str, prose: str, results_path: Path = RESULTS_PATH) -> None:
-    """Insert the Log ``row`` after the last table row; append ``prose`` at EOF."""
+    """Insert the Log ``row`` after the last *dated* Log row; append ``prose`` at EOF.
+
+    Matching on a leading ``| YYYY-MM-DD |`` (not just any ``|`` line) is load-
+    bearing: later steps embed their own markdown tables inside the prose, so the
+    last ``|`` line in the file is an embedded table row, not the Log table — a
+    naive "after the last table row" insert wedges the Log row inside that table.
+    """
     lines = [
         ln
         for ln in results_path.read_text().splitlines()
         if not ln.strip().startswith("| _—_")
     ]
-    last_row = max(i for i, ln in enumerate(lines) if ln.lstrip().startswith("|"))
-    lines.insert(last_row + 1, row)
+    dated = [i for i, ln in enumerate(lines) if _LOG_ROW_RE.match(ln.lstrip())]
+    if not dated:
+        raise ValueError("no dated Log row found in RESULTS.md to anchor the insert")
+    lines.insert(dated[-1] + 1, row)
     text = "\n".join(lines).rstrip() + "\n\n" + prose + "\n"
     results_path.write_text(text)
 
