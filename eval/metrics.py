@@ -99,6 +99,10 @@ class CaseResult:
     # retrieval did not run for this case or the gold references no tables, so it
     # is excluded from the aggregate rather than skewing it.
     retrieval_recall: float | None = None
+    # Provider-reported run cost in USD (Step 7, #52) — OpenRouter's own price,
+    # summed across attempts. ``None`` when the backend surfaced no cost, in which
+    # case the cross-provider table falls back to the dated list table by model.
+    provider_cost_usd: float | None = None
 
 
 @dataclass(frozen=True)
@@ -158,6 +162,19 @@ class BatchReport:
         Linear in tokens, so the per-case sum equals pricing the batch totals.
         """
         return cost_usd(model, self.total_input_tokens, self.total_output_tokens)
+
+    @property
+    def provider_cost_usd(self) -> float | None:
+        """Total provider-reported cost of the batch (Step 7, #52).
+
+        Sums the per-case provider cost (OpenRouter's own price). ``None`` when no
+        case carried one — the cross-provider table then prices from the dated
+        list table by model instead. The authentic basis for an OpenRouter row.
+        """
+        reported = [
+            r.provider_cost_usd for r in self.results if r.provider_cost_usd is not None
+        ]
+        return sum(reported) if reported else None
 
     @property
     def n_with_recall(self) -> int:

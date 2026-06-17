@@ -163,6 +163,9 @@ def run_batch(
                 retrieval_recall=retrieval_recall(
                     state.retrieved_tables, case.gold_sql
                 ),
+                # Provider-reported cost when the backend surfaced one (Step 7,
+                # #52); ``None`` otherwise, so the table falls back to list pricing.
+                provider_cost_usd=state.meta.get("cost_usd"),
             )
         )
         logger.info(
