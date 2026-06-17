@@ -79,6 +79,11 @@ uv run python -m eval.harness --dataset bird --slice <frozen-slice-id>
 
 # Run against the payments demo set
 uv run python -m eval.harness --dataset payments
+
+# Cross-provider table (Step 7): accuracy × cost × latency per model over the
+# frozen BIRD slice. Models come from CROSS_PROVIDER_MODELS (see Configuration).
+uv run python -m eval.eval_cross_provider            # run + append RESULTS.md
+uv run python -m eval.eval_cross_provider --dry-run  # run + print, no write
 ```
 
 > Note: the harness CLI flags above (`--dataset`, `--slice`) show the intended interface; the batch runner lands from Step 3 onward.
@@ -126,6 +131,7 @@ Configuration is supplied via environment variables (e.g. an `.env` file). Names
 | `LANGFUSE_SECRET_KEY` | Langfuse secret key | Step 8+ | `sk-lf-...` |
 | `LANGFUSE_HOST` | Langfuse host URL | Step 8+ | `https://cloud.langfuse.com` |
 | `RETRY_BUDGET` | Max self-correction attempts per question | No | `3` |
+| `CROSS_PROVIDER_MODELS` | Comma-separated model ids for the Step-7 cross-provider table; unset → the default single model | Step 7 cross-provider run | `openrouter/anthropic/claude-sonnet-4,openrouter/openai/gpt-4o-mini` |
 | `BIGQUERY_PROJECT` | GCP project for BigQuery (Phase 3 reach) | No | `my-gcp-project` |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service-account JSON | No | `./gcp-key.json` |
 
