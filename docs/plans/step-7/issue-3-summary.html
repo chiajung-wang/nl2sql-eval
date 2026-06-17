@@ -79,14 +79,14 @@
       <em>import-shared</em> pipeline over the frozen BIRD slice once per model in
       <code>CROSS_PROVIDER_MODELS</code> and reports <b>pass@1 / pass@k × cost × latency</b> per row. One
       <code>OPENROUTER_API_KEY</code> reaches many providers via <code>openrouter/&lt;provider&gt;/&lt;model&gt;</code>.</p>
-      <p>The work here is the <em>apparatus</em> and its two honesty rails; the live numbers are a keyed run
-      away (deferred, below). pass@1 is derived from each pass@k run's first attempts — the
-      sampling-noise-free twin, same convention as Step 5.</p>
+      <p>The apparatus and its two honesty rails, <b>now run live</b>: 3 models via OpenRouter over the
+      frozen 50-question slice, 0 provider errors. pass@1 is derived from each pass@k run's first attempts —
+      the sampling-noise-free twin, same convention as Step 5.</p>
       <div class="stats">
-        <div><b>403</b> tests green (harness logic offline)</div>
-        <div><b class="good-txt">1</b> key → many providers</div>
-        <div><b>2</b> honesty rails (cost basis · routing pin)</div>
-        <div><b>0</b> forked pipeline (import-shared)</div>
+        <div><b class="good-txt">0.540</b> best pass@1 (gemini-3-flash, also fastest)</div>
+        <div><b>~70×</b> cost spread (deepseek $0.0023 → kimi $0.156)</div>
+        <div><b>0.420</b> post-refactor parity (unchanged vs baseline)</div>
+        <div><b>406</b> tests green</div>
       </div>
     </div></section>
 
@@ -146,7 +146,7 @@
           <li>All acceptance criteria met to the extent provable offline</li>
           <li>Cost-capture chain is <em>required</em> by "OpenRouter reports its own price" — not gold-plating</li>
           <li>Routing pin + cost-basis column wired correctly</li>
-          <li>RESULTS.md numbers defensibly deferred to the live keyed run</li>
+          <li>RESULTS.md table + post-refactor parity now recorded from the live run (#88)</li>
         </ul></div>
       </div>
     </section>
@@ -166,23 +166,35 @@
       </table>
     </section>
 
-    <section><h2><span class="num">6</span> Verification &amp; the deferred run</h2><div class="card">
+    <section><h2><span class="num">6</span> The live table</h2><div class="card">
+      <p>Frozen 50-question BIRD slice, 3 models via OpenRouter (routing pinned), <b>0 provider errors</b>.
+      The cost basis is OpenRouter's own reported price, noted per row.</p>
+      <table>
+        <thead><tr><th>model</th><th>pass@1</th><th>pass@3</th><th>cost (USD)</th><th>mean latency</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>google/gemini-3-flash-preview</code></td><td><b class="good-txt">0.540</b> (27/50)</td><td>0.540 (27/50)</td><td>$0.0281</td><td><b class="good-txt">1,599 ms</b></td></tr>
+          <tr><td class="f"><code>moonshotai/kimi-k2.7-code</code></td><td>0.360 (18/50)</td><td>0.400 (20/50)</td><td>$0.1558</td><td>12,435 ms</td></tr>
+          <tr><td class="f"><code>deepseek/deepseek-v4-flash</code></td><td>0.340 (17/50)</td><td>0.340 (17/50)</td><td><b class="good-txt">$0.0023</b></td><td>4,858 ms</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-bottom:0">The trade-off made concrete: <b>gemini is both the most accurate and the
+      fastest</b> at a middling price; <b>deepseek is ~70× cheaper</b> but less accurate; kimi is priciest and
+      slowest. Gemini's 0.540 even clears the Step-3 baseline (0.420). This is the "model selection /
+      cost-latency-quality" artifact the JD asked for.</p>
+    </div></section>
+
+    <section><h2><span class="num">7</span> Verification</h2><div class="card">
       <div class="done">
-        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 403 passed; <code>ruff check</code> / <code>ruff format --check</code> clean</p>
-        <p style="margin:.2rem 0"><b>✓</b> Harness core proven offline with synthetic reports — no network, no key</p>
-        <p style="margin:.2rem 0"><b>✓</b> Two-axis <code>/review</code> → standards conformant, spec faithful; README sync fixed</p>
-      </div>
-      <div class="pending" style="margin-top:1rem">
-        <p style="margin:.2rem 0"><b>⧗ Deferred — needs a live provider key.</b> The actual cross-provider <b>table</b> and the
-        <b>post-refactor parity</b> numbers land in <code>RESULTS.md</code> when the run executes:
-        <code>OPENROUTER_API_KEY</code> + <code>CROSS_PROVIDER_MODELS</code> set, then
-        <code>uv run python -m eval.eval_cross_provider</code>. Numbers are written by the harness with full
-        config (slice id, prompt version, date, commit) — never fabricated here.</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 406 passed; <code>ruff</code> clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Live run wrote <code>RESULTS.md</code> with full config (slice, prompt version, date, commit); table + Log row well-formed</p>
+        <p style="margin:.2rem 0"><b>✓ Post-refactor parity:</b> re-running the exact Step-3 config (claude-sonnet-4-6, naive dump) post-#50/#51 gives <b>pass@1 0.420 (21/50)</b> — <em>identical</em> to the Step-3/5 baseline. The LangGraph + LiteLLM swap changed nothing.</p>
+        <p style="margin:.2rem 0"><b>✓</b> Two-axis <code>/review</code> → standards clean; spec flagged the missing parity, now recorded (this section)</p>
+        <p style="margin:.2rem 0 0" class="note">A live run also exposed two bugs the apparatus caught: a provider rate-limit aborting the whole job (now per-case resilient, with a <code>provider errors</code> column) and a RESULTS Log-row wedged into an embedded prose table (now anchored on dated rows).</p>
       </div>
     </div></section>
 
     <footer>
-      Generated for Issue #52 / PR #87 · base <code>main</code> ← <code>step-7/issue-52-cross-provider</code>
+      Generated for Issue #52 / PRs #87 + #88 · base <code>main</code> ← <code>step-7/issue-52-cross-provider</code> / <code>step-7/issue-52-results-live</code>
     </footer>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
