@@ -113,7 +113,9 @@ def generate(
     the prior failed SQL + error back into the prompt. ``client`` is injectable so
     tests can run without a network/API key. Mutates and returns ``state``.
     """
-    with stage_span("generate", db_id=state.db_id, model=model) as extra:
+    with stage_span(
+        "generate", as_type="generation", db_id=state.db_id, model=model
+    ) as extra:
         prompt = render_prompt(
             schema,
             state.question,
