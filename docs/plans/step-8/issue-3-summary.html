@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 3 — Trace-driven debugging + RESULTS.md note (Step 8 DoD)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .good-txt{color:var(--add)} .noise{color:var(--mod)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #92 · Step 8 · Issue #56 · Step 8 DoD</span>
+    <h1>Trace-driven debugging — a failing question, diagnosable from its spans</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #56</span>
+      <span><b>Branch:</b> <code>step-8/issue-56-trace-debugging</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>Open a failing question's trace and see, per span, exactly what each stage did
+      — with no raw PII anywhere.</b> That is Step 8's "done when", and this issue proves it.</p>
+      <p><code>eval.prove_step8</code> drives a <b>retry-exhausted</b> failing question through the
+      <em>import-shared</em> <code>run_pipeline</code> — the same loop the harness and demo run — while an
+      in-process <code>TraceRecorder</code> captures the per-stage spans <b>exactly as Langfuse would</b>
+      (<code>start_as_current_observation</code> with automatic nesting; <code>update</code> carrying each
+      stage's safe output). It is offline and deterministic: a fake LLM client, <b>no live model, no Langfuse
+      keys</b> (the defer-API-key discipline). The live trace is the same shape once a key is supplied.</p>
+      <p>The captured trace is rendered to a self-contained HTML artifact for the blog
+      (<code>docs/plans/step-8/example-trace.html</code>) and asserted to carry no raw PII value — and
+      <code>RESULTS.md</code> records the Step-8 operational milestone with its config and commit.</p>
+      <div class="stats">
+        <div><b>429</b> tests green (5 new in <code>test_prove_step8.py</code>)</div>
+        <div><b>11</b> spans · 2 attempts · 1 trace</div>
+        <div><b class="good-txt">retry_exhausted</b> terminal state</div>
+        <div><b class="good-txt">0</b> PII values on the trace</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> What the failing trace shows</h2><div class="card">
+      <p>Every facet the "done when" calls for is present and asserted — and the recorder is contract-parity
+      with the real Langfuse seam (same <code>metadata</code>/<code>output</code>/<code>level</code>/
+      <code>usage_details</code> fields <code>_span_update</code> writes).</p>
+      <table>
+        <thead><tr><th>span</th><th>what it tells the debugger</th></tr></thead>
+        <tbody>
+          <tr><td><code>retrieve</code></td><td>which tables were selected (<code>['orders','users']</code>) + the retrieval mode</td></tr>
+          <tr><td><code>generate</code> ×2</td><td>the candidate SQL — <b>one generation span per attempt</b>, with token usage</td></tr>
+          <tr><td><code>guard</code></td><td>the verdict (<code>decision=allow</code>): the SQL parsed and was in scope</td></tr>
+          <tr><td><code>execute</code> ×2</td><td>the execution error as the exception <em>class</em> (<code>OperationalError</code>), span flagged red</td></tr>
+          <tr><td><code>correct</code></td><td>the failure fed back; the not-found error triggered a loop-aware re-retrieve</td></tr>
+          <tr><td><code>redact</code></td><td>the presented exit — nothing to present on a failed run (<code>presented=False</code>)</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-bottom:0">The budget is spent after the second errored attempt → the harness classifies
+      <b><code>retry_exhausted</code></b>. The classifier stays in the harness (the script imports
+      <code>classify_terminal_state</code>, never reimplements it); the recorder only records.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> The captured trace</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TD
+  P["pipeline (trace root)"]:::root --> R1["retrieve · tables"]
+  R1 --> G1["generate · SQL (attempt 1)"]:::gen
+  G1 --> GU1["guard · allow"]
+  GU1 --> E1["execute · OperationalError"]:::err
+  E1 --> C["correct · re-retrieve"]:::live
+  C --> R2["retrieve · tables"]
+  R2 --> G2["generate · SQL (attempt 2)"]:::gen
+  G2 --> GU2["guard · allow"]
+  GU2 --> E2["execute · OperationalError"]:::err
+  E2 --> RD["redact · presented=False"]
+  RD --> T["terminal: retry_exhausted"]:::stop
+  classDef root fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  classDef gen fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef err fill:#fecaca,stroke:#dc2626,color:#7f1d1d;
+  classDef live fill:#fde68a,stroke:#d97706,color:#7c2d12;
+  classDef stop fill:#e2e8f0,stroke:#64748b,color:#1e293b;</pre></div>
+      <p class="diagram-caption">The rendered artifact (<code>example-trace.html</code>) is this tree as nested,
+      red-flagged span cards. Captured offline by an in-process recorder standing in for Langfuse — the trace
+      shape is identical once a key is supplied.</p>
+    </section>
+
+    <section><h2><span class="num">4</span> Two-axis review — both clean</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards — conformant</h3><ul>
+          <li>Classifier stays in the harness; <code>run_pipeline</code> import-shared (only the LLM + Langfuse clients stubbed via real seams)</li>
+          <li>No raw PII on the trace: real PII inserted, asserted absent from every span + the artifact</li>
+          <li>§6 <code>RESULTS.md</code> row complete; commit <code>a376fec</code> is the real code commit</li>
+          <li>No Claude trailer; no inlined prompt; module boundaries intact</li>
+        </ul></div>
+        <div class="group good"><h3>Spec — faithful</h3><ul>
+          <li>All five per-span facets present and asserted; example trace captured for the blog</li>
+          <li>Offline export is a faithful satisfaction under defer-API-key — recorder is contract-parity with the seam</li>
+          <li>PII reinforcement is in-scope ("and no raw PII appears anywhere"), not creep</li>
+          <li><b>Fix applied:</b> the no-PII gate in <code>main()</code> hardened from <code>assert</code> to a raise (survives <code>python -O</code>)</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>eval/prove_step8.py</code></td><td><span class="st A">A</span></td><td>The offline proof: <code>TraceRecorder</code> (Langfuse-shaped, nesting), a retry-exhausted capture through <code>run_pipeline</code>, console + HTML rendering, a hard no-PII gate.</td></tr>
+          <tr><td class="f"><code>tests/test_prove_step8.py</code></td><td><span class="st A">A</span></td><td>5 tests: terminal state + attempts, one-tree-rooted-at-pipeline, per-span detail, the redact span on a failed run, and no-PII-anywhere.</td></tr>
+          <tr><td class="f"><code>docs/plans/step-8/example-trace.html</code></td><td><span class="st A">A</span></td><td>The blog artifact — the captured failing trace as a self-contained dark-theme page.</td></tr>
+          <tr><td class="f"><code>RESULTS.md</code></td><td><span class="st M">M</span></td><td>Step-8 operational milestone: observability wired + redacted-logging verified, with config + commit <code>a376fec</code>.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 429 passed (5 new); <code>ruff check</code> / <code>ruff format --check</code> clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> A failing question's trace shows per-span detail — retrieved tables, SQL per attempt, guard verdict, execution error, terminal state — all asserted</p>
+        <p style="margin:.2rem 0"><b>✓</b> Example trace captured for the blog (<code>example-trace.html</code>), regenerable via <code>uv run python -m eval.prove_step8</code></p>
+        <p style="margin:.2rem 0"><b>✓</b> No raw PII on the trace: real PII flows through the run; asserted absent from every span and the rendered artifact</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>RESULTS.md</code> records the milestone with config + commit; two-axis <code>/review</code> clean; <code>assert</code>→raise hardening applied</p>
+        <p style="margin:.2rem 0 0" class="note"><b>Step 8 complete.</b> Observability wired (#54), redacted-logging enforced (#55), trace-driven debugging proven (#56). Live Langfuse trace capture lands when a key is supplied — same shape, no code change.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #56 / PR #92 · base <code>main</code> ← <code>step-8/issue-56-trace-debugging</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
