@@ -8,12 +8,10 @@ machinery underneath it.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from typing import Any
-
 from eval.cost import PRICES, cost_usd
 from eval.harness import Case, derive_pass1_report, run_batch, run_twin
 from eval.metrics import BatchReport, CaseResult, TwinReport, twin_summary_lines
+from nl2sql.llm import LLMResponse
 from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.state import RunState, TerminalState
 
@@ -294,14 +292,8 @@ def test_generate_accumulates_token_usage_on_state():
     from nl2sql.pipeline.generate import generate
 
     class _Client:
-        def __init__(self) -> None:
-            self.messages = SimpleNamespace(create=self._create)
-
-        def _create(self, **_: Any):
-            return SimpleNamespace(
-                content=[SimpleNamespace(text="SELECT 1")],
-                usage=SimpleNamespace(input_tokens=40, output_tokens=8),
-            )
+        def complete(self, prompt: str, *, model: str, max_tokens: int) -> LLMResponse:
+            return LLMResponse(text="SELECT 1", input_tokens=40, output_tokens=8)
 
     state = RunState(question="q", db_id="bird")
     generate(state, schema="CREATE TABLE t (id INT);", client=_Client())

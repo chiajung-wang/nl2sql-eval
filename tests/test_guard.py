@@ -21,6 +21,7 @@ import pytest
 
 from eval.harness import Case, classify_terminal_state, run_batch, score_run
 from eval.redteam import evaluate, load_cases, run_case
+from nl2sql.llm import LLMResponse
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.guard import GuardDecision, guard, guard_sql
 from nl2sql.pipeline.state import RunState, TerminalState
@@ -310,23 +311,13 @@ def test_guard_stage_leaves_clean_select_untouched():
 
 
 class _FakeClient:
-    """Stands in for the Anthropic client: returns a fixed candidate SQL."""
+    """Stands in for the ``nl2sql.llm.LLMClient``: returns a fixed candidate SQL."""
 
     def __init__(self, sql: str):
         self._sql = sql
 
-    @property
-    def messages(self):
-        return self
-
-    def create(self, **_kwargs):
-        text = self._sql
-
-        class _Resp:
-            content = [type("C", (), {"text": text})()]
-            usage = None
-
-        return _Resp()
+    def complete(self, prompt: str, *, model: str, max_tokens: int) -> LLMResponse:
+        return LLMResponse(text=self._sql)
 
 
 def test_rejected_candidate_never_reaches_execute():

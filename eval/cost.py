@@ -42,10 +42,14 @@ PRICES: dict[str, ModelPrice] = {
 def cost_usd(model: str, input_tokens: int, output_tokens: int) -> float | None:
     """USD cost for ``input_tokens``/``output_tokens`` on ``model``.
 
-    Returns ``None`` for a model not in :data:`PRICES` — the caller renders that
-    as "unavailable" rather than reporting a fabricated cost.
+    Accepts LiteLLM provider-prefixed identifiers (Step 7): the dated table is
+    keyed by the bare model, so ``anthropic/claude-sonnet-4-6`` is normalized to
+    its last path segment before lookup. Returns ``None`` for a model not in
+    :data:`PRICES` — the caller renders that as "unavailable" rather than
+    reporting a fabricated cost. (Cost via an OpenRouter backend differs from this
+    direct-list table; the cross-provider cost basis is reconciled in #52.)
     """
-    price = PRICES.get(model)
+    price = PRICES.get(model) or PRICES.get(model.rsplit("/", 1)[-1])
     if price is None:
         return None
     return (

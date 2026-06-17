@@ -2,7 +2,7 @@
 
 Offline and deterministic: the gate's full-vs-RAG decision is a token-budget
 threshold (no LLM), so it is unit-tested directly on ``retrieve`` and through the
-import-shared ``run_pipeline`` with the injected FakeAnthropic — never a paid run.
+import-shared ``run_pipeline`` with the injected FakeLLMClient — never a paid run.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.retrieve import retrieve
 from nl2sql.pipeline.state import RunState
 from nl2sql.schema_index import build_schema_index
-from tests.test_pipeline_loop import FakeAnthropic
+from tests.test_pipeline_loop import FakeLLMClient
 
 
 @pytest.fixture
@@ -99,7 +99,7 @@ def test_reretrieve_floor_bypasses_the_gate(store_engine):
 
 def test_run_pipeline_gate_full_sends_the_whole_schema(store_engine):
     index = build_schema_index(store_engine)
-    client = FakeAnthropic(reply="SELECT count(*) AS n FROM products")
+    client = FakeLLMClient(reply="SELECT count(*) AS n FROM products")
     state = run_pipeline(
         "how many products are there?",
         schema_index=index,
@@ -118,7 +118,7 @@ def test_run_pipeline_gate_full_sends_the_whole_schema(store_engine):
 
 def test_run_pipeline_gate_rag_sends_only_relevant_tables(store_engine):
     index = build_schema_index(store_engine)
-    client = FakeAnthropic(reply="SELECT count(*) AS n FROM products")
+    client = FakeLLMClient(reply="SELECT count(*) AS n FROM products")
     state = run_pipeline(
         "how many products are there?",
         schema_index=index,

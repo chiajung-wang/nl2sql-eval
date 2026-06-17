@@ -9,11 +9,10 @@ SQL-extraction/PII-logging behavior.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 from sqlalchemy import create_engine, text
 
+from nl2sql.llm import LLMResponse
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import (
     GENERATE_TEMPLATE,
@@ -26,27 +25,32 @@ from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
 
 
-class FakeAnthropic:
-    """Stand-in for ``anthropic.Anthropic`` that echoes canned SQL responses.
+class FakeLLMClient:
+    """An ``nl2sql.llm.LLMClient`` stand-in that echoes canned SQL responses.
 
-    ``reply`` may be a single string (returned every call) or a list consumed one
-    reply per call — the latter drives the self-correction loop in tests (a broken
-    first attempt, a good second one). The last reply repeats once the list is
-    spent, so an over-eager loop never raises here.
+    Implements the one-method ``complete`` seam the pipeline depends on, so tests
+    run without LiteLLM, a network, or an API key. ``reply`` may be a single
+    string (returned every call) or a list consumed one reply per call — the
+    latter drives the self-correction loop in tests (a broken first attempt, a
+    good second one). The last reply repeats once the list is spent, so an
+    over-eager loop never raises here. Each call is recorded under ``calls`` in
+    the ``{"messages": [{"content": prompt}], ...}`` shape the assertions read.
     """
 
     def __init__(self, reply: str | list[str]) -> None:
         self.replies = [reply] if isinstance(reply, str) else list(reply)
         self.calls: list[dict] = []
-        self.messages = SimpleNamespace(create=self._create)
 
-    def _create(self, **kwargs):
-        self.calls.append(kwargs)
-        text = self.replies[min(len(self.calls) - 1, len(self.replies) - 1)]
-        return SimpleNamespace(
-            content=[SimpleNamespace(text=text)],
-            usage=SimpleNamespace(input_tokens=11, output_tokens=7),
+    def complete(self, prompt: str, *, model: str, max_tokens: int) -> LLMResponse:
+        self.calls.append(
+            {
+                "messages": [{"role": "user", "content": prompt}],
+                "model": model,
+                "max_tokens": max_tokens,
+            }
         )
+        text = self.replies[min(len(self.calls) - 1, len(self.replies) - 1)]
+        return LLMResponse(text=text, input_tokens=11, output_tokens=7)
 
 
 @pytest.fixture
@@ -94,7 +98,7 @@ def test_extract_sql_strips_fences_and_whitespace(raw, expected):
 
 def test_generate_sets_candidate_sql_via_injected_client():
     state = RunState(question="how many users?", db_id="payments")
-    client = FakeAnthropic(reply="```sql\nSELECT count(*) FROM users;\n```")
+    client = FakeLLMClient(reply="```sql\nSELECT count(*) FROM users;\n```")
 
     generate(state, schema="CREATE TABLE users (id INT);", client=client)
 
@@ -141,7 +145,7 @@ def test_execute_handles_missing_sql(sqlite_engine):
 
 
 def test_run_pipeline_wires_generate_then_execute(sqlite_engine):
-    client = FakeAnthropic(reply="SELECT count(*) AS n FROM users WHERE country = 'US'")
+    client = FakeLLMClient(reply="SELECT count(*) AS n FROM users WHERE country = 'US'")
 
     state = run_pipeline(
         "how many US users?",
@@ -228,7 +232,7 @@ def test_render_prompt_without_correction_matches_v2_shape():
 def test_loop_recovers_within_budget(sqlite_engine):
     # A broken first attempt, a good second one: the loop feeds the error back and
     # recovers inside the budget — the pass@1→pass@k story in miniature.
-    client = FakeAnthropic(
+    client = FakeLLMClient(
         reply=[
             "SELECT count(*) AS n FROM nonexistent_table",  # attempt 1 errors
             "SELECT count(*) AS n FROM users WHERE country = 'US'",  # attempt 2 ok
@@ -253,7 +257,7 @@ def test_loop_recovers_within_budget(sqlite_engine):
 
 
 def test_loop_exhausts_budget_when_never_recovering(sqlite_engine):
-    client = FakeAnthropic(reply="SELECT count(*) AS n FROM nonexistent_table")
+    client = FakeLLMClient(reply="SELECT count(*) AS n FROM nonexistent_table")
 
     state = run_pipeline(
         "broken",
@@ -270,7 +274,7 @@ def test_loop_exhausts_budget_when_never_recovering(sqlite_engine):
 
 def test_single_shot_default_makes_one_attempt(sqlite_engine):
     # Default budget is 1: no correction, exactly one generate — pass@1 mode.
-    client = FakeAnthropic(reply="SELECT count(*) AS n FROM nonexistent_table")
+    client = FakeLLMClient(reply="SELECT count(*) AS n FROM nonexistent_table")
 
     state = run_pipeline(
         "broken",
@@ -294,7 +298,7 @@ def test_high_budget_passk_does_not_trip_langgraph_recursion_limit(sqlite_engine
     # guard-passing count(*) SQL reaches execute every attempt (a SELECT * would be
     # rejected pre-execution and end at attempt 1). Asserting the whole budget is
     # spent proves the loop runs to exhaustion, not cut short by the framework.
-    client = FakeAnthropic(reply="SELECT count(*) AS n FROM nonexistent_table")
+    client = FakeLLMClient(reply="SELECT count(*) AS n FROM nonexistent_table")
 
     state = run_pipeline(
         "broken",
