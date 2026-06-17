@@ -8,17 +8,22 @@ derivation, and table rendering. No network, no key.
 
 from __future__ import annotations
 
+import eval.eval_cross_provider as xp
 from eval.eval_cross_provider import (
     OPENROUTER_ROUTING_PIN,
+    PROVIDER_ERROR_PREFIX,
     ProviderRow,
     cost_basis,
     cross_provider_models,
     make_client,
+    make_factory,
+    provider_errors,
     provider_row,
     render_table,
     results_row,
     row_cost,
 )
+from eval.harness import Case
 from eval.metrics import BatchReport, CaseResult
 from nl2sql.llm import LiteLLMClient
 from nl2sql.pipeline.state import TerminalState
@@ -33,6 +38,7 @@ def _case(
     out: int = 0,
     provider_cost: float | None = None,
     latency_ms: float = 0.0,
+    note: str | None = None,
 ) -> CaseResult:
     return CaseResult(
         case_id=cid,
@@ -44,6 +50,7 @@ def _case(
         output_tokens=out,
         latency_ms=latency_ms,
         provider_cost_usd=provider_cost,
+        note=note,
     )
 
 
@@ -157,6 +164,7 @@ def test_render_table_formats_cost_and_na():
     ]
     table = render_table(rows, k=3)
     assert "pass@1 | pass@3 | cost (USD) | cost basis" in table
+    assert "provider errors" in table  # the resilience column
     assert "0.500 (20/40)" in table and "0.550 (22/40)" in table
     assert "$0.0123" in table
     assert "| n/a |" in table  # missing cost renders n/a, never a fabricated number
@@ -170,3 +178,49 @@ def test_results_row_points_at_best_model():
     row = results_row(rows, k=3, commit="abc1234")
     assert "| 7 |" in row and "best pass@1 0.650 (`openrouter/a/m2`)" in row
     assert "abc1234" in row
+
+
+# --- resilience: a provider error must not abort the whole run ---------------
+
+
+def test_provider_errors_counts_only_provider_failures():
+    report = BatchReport(
+        (
+            _case("ok", correct=True),
+            _case(
+                "sql_err",
+                correct=False,
+                note="(sqlite3.OperationalError) no such table",
+            ),
+            _case(
+                "rate",
+                correct=False,
+                note=f"{PROVIDER_ERROR_PREFIX} RateLimitError: 429",
+            ),
+        )
+    )
+    assert provider_errors(report) == 1
+    # And it surfaces on the row so a depressed accuracy is read in context.
+    assert provider_row("openrouter/a/m", report).provider_errors == 1
+
+
+def test_guarded_runner_captures_provider_exception(monkeypatch):
+    # A rate limit (or any provider/transport error) is caught per case and turned
+    # into an errored RunState — the batch survives instead of the whole job dying.
+    def boom(*args, **kwargs):
+        raise RuntimeError("RateLimitError: 429 temporarily rate-limited upstream")
+
+    monkeypatch.setattr(xp, "_schema", lambda db_id: "CREATE TABLE t (id INT);")
+    monkeypatch.setattr(xp, "_engine", lambda db_id: None)
+    monkeypatch.setattr(xp, "run_pipeline", boom)
+
+    run_one = make_factory("openrouter/a/m", {})(3)
+    case = Case(
+        id="q1", question="q", db_id="bird", gold_sql="SELECT 1", gold_result={}
+    )
+    state = run_one(case)
+
+    assert state.error is not None
+    assert state.error.startswith(PROVIDER_ERROR_PREFIX)
+    assert "RateLimitError" in state.error
+    assert state.attempts == 1  # buckets as a single-shot error, not a crash

@@ -115,6 +115,7 @@ class ProviderRow:
     cost_usd: float | None
     cost_basis: str
     mean_latency_ms: float
+    provider_errors: int = 0
 
     @property
     def pass1(self) -> float:
@@ -136,47 +137,86 @@ def provider_row(model: str, passk: BatchReport) -> ProviderRow:
         cost_usd=row_cost(model, passk),
         cost_basis=cost_basis(model),
         mean_latency_ms=passk.mean_latency_ms,
+        provider_errors=provider_errors(passk),
     )
 
 
 def render_table(rows: list[ProviderRow], *, k: int) -> str:
-    """The markdown cross-provider table (accuracy × cost × latency, basis noted)."""
+    """The markdown cross-provider table (accuracy × cost × latency, basis noted).
+
+    The ``provider errors`` column flags cases that failed at the provider (e.g.
+    rate limits), so a depressed accuracy is read in context rather than as model
+    quality.
+    """
     head = (
         f"| model | pass@1 | pass@{k} | cost (USD) | cost basis | "
-        f"mean latency (ms) |\n| --- | --- | --- | --- | --- | --- |"
+        f"mean latency (ms) | provider errors |\n"
+        f"| --- | --- | --- | --- | --- | --- | --- |"
     )
     lines = [head]
     for r in rows:
         cost = f"${r.cost_usd:.4f}" if r.cost_usd is not None else "n/a"
+        errs = f"{r.provider_errors}/{r.total}" if r.provider_errors else "0"
         lines.append(
             f"| `{r.model}` | {r.pass1:.3f} ({r.n_correct_1}/{r.total}) | "
             f"{r.passk:.3f} ({r.n_correct_k}/{r.total}) | {cost} | "
-            f"{r.cost_basis} | {r.mean_latency_ms:.0f} |"
+            f"{r.cost_basis} | {r.mean_latency_ms:.0f} | {errs} |"
         )
     return "\n".join(lines)
 
 
+# Marks a case whose *generation call itself* failed (e.g. an OpenRouter 429
+# rate limit), as opposed to a SQL execution error. A live run exposed that a
+# single uncaught provider error aborted the whole multi-model job and wrote
+# nothing — so the runner now captures it per case: the batch survives, the case
+# buckets as an error, and the count is surfaced so a depressed accuracy is read
+# as "infra failures", not the model being wrong.
+PROVIDER_ERROR_PREFIX = "provider_error:"
+
+
 def make_factory(model: str, evidence: dict[str, str]):
-    """Bind the import-shared pipeline into a budget-parameterized runner."""
+    """Bind the import-shared pipeline into a budget-parameterized runner.
+
+    A provider/transport exception (rate limit, auth, transient 5xx) is caught
+    and turned into an errored ``RunState`` rather than propagating — one model's
+    bad spell can't discard the other models' completed work.
+    """
     client = make_client(model)
 
     def factory(max_attempts: int) -> RunOne:
         def run_one(case: Case) -> RunState:
-            return run_pipeline(
-                case.question,
-                schema=_schema(case.db_id),
-                engine=_engine(case.db_id),
-                db_id=case.db_id,
-                dialect=DIALECT,
-                evidence=evidence.get(case.id, ""),
-                model=model,
-                client=client,
-                max_attempts=max_attempts,
-            )
+            try:
+                return run_pipeline(
+                    case.question,
+                    schema=_schema(case.db_id),
+                    engine=_engine(case.db_id),
+                    db_id=case.db_id,
+                    dialect=DIALECT,
+                    evidence=evidence.get(case.id, ""),
+                    model=model,
+                    client=client,
+                    max_attempts=max_attempts,
+                )
+            except Exception as e:  # noqa: BLE001 — provider failures are opaque
+                state = RunState(
+                    question=case.question, db_id=case.db_id, max_attempts=max_attempts
+                )
+                state.attempts = 1
+                state.error = f"{PROVIDER_ERROR_PREFIX} {type(e).__name__}: {e}"
+                return state
 
         return run_one
 
     return factory
+
+
+def provider_errors(report: BatchReport) -> int:
+    """How many cases failed at the provider (vs a SQL execution error)."""
+    return sum(
+        1
+        for r in report.results
+        if r.note is not None and r.note.startswith(PROVIDER_ERROR_PREFIX)
+    )
 
 
 def evaluate_model(
@@ -215,6 +255,13 @@ def results_prose(rows: list[ProviderRow], *, k: int) -> str:
         f"pinned (`allow_fallbacks: false`) for repeatability (PRD §9). Reproduce "
         f"with `uv run python -m eval.eval_cross_provider`."
     )
+    total_errs = sum(r.provider_errors for r in rows)
+    if total_errs:
+        head += (
+            f" **Caveat:** {total_errs} case(s) failed at the provider (e.g. "
+            f"OpenRouter rate limits) — see the `provider errors` column; those "
+            f"rows' accuracy is depressed by infra failures, not model quality."
+        )
     return head + "\n\n" + render_table(rows, k=k)
 
 
