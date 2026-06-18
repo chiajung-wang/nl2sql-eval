@@ -67,4 +67,4 @@ model/tokens/cost and keeps prompts off the trace by design).
 
 **GitHub:** [#96](https://github.com/chiajung-wang/nl2sql-eval/issues/96) · label `agent-ready`, `step-8`
 
-**PR:** _pending_
+**PR:** [#98](https://github.com/chiajung-wang/nl2sql-eval/pull/98)
