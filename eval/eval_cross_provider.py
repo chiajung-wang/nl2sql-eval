@@ -48,7 +48,13 @@ from eval.eval_bird import (
     build_bird_cases,
     slice_id,
 )
-from eval.harness import Case, RunOne, derive_pass1_report, run_batch
+from eval.harness import (
+    Case,
+    RunOne,
+    batch_session_id,
+    derive_pass1_report,
+    run_batch,
+)
 from eval.metrics import BatchReport
 from nl2sql import obs
 from nl2sql.llm import LiteLLMClient, LLMClient
@@ -229,7 +235,13 @@ def evaluate_model(
     model: str, cases: list[Case], evidence: dict[str, str], *, k: int
 ) -> ProviderRow:
     """Run the slice for one model (pass@k) and build its table row."""
-    passk = run_batch(cases, make_factory(model, evidence)(k))
+    passk = run_batch(
+        cases,
+        make_factory(model, evidence)(k),
+        session_id=batch_session_id(
+            "cross-provider", model=model, prompt_version=PROMPT_VERSION
+        ),
+    )
     return provider_row(model, passk)
 
 

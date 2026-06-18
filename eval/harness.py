@@ -19,10 +19,12 @@ import logging
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from eval.compare import DEFAULT_RULES, Comparison, compare
 from eval.metrics import BatchReport, CaseResult, TwinReport, retrieval_recall
+from nl2sql import obs
 from nl2sql.pipeline.state import RunState, TerminalState
 
 logger = logging.getLogger(__name__)
@@ -117,18 +119,56 @@ def score_run(
     return comparison, terminal
 
 
+def batch_session_id(
+    label: str, *, model: str, prompt_version: str | None = None
+) -> str:
+    """Stable, readable id grouping one batch's traces into a Langfuse Session.
+
+    Format: ``<label>:<model>[:<prompt_version>]:<UTC date>`` — distinct across
+    configs (the label carries the mode, e.g. ``bird-rag-select``; the model and
+    prompt version carry the rest) yet **stable within a UTC day**, so same-day
+    re-runs of the same config land in one Session and compare. It is a run
+    *identifier* only — never PII (CLAUDE.md §5.3).
+    """
+    parts = [label, model]
+    if prompt_version:
+        parts.append(prompt_version)
+    parts.append(datetime.now(UTC).date().isoformat())
+    return ":".join(parts)
+
+
 def run_batch(
     cases: Sequence[Case],
     run_one: RunOne,
     *,
     rules: Sequence[str] = DEFAULT_RULES,
+    session_id: str | None = None,
 ) -> BatchReport:
     """Run each case through ``run_one``, score it, and aggregate into a report.
 
     Batch-capable, offline, repeatable — invokable as a job (this is what enables
     prompt-CI later). Logs per-case the verdict and terminal state, **never the
     result rows** (the comparator runs upstream of redaction, CLAUDE.md §5.3).
+
+    ``session_id`` groups *this batch's* per-question traces into one Langfuse
+    Session (via the ``obs`` seam's ``trace_attributes``), so a whole eval run is
+    one comparable unit in the Sessions view. Offline-safe and a pure no-op without
+    it: ``trace_attributes`` does nothing when ``session_id`` is ``None`` or
+    Langfuse is unconfigured, so the harness stays import-shared and test-stubbable
+    exactly as before. Build the id with :func:`batch_session_id`.
     """
+    results: list[CaseResult] = []
+    with obs.trace_attributes(session_id=session_id):
+        results = _run_cases(cases, run_one, rules=rules)
+    return BatchReport(tuple(results))
+
+
+def _run_cases(
+    cases: Sequence[Case],
+    run_one: RunOne,
+    *,
+    rules: Sequence[str],
+) -> list[CaseResult]:
     results: list[CaseResult] = []
     for case in cases:
         start = time.perf_counter()
@@ -178,7 +218,7 @@ def run_batch(
             correct,
             state.attempts or 1,
         )
-    return BatchReport(tuple(results))
+    return results
 
 
 def run_twin(
@@ -188,6 +228,7 @@ def run_twin(
     k: int,
     model: str,
     rules: Sequence[str] = DEFAULT_RULES,
+    session_id: str | None = None,
 ) -> TwinReport:
     """Run the slice twice — correction off then on — into a :class:`TwinReport`.
 
@@ -199,8 +240,12 @@ def run_twin(
     prefer :func:`derive_pass1_report` over a single pass@k run — that is what the
     Step-5 DoD reports. ``model`` prices both batches (Step 5, issue #43).
     """
-    pass1 = run_batch(cases, run_one_factory(1), rules=rules)
-    passk = run_batch(cases, run_one_factory(k), rules=rules)
+    # Two independent runs → two sibling Sessions (``…:pass1`` / ``…:pass{k}``) so
+    # the correction-off and correction-on traces stay distinguishable in the UI.
+    s1 = f"{session_id}:pass1" if session_id else None
+    sk = f"{session_id}:pass{k}" if session_id else None
+    pass1 = run_batch(cases, run_one_factory(1), rules=rules, session_id=s1)
+    passk = run_batch(cases, run_one_factory(k), rules=rules, session_id=sk)
     return TwinReport(pass1=pass1, passk=passk, model=model)
 
 

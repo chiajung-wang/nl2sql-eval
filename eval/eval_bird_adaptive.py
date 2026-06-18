@@ -47,7 +47,7 @@ from eval.eval_bird import (
     build_bird_cases,
 )
 from eval.eval_bird_rag import _index, make_naive_run_one, make_rag_run_one, slice6_id
-from eval.harness import Case, run_batch
+from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql import obs
 from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
@@ -252,15 +252,35 @@ def main(argv: list[str] | None = None) -> int:
     cases, evidence = build_bird_cases(ids)
 
     print(f"=== naive full dump ({len(cases)} questions) ===")
-    naive = run_batch(cases, make_naive_run_one(evidence))
+    naive = run_batch(
+        cases,
+        make_naive_run_one(evidence),
+        session_id=batch_session_id(
+            "bird-adaptive-naive", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+        ),
+    )
     print("\n".join(summary_lines(naive)))
 
     print(f"\n=== always-RAG (capped, no gate) ({len(cases)} questions) ===")
-    rag = run_batch(cases, make_rag_run_one(evidence))
+    rag = run_batch(
+        cases,
+        make_rag_run_one(evidence),
+        session_id=batch_session_id(
+            "bird-adaptive-rag", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+        ),
+    )
     print("\n".join(summary_lines(rag)))
 
     print(f"\n=== adaptive gate @{budget}t ({len(cases)} questions) ===")
-    adaptive = run_batch(cases, make_adaptive_run_one(evidence, budget_tokens=budget))
+    adaptive = run_batch(
+        cases,
+        make_adaptive_run_one(evidence, budget_tokens=budget),
+        session_id=batch_session_id(
+            f"bird-adaptive-gate@{budget}t",
+            model=DEFAULT_MODEL,
+            prompt_version=PROMPT_VERSION,
+        ),
+    )
     print("\n".join(summary_lines(adaptive)))
 
     decisions = gate_decisions(cases, budget)
