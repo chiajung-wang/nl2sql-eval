@@ -22,12 +22,18 @@ class FakeObservation:
     """A recorded Langfuse observation: its creation args and ``.update`` payload."""
 
     def __init__(
-        self, name: str, as_type: str, metadata: dict, parent: FakeObservation | None
+        self,
+        name: str,
+        as_type: str,
+        metadata: dict,
+        parent: FakeObservation | None,
+        input: object = None,
     ):
         self.name = name
         self.as_type = as_type
         self.metadata = metadata
         self.parent = parent
+        self.input = input
         self.update_kwargs: dict | None = None
 
     def update(self, **kwargs):
@@ -48,9 +54,11 @@ class FakeLangfuse:
         self.flushed = 0
 
     @contextmanager
-    def start_as_current_observation(self, *, name, as_type, metadata=None, **_):
+    def start_as_current_observation(
+        self, *, name, as_type, metadata=None, input=None, **_
+    ):
         parent = self._stack[-1] if self._stack else None
-        ob = FakeObservation(name, as_type, metadata or {}, parent)
+        ob = FakeObservation(name, as_type, metadata or {}, parent, input=input)
         self.observations.append(ob)
         self._stack.append(ob)
         try:
@@ -201,3 +209,80 @@ def test_span_update_failure_never_breaks_the_stage(fake_client):
     with obs.stage_span("execute", db_id="payments") as extra:
         extra["row_count"] = 1
     assert extra["row_count"] == 1
+
+
+# --- trace-level input/output and attributes ---------------------------------
+
+
+def test_trace_input_is_recorded_on_the_root_observation(fake_client):
+    """The root span's ``trace_input`` (the NL question) is set on the observation.
+
+    In v4 the root observation's input becomes the trace input — what makes a run
+    readable at a glance: question in, result-shape out.
+    """
+    with obs.stage_span(
+        "pipeline", trace_input="How many users are from the US?", db_id="payments"
+    ) as extra:
+        extra["presented_row_count"] = 1
+
+    (ob,) = fake_client.observations
+    assert ob.input == "How many users are from the US?"
+    assert ob.update_kwargs["output"] == {"presented_row_count": 1}
+
+
+def test_stage_span_omits_input_when_not_given(fake_client):
+    """A normal stage passes no ``input`` — only the root span opts in."""
+    with obs.stage_span("execute", db_id="payments"):
+        pass
+    (ob,) = fake_client.observations
+    assert ob.input is None
+
+
+def test_trace_attributes_is_noop_without_client():
+    """Offline (no client), ``trace_attributes`` is a pure pass-through."""
+    obs.set_client(None)
+    try:
+        with obs.trace_attributes(trace_name="nl2sql", tags=["db:x"]):
+            pass  # must not raise, must not touch langfuse
+    finally:
+        obs.reset_client()
+
+
+def test_trace_attributes_propagates_only_set_fields(fake_client, monkeypatch):
+    """When wired, only the non-None attributes reach ``propagate_attributes``."""
+    import langfuse
+
+    captured: dict = {}
+
+    @contextmanager
+    def fake_propagate(**kwargs):
+        captured.update(kwargs)
+        yield
+
+    monkeypatch.setattr(langfuse, "propagate_attributes", fake_propagate)
+
+    with obs.trace_attributes(
+        trace_name="nl2sql",
+        session_id="run-2026-06-18",
+        tags=["db:payments", "model:claude-x"],
+    ):
+        pass
+
+    assert captured == {
+        "trace_name": "nl2sql",
+        "session_id": "run-2026-06-18",
+        "tags": ["db:payments", "model:claude-x"],
+    }
+
+
+def test_trace_attributes_survives_a_langfuse_failure(fake_client, monkeypatch):
+    """A failing ``propagate_attributes`` degrades to a pass-through, never raises."""
+    import langfuse
+
+    def boom(**_):
+        raise RuntimeError("langfuse down")
+
+    monkeypatch.setattr(langfuse, "propagate_attributes", boom)
+
+    with obs.trace_attributes(trace_name="nl2sql"):
+        pass  # the run continues despite the obs failure

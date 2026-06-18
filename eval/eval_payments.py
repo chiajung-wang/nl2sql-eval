@@ -25,6 +25,7 @@ from dotenv import load_dotenv
 from eval.datasets.payments.questions import load_questions
 from eval.harness import Case, run_batch
 from eval.metrics import BatchReport, summary_lines
+from nl2sql import obs
 from nl2sql.pipeline.execute import get_engine
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.redact import RedactionPolicy
@@ -83,6 +84,9 @@ def main() -> int:
 
     report = run_batch(cases, run_one)
     _print_report(report)
+    # Short-lived job: export buffered Langfuse spans before exit. A no-op offline
+    # and redundant with the SDK's atexit flush, but makes export deterministic.
+    obs.flush()
     return 0
 
 

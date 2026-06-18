@@ -79,10 +79,17 @@ def _build_client() -> Any | None:
         os.environ.get("LANGFUSE_PUBLIC_KEY") and os.environ.get("LANGFUSE_SECRET_KEY")
     ):
         return None
+    # The Python SDK reads ``LANGFUSE_HOST``; the ``langfuse-cli`` reads
+    # ``LANGFUSE_BASE_URL``. Honor either so one env var drives both and a non-EU
+    # region (e.g. ``https://jp.cloud.langfuse.com``) isn't silently ignored —
+    # without this, keys for another region default to EU cloud and fail to auth.
+    host = os.environ.get("LANGFUSE_HOST") or os.environ.get("LANGFUSE_BASE_URL")
     try:
         from langfuse import Langfuse
 
-        return Langfuse()  # reads LANGFUSE_* (keys, host) from the environment
+        # Keys come from the environment; ``host`` is passed explicitly so the
+        # BASE_URL fallback above is honored (Langfuse() alone reads only HOST).
+        return Langfuse(host=host) if host else Langfuse()
     except Exception:  # pragma: no cover - defensive; obs must never break a run
         logger.warning("langfuse client unavailable; tracing disabled", exc_info=True)
         return None
@@ -155,8 +162,66 @@ def _span_update(
 
 
 @contextmanager
+def trace_attributes(
+    *,
+    trace_name: str | None = None,
+    session_id: str | None = None,
+    user_id: str | None = None,
+    tags: list[str] | None = None,
+    metadata: dict[str, str] | None = None,
+) -> Iterator[None]:
+    """Apply trace-level correlating attributes to every span opened inside.
+
+    The Langfuse v4 seam for trace-level identity and filtering: ``trace_name``,
+    ``session_id``, ``user_id``, ``tags`` and ``metadata`` are propagated (via
+    ``propagate_attributes``) onto the root observation and *all* its children, so
+    one run's trace is findable and filterable in the UI — name it, tag it with the
+    db/model, and (when a caller threads one) group a whole eval batch under a
+    single ``session_id`` in the Sessions view.
+
+    Only safe, low-cardinality identifiers belong here — the db id, the model, a
+    run id. **Never PII** (CLAUDE.md §5.3): result rows are masked by ``redact`` and
+    never flow through here. Offline-safe and best-effort by construction: a no-op
+    when Langfuse is unconfigured, and any failure degrades to a plain pass-through
+    so observability is never a dependency of a run.
+    """
+    kwargs = {
+        k: v
+        for k, v in (
+            ("trace_name", trace_name),
+            ("session_id", session_id),
+            ("user_id", user_id),
+            ("tags", tags),
+            ("metadata", metadata),
+        )
+        if v is not None
+    }
+    if get_client() is None or not kwargs:
+        yield
+        return
+
+    cm: Any = None
+    try:
+        from langfuse import propagate_attributes
+
+        cm = propagate_attributes(**kwargs)
+        cm.__enter__()
+    except Exception:  # pragma: no cover - obs must never break a run
+        logger.warning("langfuse trace attributes unavailable", exc_info=True)
+        cm = None
+    try:
+        yield
+    finally:
+        if cm is not None:
+            try:
+                cm.__exit__(None, None, None)
+            except Exception:  # pragma: no cover - obs must never break a run
+                logger.warning("langfuse trace attributes exit failed", exc_info=True)
+
+
+@contextmanager
 def stage_span(
-    stage: str, *, as_type: str = "span", **fields: Any
+    stage: str, *, as_type: str = "span", trace_input: Any = None, **fields: Any
 ) -> Iterator[dict[str, Any]]:
     """Wrap a pipeline stage: structured start/end logs *and* a Langfuse span.
 
@@ -167,6 +232,12 @@ def stage_span(
     (with tokens/cost promoted to Langfuse's native axes). ``as_type="generation"``
     marks an LLM call so token/cost usage attributes to a generation span and the
     model is recorded — the ``generate`` stage opts in.
+
+    ``trace_input`` sets the observation's *input*. On the **root** span of a run
+    (the ``pipeline`` span) this becomes the trace's input — the NL question (the
+    user's own message, not result data), making the trace readable at a glance:
+    question in, result-shape out. Only the safe NL question and result *shapes*
+    are ever attached — raw PII never reaches the span (CLAUDE.md §5.3).
 
     If the wrapped body raises, the exception propagates unchanged (the stage's
     own error handling is untouched) but the span is first marked errored and the
@@ -180,9 +251,14 @@ def stage_span(
 
     client = get_client()
     if client is not None:
-        span_cm = client.start_as_current_observation(
-            name=stage, as_type=as_type, metadata=dict(fields)
-        )
+        obs_kwargs: dict[str, Any] = {
+            "name": stage,
+            "as_type": as_type,
+            "metadata": dict(fields),
+        }
+        if trace_input is not None:
+            obs_kwargs["input"] = trace_input
+        span_cm = client.start_as_current_observation(**obs_kwargs)
     else:
         span_cm = nullcontext(None)
 

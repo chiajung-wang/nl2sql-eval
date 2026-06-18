@@ -32,6 +32,7 @@ from eval.datasets.bird import loader
 from eval.datasets.bird.slice import SLICE_FILE, load_slice_ids
 from eval.harness import Case, run_batch
 from eval.metrics import BatchReport, summary_lines
+from nl2sql import obs
 from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
@@ -147,6 +148,9 @@ def main(argv: list[str] | None = None) -> int:
     if write:
         append_results(row)
         print(f"\nappended to {RESULTS_PATH.name}")
+    # Short-lived job: export buffered Langfuse spans before exit. A no-op offline
+    # and redundant with the SDK's atexit flush, but makes export deterministic.
+    obs.flush()
     return 0
 
 
