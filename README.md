@@ -143,7 +143,7 @@ The **model is chosen per run** by the provider-prefixed `model` argument to `ru
 uv run python -m eval.langfuse_smoke   # sends one trace, prints its URL
 ```
 
-Then any `eval.eval_*` run (or the demo) produces one trace per question — a `pipeline` root (the NL question in, the redacted result-shape out) with a child span per stage and token/cost on the `generate` generation — filterable by the `db:` / `model:` tags. The same trace is also captured offline for the blog via `uv run python -m eval.prove_step8`.
+Then any `eval.eval_*` run (or the demo) produces one trace per question — a `pipeline` root (the NL question in, the redacted result-shape out) with a child span per stage and token/cost on the `generate` generation — filterable by the `db:` / `model:` tags. Each batch is also grouped into one **Langfuse Session** (`<mode>:<model>:<prompt>:<UTC date>`, e.g. `bird-naive:anthropic/claude-sonnet-4-6:v3:2026-06-18`), so a whole eval run is one comparable unit in the Sessions view — A/B modes (naive vs RAG, cross-provider) land in sibling sessions. The same trace is also captured offline for the blog via `uv run python -m eval.prove_step8`.
 
 ## Project Structure
 

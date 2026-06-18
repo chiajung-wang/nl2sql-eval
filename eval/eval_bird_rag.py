@@ -36,7 +36,7 @@ from eval.eval_bird import (
     append_results,
     build_bird_cases,
 )
-from eval.harness import Case, run_batch
+from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql import obs
 from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
@@ -124,11 +124,23 @@ def main(argv: list[str] | None = None) -> int:
     cases, evidence = build_bird_cases(ids)
 
     print(f"=== naive full-schema dump ({len(cases)} large-schema questions) ===")
-    naive = run_batch(cases, make_naive_run_one(evidence))
+    naive = run_batch(
+        cases,
+        make_naive_run_one(evidence),
+        session_id=batch_session_id(
+            "bird-rag-naive", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+        ),
+    )
     print("\n".join(summary_lines(naive)))
 
     print(f"\n=== schema-RAG ({len(cases)} questions) ===")
-    rag = run_batch(cases, make_rag_run_one(evidence))
+    rag = run_batch(
+        cases,
+        make_rag_run_one(evidence),
+        session_id=batch_session_id(
+            "bird-rag-select", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+        ),
+    )
     print("\n".join(summary_lines(rag)))
 
     lift = rag.accuracy - naive.accuracy

@@ -30,7 +30,7 @@ from sqlalchemy.engine import Engine
 
 from eval.datasets.bird import loader
 from eval.datasets.bird.slice import SLICE_FILE, load_slice_ids
-from eval.harness import Case, run_batch
+from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql import obs
 from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
@@ -138,7 +138,13 @@ def main(argv: list[str] | None = None) -> int:
 
     cases, evidence = build_bird_cases()
     print(f"scoring {len(cases)} BIRD questions ({DIALECT}, naive schema dump)…")
-    report = run_batch(cases, make_run_one(evidence))
+    report = run_batch(
+        cases,
+        make_run_one(evidence),
+        session_id=batch_session_id(
+            "bird-naive", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+        ),
+    )
 
     print("\n" + "\n".join(summary_lines(report)))
     row = results_row(

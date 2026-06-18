@@ -38,7 +38,13 @@ from eval.eval_bird import (
     build_bird_cases,
     slice_id,
 )
-from eval.harness import Case, RunOne, derive_pass1_report, run_batch
+from eval.harness import (
+    Case,
+    RunOne,
+    batch_session_id,
+    derive_pass1_report,
+    run_batch,
+)
 from eval.metrics import TwinReport, twin_summary_lines
 from nl2sql import obs
 from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
@@ -198,7 +204,13 @@ def main(argv: list[str] | None = None) -> int:
         f"twin-scoring {len(cases)} BIRD questions ({DIALECT}, naive schema dump): "
         f"one pass@{k} run (budget {k}); pass@1 derived from its first attempts…"
     )
-    passk = run_batch(cases, make_factory(evidence)(k))
+    passk = run_batch(
+        cases,
+        make_factory(evidence)(k),
+        session_id=batch_session_id(
+            f"bird-twin-pass{k}", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+        ),
+    )
     pass1 = derive_pass1_report(passk)
     twin = TwinReport(pass1=pass1, passk=passk, model=DEFAULT_MODEL)
 

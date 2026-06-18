@@ -49,7 +49,7 @@ from eval.eval_bird import (
     build_bird_cases,
 )
 from eval.eval_bird_rag import _index, slice6_id
-from eval.harness import Case, run_batch
+from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql import obs
 from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
@@ -275,12 +275,24 @@ def main(argv: list[str] | None = None) -> int:
     for budget in budgets:
         print(f"\n=== budget {budget}t — naive-truncate ({len(cases)} questions) ===")
         naive = run_batch(
-            cases, make_budget_run_one(evidence, budget_tokens=budget, mode="naive")
+            cases,
+            make_budget_run_one(evidence, budget_tokens=budget, mode="naive"),
+            session_id=batch_session_id(
+                f"bird-budget@{budget}t-naive",
+                model=DEFAULT_MODEL,
+                prompt_version=PROMPT_VERSION,
+            ),
         )
         print("\n".join(summary_lines(naive)))
         print(f"\n=== budget {budget}t — RAG-select ({len(cases)} questions) ===")
         rag = run_batch(
-            cases, make_budget_run_one(evidence, budget_tokens=budget, mode="rag")
+            cases,
+            make_budget_run_one(evidence, budget_tokens=budget, mode="rag"),
+            session_id=batch_session_id(
+                f"bird-budget@{budget}t-rag",
+                model=DEFAULT_MODEL,
+                prompt_version=PROMPT_VERSION,
+            ),
         )
         print("\n".join(summary_lines(rag)))
         divergence = selection_divergence(cases, budget)

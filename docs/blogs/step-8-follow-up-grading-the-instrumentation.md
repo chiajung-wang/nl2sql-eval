@@ -1,6 +1,6 @@
 ---
 title: "Step 8, Follow-up — Letting the Tool Grade Its Own Wiring"
-subtitle: "Step 8 wired Langfuse onto the pipeline. This follow-up installs Langfuse's own skill and runs its instrumentation audit over that wiring — which scored well, surfaced exactly one unmet baseline, and (once real keys went in) caught a silent blocker that would have dropped every trace on the floor."
+subtitle: "Step 8 wired Langfuse onto the pipeline. This follow-up installs Langfuse's own skill and runs its instrumentation audit over that wiring — which scored well, surfaced exactly one unmet baseline, and (once real keys went in) caught a silent blocker that would have dropped every trace on the floor. Then it groups each eval batch into one Langfuse Session."
 series: "nl2sql-eval: a case study in evaluating an LLM system"
 part: 8.5
 date: 2026-06-18
@@ -183,14 +183,37 @@ across all seven batch runners. A small thing, but it's the third or fourth time
 this series the apparatus has caught its own author rounding up; that it keeps
 happening is the system working.
 
+## The follow-up's follow-up: one batch, one Session
+
+I'd called grouping eval batches under a `session_id` the "next follow-up" — and
+rather than let it drift, I did it next, in the same step under the same discipline.
+The seam from the trace-attributes work already accepted a `session_id`; the only
+real question was *where* to set it. The wrong answer is to thread a run id through
+`run_pipeline` and every stage. The right one, in v4, is a single line at the
+harness — `propagate_attributes` applies to every child observation in scope, so
+wrapping the batch loop is enough:
+
+```python
+with obs.trace_attributes(session_id=run_id):
+    for case in cases:
+        run_one(case)   # each question's pipeline trace inherits the session
+```
+
+No pipeline signature changed. A small helper builds a stable, readable id —
+`<mode>:<model>:<prompt>:<UTC date>`, e.g.
+`bird-rag-select:anthropic/claude-sonnet-4-6:v3:2026-06-18` — so a whole eval run is
+one comparable unit in the Sessions view: same-day re-runs land together, and A/B
+modes split into *sibling* sessions (`bird-rag-naive` vs `bird-rag-select`, one per
+model on the cross-provider run, `:pass1` vs `:pass{k}` on the twin). All seven batch
+entrypoints pass one; offline it's a pure no-op, like everything else in this layer.
+That slice shipped as #96 / PR #98 through the same per-issue loop — including its
+own clean two-axis review, whose single fix was deleting a dead variable the loop
+refactor left behind. The apparatus, once more, doing its small honest job.
+
 ## What I deliberately did not do
 
-Two tempting things stayed out of scope, on purpose:
+One tempting thing stayed out of scope, on purpose:
 
-- **Grouping eval batches under one `session_id`.** The seam supports it already, but
-  actually threading a run id through the harness loop so a whole batch becomes one
-  Session is a separate, clean change. It's the next follow-up, not something to
-  smuggle into this one.
 - **Switching `generate` to LiteLLM's native Langfuse callback.** The skill prefers
   framework integrations over manual instrumentation, and in general that's right.
   But our manual generation already captures model, tokens, and cost, and it
@@ -213,6 +236,8 @@ measurement discipline at the heart of this project doesn't stop at the model. Y
 can grade your guardrails, grade your retrieval, grade your costs — and grade the
 instrumentation that lets you grade everything else.
 
-*Artifacts: [PR #95](https://github.com/chiajung-wang/nl2sql-eval/pull/95) ·
-[issue #94](https://github.com/chiajung-wang/nl2sql-eval/issues/94) ·
+*Artifacts: [PR #95](https://github.com/chiajung-wang/nl2sql-eval/pull/95)
+([#94](https://github.com/chiajung-wang/nl2sql-eval/issues/94)) ·
+[PR #98](https://github.com/chiajung-wang/nl2sql-eval/pull/98)
+([#96](https://github.com/chiajung-wang/nl2sql-eval/issues/96)) ·
 `docs/plans/step-8-follow-up/`.*

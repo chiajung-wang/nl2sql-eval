@@ -9,11 +9,21 @@ guard the logic underneath it.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from datetime import UTC, datetime
 from typing import Any
 
 from eval.compare import Verdict, compare
-from eval.harness import Case, classify_terminal_state, run_batch, score_run
+from eval.harness import (
+    Case,
+    batch_session_id,
+    classify_terminal_state,
+    run_batch,
+    run_twin,
+    score_run,
+)
 from eval.metrics import BatchReport, CaseResult
+from nl2sql import obs
 from nl2sql.pipeline.state import RunState, TerminalState
 
 
@@ -156,3 +166,65 @@ def test_case_result_note_never_carries_rows():
     note = report.results[0].note
     assert note == "result sets match"
     assert isinstance(report.results[0], CaseResult)
+
+
+# --- session grouping (Step 8 follow-up, #96) ------------------------------
+
+
+def test_batch_session_id_is_stable_and_descriptive():
+    today = datetime.now(UTC).date().isoformat()
+    sid = batch_session_id("bird-naive", model="anthropic/claude", prompt_version="v3")
+    assert sid == f"bird-naive:anthropic/claude:v3:{today}"
+    # prompt_version is optional — it drops out of the id when absent.
+    assert batch_session_id("payments", model="m") == f"payments:m:{today}"
+
+
+@contextmanager
+def _capture_sessions(monkeypatch, sink: list):
+    """Record the session_id each run_batch wraps its loop in, without Langfuse."""
+
+    @contextmanager
+    def fake_trace_attributes(**kwargs):
+        sink.append(kwargs.get("session_id"))
+        yield
+
+    monkeypatch.setattr(obs, "trace_attributes", fake_trace_attributes)
+    yield
+
+
+def test_run_batch_groups_its_loop_under_the_session(monkeypatch):
+    seen: list = []
+    with _capture_sessions(monkeypatch, seen):
+        report = run_batch(
+            [_case("ok", [[1]])],
+            lambda c: _state(columns=["n"], rows=[(1,)]),
+            session_id="bird-naive:m:v:2026-06-18",
+        )
+    # The session wraps the batch, and the cases still ran inside it.
+    assert seen == ["bird-naive:m:v:2026-06-18"]
+    assert report.results[0].terminal_state is TerminalState.SUCCESS
+
+
+def test_run_batch_default_session_is_none(monkeypatch):
+    seen: list = []
+    with _capture_sessions(monkeypatch, seen):
+        run_batch([_case("ok", [[1]])], lambda c: _state(columns=["n"], rows=[(1,)]))
+    # No session_id → trace_attributes is entered with None (a pure no-op).
+    assert seen == [None]
+
+
+def test_run_twin_uses_sibling_pass1_and_passk_sessions(monkeypatch):
+    seen: list = []
+    state = _state(columns=["n"], rows=[(1,)])
+    with _capture_sessions(monkeypatch, seen):
+        run_twin(
+            [_case("ok", [[1]])],
+            lambda budget: lambda c: state,
+            k=3,
+            model="m",
+            session_id="bird-twin:m:v:2026-06-18",
+        )
+    assert seen == [
+        "bird-twin:m:v:2026-06-18:pass1",
+        "bird-twin:m:v:2026-06-18:pass3",
+    ]

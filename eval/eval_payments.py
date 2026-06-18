@@ -23,10 +23,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from eval.datasets.payments.questions import load_questions
-from eval.harness import Case, run_batch
+from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql import obs
 from nl2sql.pipeline.execute import get_engine
+from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.redact import RedactionPolicy
 from nl2sql.pipeline.state import RunState
@@ -82,7 +83,13 @@ def main() -> int:
             redaction_policy=redaction_policy,
         )
 
-    report = run_batch(cases, run_one)
+    report = run_batch(
+        cases,
+        run_one,
+        session_id=batch_session_id(
+            "payments", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+        ),
+    )
     _print_report(report)
     # Short-lived job: export buffered Langfuse spans before exit. A no-op offline
     # and redundant with the SDK's atexit flush, but makes export deterministic.
