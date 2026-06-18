@@ -77,8 +77,8 @@ a trace was not readable at its top level. Then, wiring live keys exposed a
 
 - **`session_id` batch grouping wired through the harness.** The *seam* supports
   it (`trace_attributes(session_id=…)`); actually grouping every eval batch into a
-  Session is a clean, separate change to the harness loop — left as the next
-  follow-up rather than smuggled in here.
+  Session is a clean, separate change to the harness loop — split out as its own
+  issue (#96 / `issue-2-session-id-batch-grouping.md`) rather than smuggled in here.
 - **LiteLLM's native Langfuse callback.** The skill prefers framework
   integrations, but our manual `generate` generation already captures
   model/tokens/cost and keeps prompts/PII off the trace deliberately; switching is
@@ -86,4 +86,5 @@ a trace was not readable at its top level. Then, wiring live keys exposed a
 
 ## Issues
 
-- `issue-1-langfuse-tracing-best-practices.md` — [#94](https://github.com/chiajung-wang/nl2sql-eval/issues/94) — the audit + the five deliverables above (single cohesive slice).
+- `issue-1-langfuse-tracing-best-practices.md` — [#94](https://github.com/chiajung-wang/nl2sql-eval/issues/94) — the audit + the five deliverables above (single cohesive slice). ✅ merged ([PR #95](https://github.com/chiajung-wang/nl2sql-eval/pull/95))
+- `issue-2-session-id-batch-grouping.md` — [#96](https://github.com/chiajung-wang/nl2sql-eval/issues/96) — group each eval batch under one Langfuse `session_id` (the deferred next slice).
