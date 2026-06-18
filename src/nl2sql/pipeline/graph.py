@@ -41,7 +41,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.engine import Engine
 
-from nl2sql.obs import stage_span
+from nl2sql.obs import stage_span, trace_attributes
 from nl2sql.pipeline.correct import correct
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
@@ -313,7 +313,20 @@ def run_pipeline(
     if (schema is None) == (schema_index is None):
         raise ValueError("run_pipeline needs exactly one of schema= or schema_index=")
     budget = max(1, max_attempts)
-    with stage_span("pipeline", db_id=db_id, max_attempts=budget):
+    # Name and tag the trace so a run is findable/filterable in the Langfuse UI
+    # (db and model are the cross-provider / single-db filter axes, CLAUDE.md §5.8).
+    # ``trace_input`` records the NL question as the trace's input; the result-shape
+    # below is its output — never raw rows (CLAUDE.md §5.3).
+    with (
+        trace_attributes(trace_name="nl2sql", tags=[f"db:{db_id}", f"model:{model}"]),
+        stage_span(
+            "pipeline",
+            trace_input=question,
+            db_id=db_id,
+            model=model,
+            max_attempts=budget,
+        ) as extra,
+    ):
         state = RunState(question=question, db_id=db_id, max_attempts=budget)
         config: RunnableConfig = {
             "configurable": {
@@ -338,6 +351,18 @@ def run_pipeline(
         # The second pipeline exit: mask PII into the presented result, leaving the
         # raw verified result the harness scores untouched (CLAUDE.md §3/§5.2).
         redact(run, redaction_policy)
+        # Trace output: the *presented* (redacted) result's shape and the generated
+        # SQL — counts and flags only, never raw rows (CLAUDE.md §5.3). This is what
+        # makes the trace legible at the root: question in, result-shape + SQL out.
+        extra["candidate_sql"] = run.candidate_sql
+        extra["presented_row_count"] = (
+            len(run.presented_rows) if run.presented_rows is not None else 0
+        )
+        extra["presented_column_count"] = (
+            len(run.presented_columns) if run.presented_columns is not None else 0
+        )
+        extra["attempts"] = run.attempts or 1
+        extra["guard_rejected"] = run.guard_rejected
         return run
 
 

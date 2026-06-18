@@ -129,13 +129,21 @@ Configuration is supplied via environment variables (e.g. an `.env` file). Names
 | `BIRD_DATA_DIR` | Path to downloaded BIRD SQLite databases | BIRD runs | `./eval/datasets/bird/data` |
 | `LANGFUSE_PUBLIC_KEY` | Langfuse public key (observability) | Step 8+ | `pk-lf-...` |
 | `LANGFUSE_SECRET_KEY` | Langfuse secret key | Step 8+ | `sk-lf-...` |
-| `LANGFUSE_HOST` | Langfuse host URL | Step 8+ | `https://cloud.langfuse.com` |
+| `LANGFUSE_HOST` | Langfuse host URL — set to your region (EU `cloud.langfuse.com`, US `us.cloud.langfuse.com`, JP `jp.cloud.langfuse.com`, or self-hosted). `LANGFUSE_BASE_URL` is honored as a fallback. | Step 8+ | `https://cloud.langfuse.com` |
 | `RETRY_BUDGET` | Max self-correction attempts per question | No | `3` |
 | `CROSS_PROVIDER_MODELS` | Comma-separated model ids for the Step-7 cross-provider table; unset → the default single model | Step 7 cross-provider run | `openrouter/anthropic/claude-sonnet-4,openrouter/openai/gpt-4o-mini` |
 | `BIGQUERY_PROJECT` | GCP project for BigQuery (Phase 3 reach) | No | `my-gcp-project` |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service-account JSON | No | `./gcp-key.json` |
 
 The **model is chosen per run** by the provider-prefixed `model` argument to `run_pipeline` (default `anthropic/claude-sonnet-4-6`); LiteLLM routes to the matching backend and reads the corresponding key above. No separate provider/key env var is needed — the identifier *is* the selector.
+
+**Reproduce the trace.** Tracing activates only when both Langfuse keys are set (offline it is pure structured logging — no keys, no network). With keys in `.env`, confirm export end to end before a full run:
+
+```bash
+uv run python -m eval.langfuse_smoke   # sends one trace, prints its URL
+```
+
+Then any `eval.eval_*` run (or the demo) produces one trace per question — a `pipeline` root (the NL question in, the redacted result-shape out) with a child span per stage and token/cost on the `generate` generation — filterable by the `db:` / `model:` tags. The same trace is also captured offline for the blog via `uv run python -m eval.prove_step8`.
 
 ## Project Structure
 
