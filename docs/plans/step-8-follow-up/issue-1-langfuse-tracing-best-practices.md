@@ -89,4 +89,4 @@ types, PII masking, `flush()` already covered by the SDK's `atexit`). It surface
 
 **GitHub:** [#94](https://github.com/chiajung-wang/nl2sql-eval/issues/94) · label `agent-ready`, `step-8`
 
-**PR:** _pending_
+**PR:** [#95](https://github.com/chiajung-wang/nl2sql-eval/pull/95)

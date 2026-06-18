@@ -38,6 +38,7 @@ from eval.eval_bird import (
 )
 from eval.harness import Case, run_batch
 from eval.metrics import BatchReport, summary_lines
+from nl2sql import obs
 from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
@@ -154,6 +155,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\nappended to {RESULTS_PATH.name}")
     elif limit is not None:
         print("\n(--limit run: not writing RESULTS.md)")
+    # Short-lived job: export buffered Langfuse spans before exit. A no-op offline
+    # and redundant with the SDK's atexit flush, but makes export deterministic.
+    obs.flush()
     return 0
 
 
