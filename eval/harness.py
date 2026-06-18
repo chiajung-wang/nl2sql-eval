@@ -157,7 +157,6 @@ def run_batch(
     Langfuse is unconfigured, so the harness stays import-shared and test-stubbable
     exactly as before. Build the id with :func:`batch_session_id`.
     """
-    results: list[CaseResult] = []
     with obs.trace_attributes(session_id=session_id):
         results = _run_cases(cases, run_one, rules=rules)
     return BatchReport(tuple(results))
