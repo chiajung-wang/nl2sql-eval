@@ -1,0 +1,141 @@
+# Prompt-CI/CD — the Step 9 senior differentiator, live.
+#
+# When a PR changes a prompt, run the *same import-shared pipeline* the harness
+# measures over the frozen, seeded, stratified prompt-CI slice (slice_ci.json)
+# twice — once with the base (main) prompt, once with the PR's prompt — and post
+# the pass@1/pass@k deltas to the job summary and a sticky PR comment. A delta
+# then means a real regression or improvement, not sampling noise (the slice is
+# frozen and stratified, plan-step-9).
+#
+# COST GUARD: the slice is deliberately small (12 questions). Each push runs it
+# twice (base + PR), each a pass@k run, so per-push LLM cost scales with
+# size × k × 2 ≈ 12 × 3 × 2 = 72 completions on a small-schema dump. That is the
+# whole point of a fixed small subset instead of full BIRD per push.
+#
+# GATING (defer-API-key): the live eval runs only when ANTHROPIC_API_KEY and a
+# BIRD data source (BIRD_DEV_URL repo variable) are configured. Otherwise the job
+# reports that it was skipped, so the workflow is always informative and never
+# fails a PR for missing secrets.
+
+name: prompt-ci
+
+on:
+  pull_request:
+    paths:
+      - "prompts/**"
+      - "src/nl2sql/prompts.py" # where the active version/template is pinned
+
+permissions:
+  contents: read
+  pull-requests: write # to upsert the sticky delta comment
+
+concurrency:
+  group: prompt-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  prompt-eval:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BIRD_DEV_URL: ${{ vars.BIRD_DEV_URL }}
+      BIRD_DATA_DIR: ${{ github.workspace }}/eval/datasets/bird/data
+    steps:
+      - name: Check out the PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need the base ref to diff the base prompt
+
+      - name: Decide whether the live eval can run
+        id: gate
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ] && [ -n "$BIRD_DEV_URL" ]; then
+            echo "live=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "live=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up uv + Python
+        if: steps.gate.outputs.live == 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        if: steps.gate.outputs.live == 'true'
+        run: uv sync --frozen
+
+      - name: Cache the BIRD dev data
+        if: steps.gate.outputs.live == 'true'
+        id: bird-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BIRD_DATA_DIR }}
+          key: bird-dev-${{ hashFiles('eval/datasets/bird/slice_ci.json') }}
+
+      - name: Download the BIRD dev data
+        if: steps.gate.outputs.live == 'true' && steps.bird-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$BIRD_DATA_DIR"
+          curl -fsSL "$BIRD_DEV_URL" -o /tmp/bird-dev.zip
+          unzip -q /tmp/bird-dev.zip -d "$BIRD_DATA_DIR"
+          # The slice's small-schema dbs ship as nested zips in the BIRD archive;
+          # unpack any inner dev_databases archive if present.
+          if [ -f "$BIRD_DATA_DIR/dev_databases.zip" ]; then
+            unzip -q "$BIRD_DATA_DIR/dev_databases.zip" -d "$BIRD_DATA_DIR"
+          fi
+
+      - name: Run the PR prompt on the frozen slice
+        if: steps.gate.outputs.live == 'true'
+        run: uv run python -m eval.prompt_ci --report head.json
+
+      - name: Check out the base prompt
+        if: steps.gate.outputs.live == 'true'
+        run: |
+          git checkout "origin/${{ github.base_ref }}" -- prompts/ src/nl2sql/prompts.py
+
+      - name: Run the base prompt on the frozen slice
+        if: steps.gate.outputs.live == 'true'
+        run: uv run python -m eval.prompt_ci --report base.json
+
+      - name: Restore the PR prompt
+        if: steps.gate.outputs.live == 'true'
+        run: git checkout HEAD -- prompts/ src/nl2sql/prompts.py
+
+      - name: Render the pass@1/pass@k delta
+        if: steps.gate.outputs.live == 'true'
+        run: |
+          uv run python -m eval.prompt_ci --compare base.json head.json --out delta.md
+          cat delta.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Note a skipped run
+        if: steps.gate.outputs.live != 'true'
+        run: |
+          {
+            echo "### 🧪 Prompt-CI — skipped"
+            echo ""
+            echo "Prompts changed, but the live eval is gated: set the"
+            echo "\`ANTHROPIC_API_KEY\` secret and the \`BIRD_DEV_URL\` variable to"
+            echo "run the frozen slice and post pass@1/pass@k deltas."
+          } | tee delta.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upsert the sticky PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('delta.md', 'utf8');
+            const marker = '<!-- prompt-ci-delta -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(
+              github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find(c => c.body.includes(marker));
+            const payload = `${marker}\n${body}`;
+            if (existing) {
+              await github.rest.issues.updateComment(
+                { owner, repo, comment_id: existing.id, body: payload });
+            } else {
+              await github.rest.issues.createComment(
+                { owner, repo, issue_number, body: payload });
+            }

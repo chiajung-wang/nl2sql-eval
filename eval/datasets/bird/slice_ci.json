@@ -1,0 +1,43 @@
+{
+  "_meta": {
+    "slice": "step9-prompt-ci",
+    "purpose": "Frozen, seeded, stratified Step-9 prompt-CI slice. Small by design \u2014 the cost guard: prompt-CI runs it twice per push (base vs PR prompt), so cost scales with size \u00d7 k \u00d7 2. Drawn from the same small-schema BIRD dbs as Step 3 (max_tables=5) so the naive dump never overflows context and a prompt-quality delta is measured cleanly.",
+    "criteria": {
+      "max_tables": 5,
+      "size": 12,
+      "seed": 20260619
+    },
+    "eligible_dbs": {
+      "california_schools": 3,
+      "debit_card_specializing": 5,
+      "thrombosis_prediction": 3,
+      "toxicology": 4
+    },
+    "difficulty_mix": {
+      "challenging": 2,
+      "moderate": 4,
+      "simple": 6
+    },
+    "db_mix": {
+      "california_schools": 3,
+      "debit_card_specializing": 1,
+      "thrombosis_prediction": 5,
+      "toxicology": 3
+    },
+    "generated": "2026-06-19"
+  },
+  "question_ids": [
+    41,
+    66,
+    76,
+    269,
+    273,
+    291,
+    1189,
+    1191,
+    1214,
+    1298,
+    1306,
+    1521
+  ]
+}
