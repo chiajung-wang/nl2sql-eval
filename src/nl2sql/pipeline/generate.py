@@ -15,26 +15,35 @@ the caller (later: harness / demo) owns where the schema text comes from.
 from __future__ import annotations
 
 import re
-from functools import lru_cache
-from pathlib import Path
-
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from nl2sql.llm import LLMClient, default_client
 from nl2sql.obs import stage_span
 from nl2sql.pipeline.state import RunState
 
+# The externalized prompt registry (single source of truth, CLAUDE.md §4). These
+# are re-exported so existing callers can keep importing the constants from this
+# stage, but the templates, version, and Jinja env live in one place.
+from nl2sql.prompts import (
+    GENERATE_TEMPLATE,
+    PROMPT_VERSION,
+    PROMPTS_DIR,
+    render,
+)
+
+__all__ = [
+    "DEFAULT_DIALECT",
+    "DEFAULT_MODEL",
+    "GENERATE_TEMPLATE",
+    "PROMPT_VERSION",
+    "PROMPTS_DIR",
+    "generate",
+    "render_prompt",
+]
+
 # Default to a current, capable Claude model (Sonnet 4.x) per CLAUDE.md §2,
 # provider-prefixed for LiteLLM routing (``anthropic/`` = a direct provider key).
 DEFAULT_MODEL = "anthropic/claude-sonnet-4-6"
 MAX_TOKENS = 1024
-
-# Templates live at the repo-root ``prompts/`` dir (CI diffs them), three
-# parents up from src/nl2sql/pipeline/generate.py.
-PROMPTS_DIR = Path(__file__).resolve().parents[3] / "prompts"
-GENERATE_TEMPLATE = "generate/v3.jinja"
-# The prompt version recorded alongside every reported number (CLAUDE.md §6).
-PROMPT_VERSION = "generate/v3"
 
 # Default dialect — the payments demo is PostgreSQL; the BIRD path passes
 # "SQLite". A variable (not hardcoded) so the prompt measures generation quality
@@ -46,15 +55,6 @@ _FENCE_RE = re.compile(
     r"^\s*```(?:sql)?\s*(?P<body>.*?)\s*```\s*$",
     re.IGNORECASE | re.DOTALL,
 )
-
-
-@lru_cache(maxsize=1)
-def _env() -> Environment:
-    return Environment(
-        loader=FileSystemLoader(str(PROMPTS_DIR)),
-        undefined=StrictUndefined,
-        keep_trailing_newline=True,
-    )
 
 
 def render_prompt(
@@ -73,8 +73,8 @@ def render_prompt(
     attempt's ``{sql, error}`` (Step 5 self-correction); ``None`` on the first
     attempt, in which case the rendered prompt is identical to v2.
     """
-    template = _env().get_template(GENERATE_TEMPLATE)
-    return template.render(
+    return render(
+        GENERATE_TEMPLATE,
         schema=schema,
         question=question,
         dialect=dialect,
