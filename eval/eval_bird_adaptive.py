@@ -50,10 +50,11 @@ from eval.eval_bird_rag import _index, make_naive_run_one, make_rag_run_one, sli
 from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql import obs
-from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
+from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.retrieve import DEFAULT_SCHEMA_TOKEN_BUDGET, schema_fits_budget
 from nl2sql.pipeline.state import RunState
+from nl2sql.prompts import PROMPT_VERSION
 
 
 def make_adaptive_run_one(evidence: dict[str, str], *, budget_tokens: int):

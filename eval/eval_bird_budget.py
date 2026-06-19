@@ -52,9 +52,10 @@ from eval.eval_bird_rag import _index, slice6_id
 from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql import obs
-from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
+from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
+from nl2sql.prompts import PROMPT_VERSION
 
 # The budget sweep, in estimated schema tokens (see schema_index.estimate_tokens).
 # Spans tight (only a few tables fit) to generous (the whole schema fits, so the

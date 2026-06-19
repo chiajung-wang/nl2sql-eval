@@ -1,0 +1,48 @@
+{# Generate stage — shared static scaffold (the part that rarely changes).
+
+   This is the dialect-aware NL→SQL prompt body. Version files extend it and
+   override only the blocks they change ({% block rules %}, …), so the scaffold
+   "stays put" across versions and a prompt edit shows as a tight diff in one
+   block rather than a whole-file rewrite — keeping prompt-CI deltas legible
+   (Step 9). Rendered by nl2sql.prompts; never inline prompt strings in Python
+   (CLAUDE.md §4).
+
+   Variables (supplied by the generate stage):
+     - schema:     full DDL of the target database (string)
+     - question:   the natural-language question (string)
+     - dialect:    SQL dialect name (string), e.g. "PostgreSQL" or "SQLite"
+     - evidence:   optional external-knowledge hint (string; empty to omit)
+     - correction: optional {sql, error} of the prior failed attempt (omitted on
+                   the first attempt / when correction is off) #}
+You are an expert data analyst who writes {{ dialect }} queries.
+
+Given the database schema and a question, write a single SQL query that answers
+the question.
+
+Rules:
+{% block rules %}- Return ONLY the SQL query — no prose, no explanation, no markdown code fences.
+- Use only the tables and columns defined in the schema below.
+- Use {{ dialect }} syntax.
+- The query must be read-only: a single SELECT statement.
+- Prefer explicit column lists over SELECT *.{% endblock %}
+
+Database schema ({{ dialect }}):
+{{ schema }}
+{% if evidence %}
+External knowledge (use if relevant):
+{{ evidence }}
+{% endif %}
+Question:
+{{ question }}
+{%- if correction %}
+
+Your previous attempt failed. Correct it.
+
+Previous SQL:
+{{ correction.sql }}
+
+Database error:
+{{ correction.error }}
+
+Return a corrected, read-only {{ dialect }} SELECT that fixes the error above.
+{% endif %}
