@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 57 — Prompt registry + clean-diff template structure</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.warn{border-left-color:var(--mod)}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  pre.code{background:#0b1120;border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;overflow-x:auto;
+           font-size:.82rem;color:var(--ink);line-height:1.5;margin:0}
+  pre.code .c{color:var(--muted)} pre.code .t{color:var(--accent-2)} pre.code .a{color:var(--add)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .good-txt{color:var(--add)} .noise{color:var(--mod)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #99 · Step 9 · Issue #57</span>
+    <h1>Prompt registry + clean-diff template structure</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #57</span>
+      <span><b>Branch:</b> <code>step-9/issue-57-prompt-template-registry</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>Build the foundation prompt-CI stands on.</b> Step 9's headline is a CI job that re-runs
+      the eval whenever a prompt changes and posts the pass@1/pass@k deltas. For that signal to be trustworthy,
+      two things have to be true first: a prompt edit must produce a <em>legible</em> diff, and every number must
+      pin to the <em>exact prompt bytes</em> that produced it. This issue delivers both.</p>
+      <p>The prompts were already externalized Jinja templates (CLAUDE.md §4). This makes them a clean,
+      version-controlled <b>foundation</b>: a single registry module owns loading, the active version, and a
+      content fingerprint; the static scaffold lives once and version files extend it, so a change shows as a
+      tight diff rather than a whole-file rewrite.</p>
+      <div class="stats">
+        <div><b>446</b> tests green (8 new in <code>test_prompts.py</code>)</div>
+        <div><b class="good-txt">0</b> rendered bytes changed (byte-identical v3)</div>
+        <div><b>1</b> source of truth (<code>nl2sql.prompts</code>)</div>
+        <div><b class="good-txt">0</b> prompt strings inlined in Python</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> What the registry surfaces</h2><div class="card">
+      <p><code>nl2sql.prompts</code> is the single place that knows where templates live, which version is active,
+      and how to render them. The Jinja environment, the version string, and the fingerprint stop being scattered
+      module constants.</p>
+      <table>
+        <thead><tr><th>concern</th><th>how it's surfaced</th></tr></thead>
+        <tbody>
+          <tr><td>where templates live</td><td><code>PROMPTS_DIR</code> + one shared <code>env()</code> (<code>StrictUndefined</code> so a dropped variable errors, never silently empties the schema)</td></tr>
+          <tr><td>active version</td><td><code>PROMPT_VERSION</code> / <code>prompt_version()</code> — the identifier every <code>RESULTS.md</code> row and CI run pins (CLAUDE.md §6)</td></tr>
+          <tr><td>exact bytes</td><td><code>prompt_fingerprint()</code> walks <code>{% extends %}</code>/<code>{% include %}</code> so the digest covers the whole rendered prompt — a stale version string can lie, the fingerprint cannot</td></tr>
+          <tr><td>CI / shell surface</td><td><code>python -m nl2sql.prompts --version | --fingerprint</code> — the workflow pins both from the command line</td></tr>
+        </tbody>
+      </table>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Clean diffs: scaffold stays put</h2>
+      <div class="diagram-wrap"><pre class="mermaid">flowchart TD
+  B["generate/_base.jinja<br/>shared static scaffold<br/>{% block rules %}"]:::base
+  V3["v3.jinja<br/>thin {% extends %}<br/>(no overrides)"]:::ver --> B
+  V4["v4.jinja (future)<br/>{% block rules %} only"]:::ver -.overrides one block.-> B
+  V1["v1.jinja · v2.jinja<br/>frozen history"]:::hist
+  REG["nl2sql.prompts<br/>version · fingerprint · render"]:::reg --> V3
+  classDef base fill:#bbf7d0,stroke:#16a34a,color:#14532d;
+  classDef ver fill:#c7d2fe,stroke:#4f46e5,color:#1e1b4b;
+  classDef hist fill:#e2e8f0,stroke:#94a3b8,color:#334155;
+  classDef reg fill:#fde68a,stroke:#d97706,color:#7c2d12;</pre></div>
+      <p class="diagram-caption">The scaffold lives once in <code>_base.jinja</code>; a version file overrides
+      only the block it edits. A future <code>v4</code> that tweaks one rule is a few-line diff — the intro,
+      schema framing, and question stay put. Locked by <code>test_block_override_changes_only_its_block_clean_diff</code>.</p>
+    </section>
+
+    <section><h2><span class="num">4</span> Byte-identical refactor</h2><div class="card">
+      <p>Moving the scaffold into a partial is a refactor, not a prompt change — so the rendered prompt must not
+      move a single byte, or the "pass@1 unchanged, no rerun needed" claim is false. A golden-string test asserts
+      the active template renders exactly what the prior single-file v3 did, with and without the correction block.</p>
+      <pre class="code"><span class="c"># tests/test_prompts.py</span>
+def test_active_template_is_byte_identical_to_prior_single_file_v3():
+    <span class="c"># Extracting the scaffold into _base.jinja must not change a</span>
+    <span class="c"># single byte — otherwise pass@1-invariance is false.</span>
+    assert _render() == _GOLDEN_NO_CORRECTION  <span class="a"># passes</span></pre>
+    </div></section>
+
+    <section><h2><span class="num">5</span> Two-axis review — both clean</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards — conformant</h3><ul>
+          <li>No prompt strings inlined in Python; the golden is a test assertion, not a production prompt (§4/§7)</li>
+          <li><code>nl2sql.prompts</code> is a registry, not a pipeline stage — correctly a sibling of <code>llm.py</code>/<code>obs.py</code>, §3 boundaries intact</li>
+          <li>snake_case / SCREAMING_SNAKE naming; <code>prompts/README.md</code> updated in the same commit</li>
+          <li><b>Fix applied:</b> the one judgement call — a dual import path for the prompt constants — resolved by migrating all callers to <code>nl2sql.prompts</code> and dropping the re-exports, so the registry is the single source of truth this PR set out to build</li>
+        </ul></div>
+        <div class="group good"><h3>Spec — faithful</h3><ul>
+          <li>All four acceptance criteria met; no missing requirements</li>
+          <li>Version identifier surfaced <em>and consumed</em> — <code>PROMPT_VERSION</code> flows through the harness session-id and every <code>RESULTS.md</code> row writer</li>
+          <li>Clean-diff structure realized via <code>{% block %}</code> + thin <code>{% extends %}</code>, proven by test</li>
+          <li>The fingerprint + CLI beyond the literal ask judged in-bounds — the spec asks for a way to "pin the exact prompt version"</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">6</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>src/nl2sql/prompts.py</code></td><td><span class="st A">A</span></td><td>The registry: <code>PROMPTS_DIR</code>, <code>GENERATE_TEMPLATE</code>, <code>PROMPT_VERSION</code>, shared <code>env()</code>, <code>render</code>, <code>prompt_version</code>, <code>prompt_fingerprint</code> (walks referenced templates), and a <code>--version</code>/<code>--fingerprint</code> CLI.</td></tr>
+          <tr><td class="f"><code>prompts/generate/_base.jinja</code></td><td><span class="st A">A</span></td><td>The shared static scaffold extracted from v3, exposing <code>{% block rules %}</code>.</td></tr>
+          <tr><td class="f"><code>prompts/generate/v3.jinja</code></td><td><span class="st M">M</span></td><td>Now a thin <code>{% extends "generate/_base.jinja" %}</code> with no overrides — renders byte-identically.</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/generate.py</code></td><td><span class="st M">M</span></td><td>Renders via the registry (<code>render</code> / <code>GENERATE_TEMPLATE</code>); drops its duplicate Jinja env and constant re-exports.</td></tr>
+          <tr><td class="f"><code>eval/*.py · tests/*.py</code></td><td><span class="st M">M</span></td><td>Review fix: import <code>PROMPT_VERSION</code> / template constants from <code>nl2sql.prompts</code> (single canonical path).</td></tr>
+          <tr><td class="f"><code>tests/test_prompts.py</code></td><td><span class="st A">A</span></td><td>8 tests: byte-identity golden, correction/evidence rendering, version + fingerprint, scaffold-coverage, clean-diff block override, CLI.</td></tr>
+          <tr><td class="f"><code>prompts/README.md</code></td><td><span class="st M">M</span></td><td>Documents the scaffold/version structure and the version/fingerprint CLI.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">7</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 446 passed; <code>ruff check</code> / <code>ruff format --check</code> clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Byte-identical: the active template renders exactly the prior single-file v3 bytes (no correction, evidence, and correction cases all asserted)</p>
+        <p style="margin:.2rem 0"><b>✓</b> Version + fingerprint surfaced to CI via <code>python -m nl2sql.prompts</code>; the fingerprint covers the shared scaffold the version extends</p>
+        <p style="margin:.2rem 0"><b>✓</b> Clean-diff property proven: a block override changes only that block; the surrounding scaffold is untouched</p>
+        <p style="margin:.2rem 0"><b>✓</b> Two-axis <code>/review</code> → standards conformant, spec faithful; single-source-of-truth import fix applied</p>
+        <p style="margin:.2rem 0 0" class="note"><b>Next (#58):</b> <code>.github/workflows/eval.yml</code> consumes this — on a <code>prompts/</code> change, re-run the harness on the frozen slice and post the pass@1/pass@k deltas.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #57 / PR #99 · base <code>main</code> ← <code>step-9/issue-57-prompt-template-registry</code>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true,theme:"default",flowchart:{useMaxWidth:true,htmlLabels:true,curve:"basis"}});</script>
+</body>
+</html>
