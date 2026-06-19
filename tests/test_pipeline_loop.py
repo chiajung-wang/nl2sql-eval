@@ -15,14 +15,13 @@ from sqlalchemy import create_engine, text
 from nl2sql.llm import LLMResponse
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import (
-    GENERATE_TEMPLATE,
-    PROMPTS_DIR,
     _extract_sql,
     generate,
     render_prompt,
 )
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
+from nl2sql.prompts import GENERATE_TEMPLATE, PROMPTS_DIR
 
 
 class FakeLLMClient:

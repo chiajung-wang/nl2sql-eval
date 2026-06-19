@@ -27,10 +27,11 @@ from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql import obs
 from nl2sql.pipeline.execute import get_engine
-from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
+from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.redact import RedactionPolicy
 from nl2sql.pipeline.state import RunState
+from nl2sql.prompts import PROMPT_VERSION
 
 SCHEMA_SQL = Path(__file__).resolve().parent / "datasets/payments/schema.sql"
 

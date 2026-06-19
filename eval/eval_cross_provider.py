@@ -58,9 +58,10 @@ from eval.harness import (
 from eval.metrics import BatchReport
 from nl2sql import obs
 from nl2sql.llm import LiteLLMClient, LLMClient
-from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
+from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
+from nl2sql.prompts import PROMPT_VERSION
 
 DEFAULT_RETRY_BUDGET = 3
 

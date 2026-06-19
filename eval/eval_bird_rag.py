@@ -39,9 +39,10 @@ from eval.eval_bird import (
 from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
 from nl2sql import obs
-from nl2sql.pipeline.generate import DEFAULT_MODEL, PROMPT_VERSION
+from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
+from nl2sql.prompts import PROMPT_VERSION
 from nl2sql.schema_index import build_schema_index
 
 

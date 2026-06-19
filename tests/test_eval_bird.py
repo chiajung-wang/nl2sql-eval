@@ -15,8 +15,9 @@ from eval import eval_bird
 from eval.datasets.bird.loader import bird_data_dir
 from eval.metrics import BatchReport, CaseResult
 from nl2sql.llm import LLMResponse
-from nl2sql.pipeline.generate import PROMPT_VERSION, generate, render_prompt
+from nl2sql.pipeline.generate import generate, render_prompt
 from nl2sql.pipeline.state import RunState, TerminalState
+from nl2sql.prompts import PROMPT_VERSION
 
 # --- dialect-aware prompt (offline) ----------------------------------------
 

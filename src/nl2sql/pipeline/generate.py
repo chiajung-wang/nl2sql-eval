@@ -20,25 +20,11 @@ from nl2sql.llm import LLMClient, default_client
 from nl2sql.obs import stage_span
 from nl2sql.pipeline.state import RunState
 
-# The externalized prompt registry (single source of truth, CLAUDE.md §4). These
-# are re-exported so existing callers can keep importing the constants from this
-# stage, but the templates, version, and Jinja env live in one place.
-from nl2sql.prompts import (
-    GENERATE_TEMPLATE,
-    PROMPT_VERSION,
-    PROMPTS_DIR,
-    render,
-)
-
-__all__ = [
-    "DEFAULT_DIALECT",
-    "DEFAULT_MODEL",
-    "GENERATE_TEMPLATE",
-    "PROMPT_VERSION",
-    "PROMPTS_DIR",
-    "generate",
-    "render_prompt",
-]
+# The externalized prompt registry is the single source of truth for templates,
+# the active version, and the Jinja env (CLAUDE.md §4). This stage only needs to
+# *render*; callers that want the version/template constants import them from
+# ``nl2sql.prompts`` directly, not through this stage.
+from nl2sql.prompts import GENERATE_TEMPLATE, render
 
 # Default to a current, capable Claude model (Sonnet 4.x) per CLAUDE.md §2,
 # provider-prefixed for LiteLLM routing (``anthropic/`` = a direct provider key).
