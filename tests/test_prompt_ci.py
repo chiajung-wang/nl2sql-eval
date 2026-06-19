@@ -10,6 +10,8 @@ improvement, regression, no-change, and the same-prompt (noise) case.
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 
 from eval.prompt_ci import PromptRunReport, render_delta
 
@@ -85,3 +87,33 @@ def test_render_delta_warns_when_fingerprints_match():
     out = render_delta(base, head)
     assert "same fingerprint" in out.lower()
     assert "regression" not in out.lower()
+
+
+def test_compare_cli_writes_the_delta_markdown_the_workflow_consumes(tmp_path):
+    # The exact contract eval.yml depends on: `--compare base head --out delta.md`
+    # must write the rendered Markdown (the workflow cats it into the job summary
+    # and the sticky PR comment). Tests the offline CLI path end-to-end.
+    base_path = tmp_path / "base.json"
+    head_path = tmp_path / "head.json"
+    out_path = tmp_path / "delta.md"
+    _report(n1=8, nk=10, fp="sha256:base").write_json(base_path)
+    _report(n1=6, nk=9, fp="sha256:head", version="generate/v4").write_json(head_path)
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "eval.prompt_ci",
+            "--compare",
+            str(base_path),
+            str(head_path),
+            "--out",
+            str(out_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    written = out_path.read_text()
+    assert "Potential regression" in written
+    assert written == proc.stdout  # --out mirrors what the workflow cats from stdout
