@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 60 — README: the portfolio front door</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  .diagram-wrap{background:#f8fafc;border-radius:12px;padding:1.5rem;overflow-x:auto;border:1px solid var(--line)}
+  .diagram-caption{color:var(--muted);font-size:.86rem;margin-top:.75rem;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .good-txt{color:var(--add)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #103 · Step 10 · Issue #60</span>
+    <h1>README — the portfolio front door</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #60</span>
+      <span><b>Branch:</b> <code>step-10/issue-60-readme</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>Make the project legible to a reviewer in minutes.</b> Step 10 is amplification — the
+      apparatus is built and measured; now it has to <em>read</em> as what it is. This issue turns the
+      incrementally-grown README into a front door: thesis first, then the headline findings (each traceable to a
+      committed number), the architecture at a glance, and run commands that actually work.</p>
+      <p>The discipline that ran the whole project applies to its README too: <b>every claim is honest</b>. The
+      findings table surfaces the null and negative results — a +0.000 correction gap, a −0.125 retrieval lift —
+      because the thesis is that the apparatus tells you the truth, not the headline you hoped for.</p>
+      <div class="stats">
+        <div><b>7</b> headline findings, each → its commit</div>
+        <div><b class="good-txt">1</b> fictional CLI removed</div>
+        <div><b>0</b> stale "still being built" hedges left</div>
+        <div><b>462</b> tests still green</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> What the front door now leads with</h2><div class="card">
+      <table>
+        <thead><tr><th>section</th><th>what it does</th></tr></thead>
+        <tbody>
+          <tr><td>Thesis</td><td>The inversion stated up top: the NL→SQL agent is the workload; the eval/observability/prompt-CI wrapper is the <em>product</em></td></tr>
+          <tr><td>Headline findings</td><td>A 7-row table — pass@1 baseline, red-team catch rate, pass@1→pass@k gap, retrieval lift + recall, cross-provider, framework parity, prompt-CI regression — each row links to <code>RESULTS.md</code> <b>and names its commit</b></td></tr>
+          <tr><td>Architecture</td><td>A mermaid diagram of the instrumented state machine and the <b>two pipeline exits</b> (raw verified result scored upstream of redaction; presented result the only thing logged/shown) + the six terminal states</td></tr>
+          <tr><td>How to run it</td><td>The <em>real</em> entrypoints — the old <code>eval.harness --dataset</code> CLI never existed</td></tr>
+        </tbody>
+      </table>
+    </div></section>
+
+    <section><h2><span class="num">3</span> The honesty fixes</h2><div class="card">
+      <p>The rewrite is mostly subtraction — removing claims that drifted from reality as the project grew:</p>
+      <ul style="margin:.4rem 0">
+        <li><b>A fictional CLI.</b> The README advertised <code>uv run python -m eval.harness --dataset bird --slice …</code>. Verified against the repo: <code>eval.harness</code> has no <code>__main__</code>. Replaced with the real runners (<code>eval.eval_bird</code>, <code>eval.eval_bird_twin</code>, <code>eval.eval_bird_rag</code>, <code>eval.redteam</code>, <code>eval.eval_cross_provider</code>, <code>eval.prompt_ci</code>, <code>eval.prove_*</code>).</li>
+        <li><b>Resolved hedges.</b> The "Assumptions" section ("ruff assumed", "Python floor assumed", "intended interface", "still being built", "Phase 3 reach") is gone — those are settled facts now.</li>
+        <li><b>BigQuery, honestly deferred.</b> Marked as explicit documented future reach (not built), consistent with the plan's optional-reach quarantine.</li>
+      </ul>
+    </div></section>
+
+    <section><h2><span class="num">4</span> Two-axis review — both clean</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards (accuracy) — verified</h3><ul>
+          <li>Every run command resolves to a real <code>__main__</code> module; no <code>eval.harness</code> CLI advertised</li>
+          <li>All 7 headline numbers match <code>RESULTS.md</code> exactly</li>
+          <li>Mermaid is valid; stage order + two exits faithful to CLAUDE.md §3</li>
+          <li><b>Fix applied:</b> stopped claiming the unbuilt demo app as runnable</li>
+        </ul></div>
+        <div class="group good"><h3>Spec — faithful</h3><ul>
+          <li>Thesis leads; architecture diagram present near the top; findings surfaced</li>
+          <li>How-to-run accurate against the real tooling</li>
+          <li><b>Fix applied:</b> each finding now names its exact commit, not just the shared <code>#log</code> anchor</li>
+          <li>Honest-limits framing (single-db scope, BigQuery deferred) present</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>README.md</code></td><td><span class="st M">M</span></td><td>Headline findings table (each row → commit), architecture mermaid + two-exit explanation, real run commands, BigQuery-as-future-reach, removed resolved hedges and the demo-app forward-claim.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> All referenced local paths exist; no stale-phrase matches remain; mermaid block present (GitHub renders it)</p>
+        <p style="margin:.2rem 0"><b>✓</b> Every run command verified to be a real module; the non-existent <code>eval.harness</code> CLI removed</p>
+        <p style="margin:.2rem 0"><b>✓</b> All 7 headline numbers cross-checked against <code>RESULTS.md</code>; each row names its commit</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 462 passed; ruff clean (README change, no code touched)</p>
+        <p style="margin:.2rem 0"><b>✓</b> Two-axis <code>/review</code> → accuracy verified, spec faithful; per-commit links + demo-claim fixes applied</p>
+        <p style="margin:.2rem 0 0" class="note"><b>Next (#61, #62):</b> the capstone technical blog post, then the thin demo app that the README's Demo section points to.</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #60 / PR #103 · base <code>main</code> ← <code>step-10/issue-60-readme</code>
+    </footer>
+  </div>
+</body>
+</html>
