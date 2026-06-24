@@ -49,6 +49,18 @@ of bucketing into a terminal state. Fixed in the same PR; see
 > harmful one. The regression here is the catastrophic case, made
 > unmistakable on purpose.
 
+## Why these were captured by hand (and why that's the same number)
+
+The GitHub Actions trigger ([`.github/workflows/eval.yml`](../../../../.github/workflows/eval.yml))
+is **gated on `ANTHROPIC_API_KEY` + `BIRD_DEV_URL`** (defer-API-key, #58): until
+those repo secrets are set, the live job posts a "skipped" note instead of
+running. So the numbers here were produced by running the **exact tool the
+workflow invokes** — `eval.prompt_ci` — against the live model, then rendered
+with the **exact comparison the workflow runs** — `eval.prompt_ci --compare`. The
+committed `delta.md` is therefore byte-for-byte what the Action would post to the
+job summary and the sticky PR comment once the secrets land; nothing about the
+delta changes between the hand-run and the triggered run.
+
 ## Reproduce
 
 The proof replays the committed reports **offline** (no API key):
