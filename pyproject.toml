@@ -24,6 +24,12 @@ dev = [
     "ruff>=0.6",
     "pytest>=8.0",
 ]
+# The demo UI's deps are isolated in their own group (Step 10, #62) so Streamlit
+# and its transitive tree can never conflict with the pipeline core. Install with
+# ``uv sync --group demo``; the core and the test suite never import it.
+demo = [
+    "streamlit>=1.40",
+]
 
 [build-system]
 requires = ["hatchling"]

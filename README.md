@@ -141,7 +141,14 @@ uv run python -m eval.prompt_ci --compare base.json head.json
 
 > **Cost guard:** the prompt-CI slice is deliberately small (12 questions). Each push runs it twice (base + PR), each a pass@k run, so per-push cost scales with `size × k × 2` — a fixed small subset, not full BIRD per push. The slice is frozen, seeded, and stratified by BIRD difficulty so a delta is a real regression, not sampling variance. The live run is gated on `ANTHROPIC_API_KEY` + a `BIRD_DEV_URL` repo variable (defer-API-key); without them the workflow reports a skipped run instead of failing the PR.
 
-**Demo UI.** A thin Streamlit app (`apps/demo/`) *reveals the wrapper* — the guardrail decision, retry count, cost, and terminal state for each question — rather than hiding a chatbot. It imports the **same shared pipeline** the harness measures, so the demo can't drift from the numbers, and its dependencies are isolated in their own group. Launch instructions ship with the app.
+**Demo UI.** A thin Streamlit app (`apps/demo/`) *reveals the wrapper* — the guardrail decision, retry count, cost, and terminal state for each question — rather than hiding a chatbot. It imports the **same shared pipeline** the harness measures (and the harness's own terminal-state classifier), so the demo can't drift from the numbers, and it only ever shows the *presented (redacted)* result. Its dependencies are isolated in their own group:
+
+```bash
+uv sync --group demo
+uv run streamlit run apps/demo/app.py
+```
+
+Pick a dataset in the sidebar — `payments` (the Postgres demo with PII columns, the redaction showcase) or `bird/<db_id>` (a BIRD SQLite db) — enter a question, and the run surfaces the machinery, not a chat bubble.
 
 The thinnest pipeline loop is runnable directly as a smoke check — one question through `generate → guard → execute → return` against the payments db (needs a live, seeded Postgres and a provider key for the default `anthropic/claude-sonnet-4-6`):
 
@@ -221,6 +228,8 @@ nl2sql-eval/
 │   └── redteam_guard/        # injected dangerous queries — DELIVERABLE
 ├── prompts/                  # version-controlled Jinja-style templates (CI diffs these)
 ├── apps/demo/                # thin Streamlit UI revealing the wrapper (isolated dep group)
+│   ├── runner.py             #   testable core: run_demo → DemoView (no Streamlit)
+│   └── app.py                #   thin Streamlit shell over runner.py
 ├── tests/                    # esp. compare.py and guard.py — the deterministic cores
 └── .github/workflows/
     └── eval.yml              # prompt-CI: run frozen slice on change, post deltas
