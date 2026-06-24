@@ -88,10 +88,12 @@ dangerous-op blocking (stacked statements, `ATTACH`/`DETACH`, `PRAGMA`),
 cost/complexity heuristics, and per-db table-scope checks.
 
 Their catch rate is reported against a **red-team fixture** of injected dangerous
-queries: **29/29 caught (100%)**, with **43/43 verdicts correct** — every benign
-control allowed, every attack blocked ([RESULTS.md](../../RESULTS.md#log),
-`e56fbcd`). The set spans write/DDL (including `REPLACE`-as-`Command` and
-CTE-wrapped writes), dangerous ops, cost explosions, and prompt-injection payloads.
+queries: **29/29 dangerous queries caught (100%)** — and, across the full set
+including the benign controls, **43/43 verdicts correct** (every benign control
+allowed, every attack blocked). Both figures are recorded in the Step-4 entry of
+[`RESULTS.md`](../../RESULTS.md#log) (`e56fbcd`). The set spans write/DDL
+(including `REPLACE`-as-`Command` and CTE-wrapped writes), dangerous ops, cost
+explosions, and prompt-injection payloads.
 ([Step 4 — Proving the Guardrails](step-4-proving-the-guardrails.md).)
 
 This is the methodology that recurs everywhere: *prove a safety mechanism by
