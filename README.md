@@ -8,15 +8,17 @@ The natural-language-to-SQL agent is the *workload*; the eval harness, observabi
 
 Each row links to its committed entry in [`RESULTS.md`](RESULTS.md), where the exact model, slice, prompt version, date, and commit are recorded. The findings are deliberately *honest* — several are null or negative results, which is the point: the apparatus tells you the truth, not the headline you hoped for.
 
-| Finding | Number | What it means | Source |
+Each "Source" cell links to the committed [`RESULTS.md`](RESULTS.md) log and names the exact commit that produced the number.
+
+| Finding | Number | What it means | Source (commit) |
 |---|---|---|---|
-| **First real BIRD number** (pass@1) | 0.420 (21/50) | The naive schema-dump baseline on a frozen, stratified 50-question slice | [Step 3](RESULTS.md#log) |
-| **Guardrail catch rate** (red-team) | 1.000 (29/29) | Every dangerous query in the red-team fixture blocked pre-execution; 43/43 verdicts correct | [Step 4](RESULTS.md#log) |
-| **What self-correction is worth** (pass@1→pass@3) | 0.420 → 0.420, gap **+0.000** | On this slice the loop *never fired* — the failures are semantic, not syntactic. The twin metric proves the feature adds nothing here rather than letting a headline imply otherwise | [Step 5](RESULTS.md#log) |
-| **What retrieval is worth** (naive→schema-RAG lift) | 0.700 → 0.575, lift **−0.125**, recall 0.942 | Where the whole schema *fits* the context, RAG can only lose information by dropping a needed table; recall diagnoses the loss directly | [Step 6](RESULTS.md#log) |
-| **Cross-provider** (accuracy × cost × latency) | best pass@1 **0.540** (`gemini-3-flash`) | One import-shared pipeline, many providers via LiteLLM; cheapest model ~70× less than priciest | [Step 7](RESULTS.md#log) |
-| **Framework-swap parity** (pass@1) | 0.420 → 0.420 | LangGraph + LiteLLM refactor was behavior-preserving — the harness proves the swap changed *exactly nothing* | [Step 7](RESULTS.md#log) |
-| **Prompt-CI catches a regression** (pass@1/pass@k) | 0.417 → **0.000**, Δ **−0.417** | A reasonable-looking prompt edit, caught before merge by the CI delta | [Step 9](RESULTS.md#log) |
+| **First real BIRD number** (pass@1) | 0.420 (21/50) | The naive schema-dump baseline on a frozen, stratified 50-question slice | [Step 3](RESULTS.md#log) · `5d9d8ae` |
+| **Guardrail catch rate** (red-team) | 1.000 (29/29) | Every dangerous query in the red-team fixture blocked pre-execution; 43/43 verdicts correct | [Step 4](RESULTS.md#log) · `e56fbcd` |
+| **What self-correction is worth** (pass@1→pass@3) | 0.420 → 0.420, gap **+0.000** | On this slice the loop *never fired* — the failures are semantic, not syntactic. The twin metric proves the feature adds nothing here rather than letting a headline imply otherwise | [Step 5](RESULTS.md#log) · `7ae5bb5` |
+| **What retrieval is worth** (naive→schema-RAG lift) | 0.700 → 0.575, lift **−0.125**, recall 0.942 | Where the whole schema *fits* the context, RAG can only lose information by dropping a needed table; recall diagnoses the loss directly | [Step 6](RESULTS.md#log) · `ff342d7` |
+| **Cross-provider** (accuracy × cost × latency) | best pass@1 **0.540** (`gemini-3-flash`) | One import-shared pipeline, many providers via LiteLLM; cheapest model ~70× less than priciest | [Step 7](RESULTS.md#log) · `26328de` |
+| **Framework-swap parity** (pass@1) | 0.420 → 0.420 | LangGraph + LiteLLM refactor was behavior-preserving — the harness proves the swap changed *exactly nothing* | [Step 7](RESULTS.md#log) · `2040ef9` |
+| **Prompt-CI catches a regression** (pass@1/pass@k) | 0.417 → **0.000**, Δ **−0.417** | A reasonable-looking prompt edit, caught before merge by the CI delta | [Step 9](RESULTS.md#log) · `157fe6b` |
 
 ## Architecture
 
@@ -139,14 +141,9 @@ uv run python -m eval.prompt_ci --compare base.json head.json
 
 > **Cost guard:** the prompt-CI slice is deliberately small (12 questions). Each push runs it twice (base + PR), each a pass@k run, so per-push cost scales with `size × k × 2` — a fixed small subset, not full BIRD per push. The slice is frozen, seeded, and stratified by BIRD difficulty so a delta is a real regression, not sampling variance. The live run is gated on `ANTHROPIC_API_KEY` + a `BIRD_DEV_URL` repo variable (defer-API-key); without them the workflow reports a skipped run instead of failing the PR.
 
-**Demo UI (Step 10).** Launch the thin Streamlit app — built to *reveal the wrapper* (guardrail decision, retry count, cost, terminal state), not to hide a chatbot. It imports the same shared pipeline the harness measures, so the demo can't drift from the numbers. Its dependencies live in an isolated group:
+**Demo UI.** A thin Streamlit app (`apps/demo/`) *reveals the wrapper* — the guardrail decision, retry count, cost, and terminal state for each question — rather than hiding a chatbot. It imports the **same shared pipeline** the harness measures, so the demo can't drift from the numbers, and its dependencies are isolated in their own group. Launch instructions ship with the app.
 
-```bash
-uv sync --group demo
-uv run streamlit run apps/demo/app.py
-```
-
-The thinnest pipeline loop is also runnable directly as a smoke check — one question through `generate → guard → execute → return` against the payments db (needs a live, seeded Postgres and a provider key for the default `anthropic/claude-sonnet-4-6`):
+The thinnest pipeline loop is runnable directly as a smoke check — one question through `generate → guard → execute → return` against the payments db (needs a live, seeded Postgres and a provider key for the default `anthropic/claude-sonnet-4-6`):
 
 ```bash
 uv run python -m nl2sql.pipeline.graph "How many users are based in the US?"
@@ -224,7 +221,6 @@ nl2sql-eval/
 │   └── redteam_guard/        # injected dangerous queries — DELIVERABLE
 ├── prompts/                  # version-controlled Jinja-style templates (CI diffs these)
 ├── apps/demo/                # thin Streamlit UI revealing the wrapper (isolated dep group)
-│   └── app.py                #   imports the same shared pipeline as the harness
 ├── tests/                    # esp. compare.py and guard.py — the deterministic cores
 └── .github/workflows/
     └── eval.yml              # prompt-CI: run frozen slice on change, post deltas
