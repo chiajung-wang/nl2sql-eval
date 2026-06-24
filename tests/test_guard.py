@@ -114,6 +114,18 @@ def test_unparseable_sql_is_rejected_default_deny():
     assert result.rule == "parse_error"
 
 
+def test_untokenizable_sql_is_rejected_not_crashed():
+    # A candidate the tokenizer itself chokes on — an unbalanced backtick/quote,
+    # as happens when a model leaks prose or a stray markdown fence into its
+    # answer. sqlglot raises TokenError (a sibling of ParseError) *before*
+    # parsing; the gate must treat it as unprovable-safe and reject, not let the
+    # exception crash the run (the every-run-terminates invariant, CLAUDE.md §3).
+    leaked = "Here is the query:\nSELECT * FROM t WHERE name = 'a\n```"
+    result = guard_sql(leaked, dialect="sqlite")
+    assert result.rejected
+    assert result.rule == "parse_error"
+
+
 def test_note_composes_rule_and_reason():
     note = guard_sql("DROP TABLE t").note
     assert note is not None and note.startswith("read_only:")

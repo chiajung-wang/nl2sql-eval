@@ -1,0 +1,10 @@
+{
+  "prompt_version": "generate/_demo_regression",
+  "prompt_fingerprint": "sha256:99535edc1f4f0765ec084df86d94ba9e03c99461a599fb8b89437aa58ebfe5e3",
+  "model": "anthropic/claude-sonnet-4-6",
+  "slice_name": "step9-prompt-ci",
+  "k": 3,
+  "total": 12,
+  "n_correct_1": 0,
+  "n_correct_k": 0
+}

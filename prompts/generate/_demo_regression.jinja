@@ -1,0 +1,23 @@
+{% extends "generate/_base.jinja" %}
+{# Generate stage — DEMONSTRATION PROMPT, not a version (Step 9, #59).
+
+   A deliberately-harmful prompt edit used to demonstrate prompt-CI catching a
+   regression — the prompt analogue of the fixtures/redteam_guard/ entries that
+   prove the guardrails. It is NOT in the v1→v3 production sequence (the leading
+   underscore marks it a non-version artifact, like _base.jinja) and is never the
+   active prompt; v3 stays active.
+
+   The edit looks reasonable — "let the model explain its reasoning" is a thing
+   developers really do — but it relaxes the load-bearing "return ONLY the SQL"
+   rule. The model now prefaces its answer with prose, which the fence stripper
+   can't unwrap, so the candidate is no longer valid SQL: the guard rejects it
+   (or it errors at execution). On the frozen prompt-CI slice this collapses
+   pass@1 from v3's 0.417 to 0.000 — a -0.417 regression the gate catches before
+   merge. (It also surfaced a latent guard crash on untokenizable input, fixed in
+   the same PR.) Reproduce: point PROMPT_VERSION/GENERATE_TEMPLATE at this file
+   and run `python -m eval.prompt_ci --report`. #}
+{% block rules %}- First, briefly explain your approach in one or two sentences.
+- Then provide the SQL query that answers the question.
+- Use only the tables and columns defined in the schema below.
+- Use {{ dialect }} syntax.
+- The query must be read-only: a single SELECT statement.{% endblock %}

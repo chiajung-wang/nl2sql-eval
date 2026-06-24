@@ -1,0 +1,10 @@
+{
+  "prompt_version": "generate/v3",
+  "prompt_fingerprint": "sha256:4a12c212c6262d5d1a52542a0d11f36d1ce5ce65bc17cb035e4870e2408303cb",
+  "model": "anthropic/claude-sonnet-4-6",
+  "slice_name": "step9-prompt-ci",
+  "k": 3,
+  "total": 12,
+  "n_correct_1": 5,
+  "n_correct_k": 5
+}
