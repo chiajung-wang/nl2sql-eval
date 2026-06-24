@@ -16,9 +16,16 @@ from dataclasses import fields
 import pytest
 from sqlalchemy import create_engine, text
 
-from apps.demo.runner import DemoView, run_demo
+from apps.demo.runner import (
+    STATE_BADGES,
+    DemoView,
+    badge_for,
+    parse_dataset,
+    run_demo,
+)
 from nl2sql.llm import LLMResponse
 from nl2sql.pipeline.redact import MASK, NO_REDACTION, RedactionPolicy
+from nl2sql.pipeline.state import TerminalState
 
 # A schema whose ``email`` column the DDL marks as PII — drives redaction.
 SCHEMA = """\
@@ -128,3 +135,31 @@ def test_no_redaction_policy_passes_values_through(engine):
         engine, "SELECT country FROM users WHERE id = 1", redaction_policy=NO_REDACTION
     )
     assert view.presented_rows == [("US",)]
+
+
+# --- the shell's pure glue (testable without Streamlit) ---------------------
+
+
+def test_every_terminal_state_has_a_badge():
+    # A new terminal state can't ship unstyled — the demo would render a blank
+    # badge. Asserting full coverage here catches that at test time.
+    for state in TerminalState:
+        assert state.value in STATE_BADGES
+        emoji, level = badge_for(state.value)
+        assert emoji and level in {"ok", "warn", "error", "info"}
+
+
+def test_badge_for_unknown_state_falls_back():
+    assert badge_for("not_a_state") == ("•", "info")
+
+
+def test_parse_dataset_resolves_payments_and_bird():
+    assert parse_dataset("payments") == ("payments", "payments", "PostgreSQL")
+    assert parse_dataset("bird/financial") == ("bird", "financial", "SQLite")
+
+
+def test_parse_dataset_rejects_unknown_choice():
+    with pytest.raises(ValueError):
+        parse_dataset("mysql/whatever")
+    with pytest.raises(ValueError):
+        parse_dataset("bird/")  # no db id

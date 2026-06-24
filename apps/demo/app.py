@@ -27,22 +27,15 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
-from apps.demo.runner import DemoView, run_demo
+from apps.demo.runner import DemoView, badge_for, parse_dataset, run_demo
 from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy
 
 PAYMENTS_SCHEMA = (
     Path(__file__).resolve().parents[2] / "eval/datasets/payments/schema.sql"
 )
 
-# Terminal state → (emoji, Streamlit status color) for the headline badge.
-_STATE_STYLE = {
-    "success": ("✅", "success"),
-    "wrong_answer": ("❌", "error"),
-    "execution_error_final": ("💥", "error"),
-    "retry_exhausted": ("🔁", "error"),
-    "guardrail_rejected": ("🛡️", "warning"),
-    "retrieval_empty": ("🕳️", "warning"),
-}
+# Generic badge severity → the Streamlit status widget that renders it.
+_LEVEL_WIDGET = {"ok": "success", "warn": "warning", "error": "error", "info": "info"}
 
 
 @st.cache_resource
@@ -60,27 +53,33 @@ def _bird_engine(db_id: str):
 
 
 def _load_dataset(choice: str) -> tuple[object, str, str, str, RedactionPolicy]:
-    """Return ``(engine, schema, db_id, dialect, redaction_policy)`` for a choice."""
-    if choice == "payments":
+    """Return ``(engine, schema, db_id, dialect, redaction_policy)`` for a choice.
+
+    The choice → ``(kind, db_id, dialect)`` resolution is the pure, tested
+    ``parse_dataset``; this shell only does the IO (build the engine, read the
+    schema, derive the PII policy).
+    """
+    kind, db_id, dialect = parse_dataset(choice)
+    if kind == "payments":
         schema = PAYMENTS_SCHEMA.read_text()
         return (
             _payments_engine(),
             schema,
-            "payments",
-            "PostgreSQL",
+            db_id,
+            dialect,
             RedactionPolicy.from_ddl(schema),
         )
-    # "bird/<db_id>"
-    db_id = choice.split("/", 1)[1]
     from eval.datasets.bird import loader
 
     engine = _bird_engine(db_id)
-    return engine, loader.schema_text(engine), db_id, "SQLite", NO_REDACTION
+    return engine, loader.schema_text(engine), db_id, dialect, NO_REDACTION
 
 
 def _render(view: DemoView) -> None:
-    emoji, status = _STATE_STYLE.get(view.terminal_state, ("•", "info"))
-    getattr(st, status)(f"{emoji}  Terminal state: **{view.terminal_state}**")
+    emoji, level = badge_for(view.terminal_state)
+    getattr(st, _LEVEL_WIDGET[level])(
+        f"{emoji}  Terminal state: **{view.terminal_state}**"
+    )
 
     cols = st.columns(4)
     cols[0].metric("Guardrail", "allowed" if view.guard_allowed else "rejected")

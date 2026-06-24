@@ -26,6 +26,39 @@ from eval.harness import classify_terminal_state
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy
+from nl2sql.pipeline.state import TerminalState
+
+# Terminal state → (emoji, severity level) for the headline badge. ``level`` is
+# generic (``ok``/``warn``/``error``) so the Streamlit shell — and any other
+# front end — maps it to its own status widget; keeping the map here (not in
+# app.py) makes it testable without Streamlit and lets a test assert *every*
+# terminal state has a badge, so a new state can't ship unstyled.
+STATE_BADGES: dict[str, tuple[str, str]] = {
+    TerminalState.SUCCESS.value: ("✅", "ok"),
+    TerminalState.WRONG_ANSWER.value: ("❌", "error"),
+    TerminalState.EXECUTION_ERROR_FINAL.value: ("💥", "error"),
+    TerminalState.RETRY_EXHAUSTED.value: ("🔁", "error"),
+    TerminalState.GUARDRAIL_REJECTED.value: ("🛡️", "warn"),
+    TerminalState.RETRIEVAL_EMPTY.value: ("🕳️", "warn"),
+}
+
+
+def badge_for(terminal_state: str) -> tuple[str, str]:
+    """The ``(emoji, level)`` badge for a terminal state (``("•", "info")`` default)."""
+    return STATE_BADGES.get(terminal_state, ("•", "info"))
+
+
+def parse_dataset(choice: str) -> tuple[str, str, str]:
+    """Resolve a sidebar dataset ``choice`` to ``(kind, db_id, dialect)``.
+
+    ``"payments"`` → the Postgres demo (PostgreSQL); ``"bird/<db_id>"`` → a BIRD
+    SQLite db. Pure (no engine/IO), so the shell's wiring is unit-testable.
+    """
+    if choice == "payments":
+        return "payments", "payments", "PostgreSQL"
+    if choice.startswith("bird/") and len(choice) > len("bird/"):
+        return "bird", choice.split("/", 1)[1], "SQLite"
+    raise ValueError(f"unknown dataset '{choice}' (expected 'payments' or 'bird/<db>')")
 
 
 @dataclass(frozen=True)
