@@ -39,7 +39,7 @@ from enum import StrEnum
 
 import sqlglot
 from sqlglot import exp
-from sqlglot.errors import ParseError
+from sqlglot.errors import ParseError, TokenError
 
 from nl2sql.obs import stage_span
 from nl2sql.pipeline.generate import DEFAULT_DIALECT
@@ -140,13 +140,21 @@ def _parse_statements(sql: str, dialect: str) -> list[exp.Expression] | None:
     generic parser. Empty/trailing-comment nodes are dropped so a single query
     with a trailing ``;`` or comment is not mistaken for a stacked pair. Returns
     ``None`` only if the SQL parses under neither dialect — a candidate the gate
-    cannot prove safe."""
+    cannot prove safe.
+
+    Both sqlglot failure modes are caught: ``ParseError`` (well-formed tokens,
+    bad grammar) and ``TokenError`` (the tokenizer itself chokes — e.g. an
+    unbalanced quote/backtick when a model leaks prose or a markdown fence into
+    its answer). Either way the candidate is unparseable, so the gate cannot
+    prove it safe and returns ``None`` → a clean guardrail rejection. Letting
+    ``TokenError`` propagate would crash the run instead of bucketing it into a
+    terminal state, breaking the every-run-terminates invariant (CLAUDE.md §3)."""
     normalized = _normalize_dialect(dialect)
     attempts = (normalized,) if normalized is None else (normalized, None)
     for parse_dialect in attempts:
         try:
             parsed = sqlglot.parse(sql, dialect=parse_dialect)
-        except ParseError:
+        except (ParseError, TokenError):
             continue
         return [s for s in parsed if not _is_empty_statement(s)]
     return None
