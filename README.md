@@ -2,19 +2,50 @@
 
 **A Guardrailed Agentic NL-to-SQL system — presented as a case study in rigorously evaluating and operating an LLM system.**
 
-The natural-language-to-SQL agent is the *workload*; the eval harness, observability, and prompt-CI/CD wrapper around it is the *product*. Anyone can wire an LLM to a database — the goal here is to **prove the system works, catch when it breaks, and operate it day to day**. Guardrails and self-correction are not claimed features; they are *measured* features, scored against frozen benchmarks and red-team fixtures, with every reported number traceable to its config and commit.
+The natural-language-to-SQL agent is the *workload*; the eval harness, observability, and prompt-CI/CD wrapper around it is the *product*. Anyone can wire an LLM to a database — the goal here is to **prove the system works, catch when it breaks, and operate it day to day**. Guardrails and self-correction are not claimed features; they are *measured* features, scored against frozen benchmarks and red-team fixtures, with **every reported number traceable to its config and commit** in [`RESULTS.md`](RESULTS.md).
 
-> Open-sourced with a technical blog post, running against at least one cloud warehouse.
+## Headline findings
 
-## Assumptions
+Each row links to its committed entry in [`RESULTS.md`](RESULTS.md), where the exact model, slice, prompt version, date, and commit are recorded. The findings are deliberately *honest* — several are null or negative results, which is the point: the apparatus tells you the truth, not the headline you hoped for.
 
-The PRD (`docs/prd.md`) does not specify everything needed to run a project end-to-end. The following are inferred defaults; they will be replaced by real values as the implementation lands:
+| Finding | Number | What it means | Source |
+|---|---|---|---|
+| **First real BIRD number** (pass@1) | 0.420 (21/50) | The naive schema-dump baseline on a frozen, stratified 50-question slice | [Step 3](RESULTS.md#log) |
+| **Guardrail catch rate** (red-team) | 1.000 (29/29) | Every dangerous query in the red-team fixture blocked pre-execution; 43/43 verdicts correct | [Step 4](RESULTS.md#log) |
+| **What self-correction is worth** (pass@1→pass@3) | 0.420 → 0.420, gap **+0.000** | On this slice the loop *never fired* — the failures are semantic, not syntactic. The twin metric proves the feature adds nothing here rather than letting a headline imply otherwise | [Step 5](RESULTS.md#log) |
+| **What retrieval is worth** (naive→schema-RAG lift) | 0.700 → 0.575, lift **−0.125**, recall 0.942 | Where the whole schema *fits* the context, RAG can only lose information by dropping a needed table; recall diagnoses the loss directly | [Step 6](RESULTS.md#log) |
+| **Cross-provider** (accuracy × cost × latency) | best pass@1 **0.540** (`gemini-3-flash`) | One import-shared pipeline, many providers via LiteLLM; cheapest model ~70× less than priciest | [Step 7](RESULTS.md#log) |
+| **Framework-swap parity** (pass@1) | 0.420 → 0.420 | LangGraph + LiteLLM refactor was behavior-preserving — the harness proves the swap changed *exactly nothing* | [Step 7](RESULTS.md#log) |
+| **Prompt-CI catches a regression** (pass@1/pass@k) | 0.417 → **0.000**, Δ **−0.417** | A reasonable-looking prompt edit, caught before merge by the CI delta | [Step 9](RESULTS.md#log) |
 
-- **Tooling:** `uv` + `pyproject.toml` are mandated; exact command names (`uv run pytest`, etc.) are inferred.
-- **Lint/format:** Assumed `ruff`. Confirm in `pyproject.toml`.
-- **Python version:** Floor assumed at 3.11.
-- **License:** Not specified in the PRD — placeholder below.
-- **Environment variable names:** Inferred placeholder conventions, not PRD-specified.
+## Architecture
+
+The pipeline is an **instrumented state machine** wrapped by a harness that treats it as `question → result`. The same compiled graph is **import-shared** by the eval harness and the demo — never forked — so there is no drift between what is measured and what is shown.
+
+```mermaid
+flowchart LR
+  Q([NL question]) --> R[retrieve<br/>schema-RAG, loop-aware]
+  R --> G[generate<br/>LLM SQL]
+  G --> GU{guard<br/>sqlglot AST}
+  GU -- rejected --> X1((guardrail_rejected))
+  GU -- allowed --> E[execute<br/>SQLAlchemy]
+  E -- error --> C[correct<br/>capped retry]
+  C --> G
+  E -- clean --> RAW[/raw verified result/]
+  RAW --> SCORE[[harness: score vs gold<br/>canonicalized result-set compare]]
+  RAW --> RED[redact<br/>column-aware PII mask]
+  RED --> PRES[/presented result/]
+  PRES --> LOG[(logs · traces · UI)]
+  classDef exit fill:#fde68a,stroke:#d97706,color:#7c2d12;
+  class RAW,PRES exit;
+```
+
+**The two pipeline exits are the crux of the design:**
+
+- **Raw verified result** — scored by the harness against gold, **upstream of redaction**. Two different queries can be equally correct, so scoring is canonicalized result-set comparison, never SQL string-match.
+- **Presented result** — post-redaction; the *only* thing shown to users or written to traces/logs. Raw PII never reaches a log line, a span, or the screen.
+
+**Every run buckets into exactly one terminal state:** `success`, `wrong_answer`, `retry_exhausted`, `execution_error_final`, `guardrail_rejected`, or `retrieval_empty` — the classifier lives in the harness, the enum in `state.py`.
 
 ## Features
 
@@ -38,9 +69,10 @@ The PRD (`docs/prd.md`) does not specify everything needed to run a project end-
 - **SQLite** — for the BIRD benchmark (bundled with Python)
 - **PostgreSQL** — for the payments demo database
 - **An LLM provider API key** — every model call goes through LiteLLM (Step 7); the backend is chosen by the model identifier (`anthropic/…` for a direct key, `openrouter/…` to reach many models through one key) and the matching key is read from the environment.
-- **A Langfuse account / keys** — for observability (Step 8 onward)
-- **(Optional, Phase 3 reach)** Google Cloud project with BigQuery access
+- **A Langfuse account / keys** — for observability (optional; offline it is pure structured logging)
 - **BIRD benchmark data** — downloaded separately (see `eval/datasets/bird/`)
+
+> **BigQuery is a documented future reach, not built.** The cloud-warehouse executor (sqlglot transpilation to the BigQuery dialect) was scoped as optional reach and deliberately deferred — it carries real integration risk (auth, dialect quirks, cost) that must never block the legibility deliverables. The executor is already multi-engine and the guard already recognizes the `bigquery` dialect, so the path is open; the connection itself is left for a follow-up. See *Configuration & Data Sources*.
 
 ## Installation
 
@@ -61,32 +93,39 @@ docker compose up -d                                # local Postgres on :5432
 uv run python -m eval.datasets.payments.load        # apply DDL + seed, then verify
 uv run python -m eval.datasets.payments.verify_gold # check gold_sql reproduces gold_result
 
-# 5. (Optional) download the BIRD benchmark data into eval/datasets/bird/
+# 5. (Optional) download the BIRD benchmark data into eval/datasets/bird/data
+#    (gitignored; point BIRD_DATA_DIR at it — see Configuration)
 
 # 6. Verify the deterministic cores pass
 uv run pytest tests/test_compare.py tests/test_guard.py
 ```
 
-> Exact `.env` keys and dataset-loading commands depend on the implementation; follow the loaders under `eval/datasets/`.
-
 ## Usage
 
-Run the eval harness against a dataset slice — this is the centerpiece. It runs the pipeline per question, scores against gold via result-set comparison, buckets the terminal state, and records cost/latency/attempts.
+The eval harness is the centerpiece: each runner drives the import-shared pipeline per question over a **frozen** slice, scores against gold via canonicalized result-set comparison, buckets the terminal state, records cost/latency/attempts, and appends the number to `RESULTS.md`. Each runner is a thin entrypoint over the shared `eval/harness.py` batch runner; all accept `--dry-run` to print without writing. A provider key is required for the live model call (see Configuration).
 
 ```bash
-# Run the harness on a frozen BIRD slice
-uv run python -m eval.harness --dataset bird --slice <frozen-slice-id>
+# Step 3 — pass@1 baseline on the frozen BIRD slice (naive schema dump)
+uv run python -m eval.eval_bird
 
-# Run against the payments demo set
-uv run python -m eval.harness --dataset payments
+# Step 5 — the twin metric: pass@1 vs pass@k and the cost the gap buys
+uv run python -m eval.eval_bird_twin
 
-# Cross-provider table (Step 7): accuracy × cost × latency per model over the
-# frozen BIRD slice. Models come from CROSS_PROVIDER_MODELS (see Configuration).
-uv run python -m eval.eval_cross_provider            # run + append RESULTS.md
-uv run python -m eval.eval_cross_provider --dry-run  # run + print, no write
+# Step 6 — naive-dump vs schema-RAG retrieval lift (+ retrieval recall)
+uv run python -m eval.eval_bird_rag
+
+# Step 4 — guardrail catch rate against the red-team fixture (deterministic, no model)
+uv run python -m eval.redteam
+
+# Step 7 — cross-provider table: accuracy × cost × latency per model.
+# Models come from CROSS_PROVIDER_MODELS (see Configuration).
+uv run python -m eval.eval_cross_provider
+
+# The payments demo set (Postgres) instead of BIRD
+uv run python -m eval.eval_payments
 ```
 
-> Note: the harness CLI flags above (`--dataset`, `--slice`) show the intended interface; the batch runner lands from Step 3 onward.
+Each step also ships a self-contained **proof** that runs offline (no API key) where possible — e.g. `eval.prove_step1` (one seed question → result vs gold), `eval.prove_step8` (renders an example trace), `eval.prove_step9` (replays the prompt-CI regression delta).
 
 **Prompt-CI/CD (Step 9).** A prompt change automatically tells you whether you improved or regressed. The GitHub Action [`.github/workflows/eval.yml`](.github/workflows/eval.yml) triggers on any change under `prompts/` (or `src/nl2sql/prompts.py`, where the active version is pinned), runs the harness on the **frozen, seeded, stratified** prompt-CI slice ([`slice_ci.json`](eval/datasets/bird/slice_ci.json), generated by [`slice_ci.py`](eval/datasets/bird/slice_ci.py)) with both the base and PR prompts, and posts the **pass@1/pass@k deltas** to the job summary and a sticky PR comment.
 
@@ -100,38 +139,22 @@ uv run python -m eval.prompt_ci --compare base.json head.json
 
 > **Cost guard:** the prompt-CI slice is deliberately small (12 questions). Each push runs it twice (base + PR), each a pass@k run, so per-push cost scales with `size × k × 2` — a fixed small subset, not full BIRD per push. The slice is frozen, seeded, and stratified by BIRD difficulty so a delta is a real regression, not sampling variance. The live run is gated on `ANTHROPIC_API_KEY` + a `BIRD_DEV_URL` repo variable (defer-API-key); without them the workflow reports a skipped run instead of failing the PR.
 
-Launch the demo UI — built to *reveal the wrapper* (guardrail decision, retry count, cost), not to hide a chatbot:
+**Demo UI (Step 10).** Launch the thin Streamlit app — built to *reveal the wrapper* (guardrail decision, retry count, cost, terminal state), not to hide a chatbot. It imports the same shared pipeline the harness measures, so the demo can't drift from the numbers. Its dependencies live in an isolated group:
 
 ```bash
+uv sync --group demo
 uv run streamlit run apps/demo/app.py
 ```
 
-While the harness and demo are still being built, the thinnest pipeline loop
-(Step 1) is runnable directly as a smoke check — it feeds one question through
-`generate → execute → return` against the payments db (needs a live, seeded
-Postgres and a provider key for the default model — `ANTHROPIC_API_KEY` for the
-default `anthropic/claude-sonnet-4-6`):
+The thinnest pipeline loop is also runnable directly as a smoke check — one question through `generate → guard → execute → return` against the payments db (needs a live, seeded Postgres and a provider key for the default `anthropic/claude-sonnet-4-6`):
 
 ```bash
 uv run python -m nl2sql.pipeline.graph "How many users are based in the US?"
 ```
 
-The Step-1 end-to-end proof goes one further: it runs a *verified seed question*
-through the same loop, classifies the terminal state (`success` /
-`execution_error_final`), and asserts the result reproduces the question's gold
-answer (value-level match, column aliases ignored — the canonicalized comparator
-lands at Step 2). Same prerequisites; exits non-zero on a mismatch:
-
-```bash
-uv run python -m eval.prove_step1            # defaults to pay-001
-uv run python -m eval.prove_step1 pay-004    # any verified seed question id
-```
-
-**Every run buckets into exactly one terminal state:** `success`, `wrong_answer`, `retry_exhausted`, `execution_error_final`, `guardrail_rejected`, or `retrieval_empty`. The harness aggregates overall accuracy, accuracy by difficulty/failure-type, `pass@1`/`pass@k`, and retrieval recall.
-
 ## Configuration
 
-Configuration is supplied via environment variables (e.g. an `.env` file). Names below are inferred placeholders — confirm against the implementation.
+Configuration is supplied via environment variables (e.g. an `.env` file).
 
 | Variable | Description | Required | Example |
 |---|---|---|---|
@@ -144,8 +167,8 @@ Configuration is supplied via environment variables (e.g. an `.env` file). Names
 | `LANGFUSE_HOST` | Langfuse host URL — set to your region (EU `cloud.langfuse.com`, US `us.cloud.langfuse.com`, JP `jp.cloud.langfuse.com`, or self-hosted). `LANGFUSE_BASE_URL` is honored as a fallback. | Step 8+ | `https://cloud.langfuse.com` |
 | `RETRY_BUDGET` | Max self-correction attempts per question | No | `3` |
 | `CROSS_PROVIDER_MODELS` | Comma-separated model ids for the Step-7 cross-provider table; unset → the default single model | Step 7 cross-provider run | `openrouter/anthropic/claude-sonnet-4,openrouter/openai/gpt-4o-mini` |
-| `BIGQUERY_PROJECT` | GCP project for BigQuery (Phase 3 reach) | No | `my-gcp-project` |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service-account JSON | No | `./gcp-key.json` |
+| `BIGQUERY_PROJECT` | GCP project for BigQuery — **future reach, not implemented** | No | `my-gcp-project` |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service-account JSON — **future reach, not implemented** | No | `./gcp-key.json` |
 
 The **model is chosen per run** by the provider-prefixed `model` argument to `run_pipeline` (default `anthropic/claude-sonnet-4-6`); LiteLLM routes to the matching backend and reads the corresponding key above. No separate provider/key env var is needed — the identifier *is* the selector.
 
@@ -168,9 +191,10 @@ nl2sql-eval/
 ├── RESULTS.md                # committed running results log (every number → config + commit)
 ├── docs/
 │   ├── prd.md                # product requirements document
+│   ├── blogs/                # the step-by-step technical narrative (step-1 … step-10)
 │   └── plans/                # per-step detail, one folder per step
 │       ├── step-1/           #   plan-step-1.md + its broken-down issue-*.md slices
-│       ├── step-2/ … step-10/#   plan-step-N.md per step
+│       ├── step-2/ … step-10/#   plan-step-N.md + per-issue summary HTML
 │       └── …
 ├── src/nl2sql/
 │   ├── pipeline/             # the system-under-test (import-shared by harness + demo)
@@ -199,7 +223,8 @@ nl2sql-eval/
 │   ├── golden_compare/       # (gold, candidate, expected_verdict) triples — DELIVERABLE
 │   └── redteam_guard/        # injected dangerous queries — DELIVERABLE
 ├── prompts/                  # version-controlled Jinja-style templates (CI diffs these)
-├── apps/demo/                # thin Streamlit UI (built late; isolated dep group)
+├── apps/demo/                # thin Streamlit UI revealing the wrapper (isolated dep group)
+│   └── app.py                #   imports the same shared pipeline as the harness
 ├── tests/                    # esp. compare.py and guard.py — the deterministic cores
 └── .github/workflows/
     └── eval.yml              # prompt-CI: run frozen slice on change, post deltas
@@ -233,19 +258,17 @@ uv run pytest tests/test_compare.py tests/test_guard.py
 
 - **BIRD** — hard, realistic public benchmark; the quantitative backbone. Provides large-N comparable accuracy and leaderboard anchoring.
 - **Payments-platform schema (Postgres)** — hand-built qualitative showcase (users, merchants, transactions, payment_methods, refunds, disputes, ledger/balances) with ~30–60 verified gold answers. Drives the demo and the guardrail/PII exercise.
-- **BigQuery** — optional Phase 3 reach; the cloud-warehouse checkbox. Quarantined so it never blocks the README/blog.
+- **BigQuery** — the cloud-warehouse checkbox, scoped as **optional reach and deliberately deferred** (documented future work, not built). The plan quarantined it precisely so its integration risk (auth, dialect quirks, cost) could never block the README, blog, and demo that make the project legible. The executor is multi-engine and the guard already recognizes the `bigquery` dialect — transpiling verified SQL via sqlglot is the remaining step.
 
 ## Contributing
 
-> Inferred conventions — adjust to project norms once established.
-
 - **Branch strategy:** feature branches off `main`; open a pull request for review. Do not commit directly to `main`.
 - **Prompts:** edit templates in `prompts/` (never inline prompt strings). Prompt-CI diffs this directory and posts `pass@1`/`pass@k` deltas — a delta means a real regression, not sampling noise.
-- **Results discipline:** from Step 3 onward, any eval number you report must be appended to `RESULTS.md` with **model, slice ID, prompt version, date, the number, and the commit**.
-- **Code style:** Python 3.11+, formatted/linted with `ruff` (assumed). Run `uv run ruff check .` and `uv run ruff format .` before opening a PR.
+- **Results discipline:** any eval number you report must be appended to `RESULTS.md` with **model, slice ID, prompt version, date, the number, and the commit**.
+- **Code style:** Python 3.11+, formatted/linted with `ruff`. Run `uv run ruff check .` and `uv run ruff format .` before opening a PR.
 - **Tests:** `uv run pytest` must pass; extend the golden and red-team fixtures when touching the comparator or guardrails.
 - **Out of scope** (do not submit): cross-database routing, open-ended generation eval, and LLM-as-judge as the primary scorer.
 
 ## License
 
-License not specified in the PRD. **TBD** — add a `LICENSE` file (e.g. MIT or Apache-2.0) before open-sourcing.
+No `LICENSE` file is committed yet. Add one (e.g. MIT or Apache-2.0) before open-sourcing — the choice is left to the repository owner.
