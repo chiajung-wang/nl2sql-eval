@@ -6,25 +6,28 @@ schemas produced ~zero execution errors, and the loop can only feed back an
 execution error. That was an honest zero, not a failure.
 
 This points the **same twin** at the Step-6 **large-schema** slice (naive
-full-schema dump, up to 14 tables): more identifiers give the model more to get
-wrong, so an execution error — ``no such column``, ``no such table``, a bad
-function — is far likelier, and *that* is exactly what the loop can correct. The
-**same default model self-corrects** (the model is a fixed per-run input; it is
-not swapped between attempts), so the gap measures what self-correction is worth
-*for this model*, with no stronger model bailing it out.
+full-schema dump, up to 14 tables) and lets the **generator model** vary (the
+``MODEL`` env var). The model self-corrects itself — it is a fixed per-run input,
+not swapped between attempts — so the gap measures what self-correction is worth
+*for that model*, with no stronger model bailing it out. The lever the loop's
+value actually turns on is **generator weakness**: a strong model writes valid
+SQL even on a 14-table schema (nothing to correct → gap 0), while a weaker model
+produces the malformed SQL the loop can recover.
 
-Honest either way: if the large schemas *still* produce no recoverable execution
-errors, the gap is still 0 — and the terminal-state decomposition below says so,
-showing the eligible-error population that the loop had to work with.
+Honest either way: if a run produces no recoverable execution errors, the gap is
+still 0 — and the terminal-state decomposition below says so, showing the
+eligible-error population the loop had to work with.
 
-    uv run python -m eval.eval_bird_selfcorrect            # k from RETRY_BUDGET (=3)
-    uv run python -m eval.eval_bird_selfcorrect --dry-run  # run + print, no write
+    uv run python -m eval.eval_bird_selfcorrect            # default model, k=3
     RETRY_BUDGET=5 uv run python -m eval.eval_bird_selfcorrect   # sweep the budget
+    MODEL=openrouter/moonshotai/kimi-k2.7-code \
+        uv run python -m eval.eval_bird_selfcorrect       # a weaker generator
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from datetime import date
 
@@ -33,13 +36,25 @@ from dotenv import load_dotenv
 from eval.datasets.bird.slice_large import load_large_slice_ids
 from eval.eval_bird import DIALECT, RESULTS_PATH, _git_commit, build_bird_cases
 from eval.eval_bird_rag import slice6_id
-from eval.eval_bird_twin import append_results, make_factory, retry_budget
+from eval.eval_bird_twin import append_results, retry_budget
+
+# Reuse the cross-provider factory: it binds a *specific* model into the
+# import-shared pipeline (OpenRouter routing pinned, provider errors bucketed
+# rather than crashing the run) — so the same runner can sweep the generator from
+# strong to weak, which is the lever self-correction's value actually turns on.
+from eval.eval_cross_provider import make_factory, provider_errors
 from eval.harness import batch_session_id, derive_pass1_report, run_batch
 from eval.metrics import TwinReport, twin_summary_lines
 from nl2sql import obs
 from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.state import TerminalState
 from nl2sql.prompts import PROMPT_VERSION
+
+
+def model_id() -> str:
+    """The generator model — ``MODEL`` env var or the default. A weaker model
+    produces more malformed SQL, the only thing the correction loop can recover."""
+    return os.environ.get("MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
 
 def _eligible_errors(twin: TwinReport) -> int:
@@ -127,30 +142,34 @@ def main(argv: list[str] | None = None) -> int:
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
     k = retry_budget()
+    model = model_id()
     cases, evidence = build_bird_cases(slice_ids=load_large_slice_ids())
     print(
         f"self-correction twin: {len(cases)} large-schema BIRD questions "
-        f"({DIALECT}, naive dump); one pass@{k} run, pass@1 derived from its "
-        f"first attempts…"
+        f"({DIALECT}, naive dump) on `{model}`; one pass@{k} run, pass@1 derived "
+        f"from its first attempts…"
     )
     passk = run_batch(
         cases,
-        make_factory(evidence)(k),
+        make_factory(model, evidence)(k),
         session_id=batch_session_id(
-            f"bird-selfcorrect-pass{k}",
-            model=DEFAULT_MODEL,
-            prompt_version=PROMPT_VERSION,
+            f"bird-selfcorrect-pass{k}", model=model, prompt_version=PROMPT_VERSION
         ),
     )
     pass1 = derive_pass1_report(passk)
-    twin = TwinReport(pass1=pass1, passk=passk, model=DEFAULT_MODEL)
+    twin = TwinReport(pass1=pass1, passk=passk, model=model)
 
     print("\n" + "\n".join(twin_summary_lines(twin)))
     print(f"eligible execution errors (pass@1): {_eligible_errors(twin)}")
+    n_provider_errors = provider_errors(passk)
+    if n_provider_errors:
+        print(
+            f"provider errors (infra, not SQL): {n_provider_errors}/{twin.passk.total}"
+        )
 
     commit = _git_commit()
-    row = results_row(twin, k=k, model=DEFAULT_MODEL, commit=commit)
-    prose = results_prose(twin, k=k, model=DEFAULT_MODEL)
+    row = results_row(twin, k=k, model=model, commit=commit)
+    prose = results_prose(twin, k=k, model=model)
     print("\nRESULTS.md row:\n" + row)
     if write:
         append_results(row, prose)

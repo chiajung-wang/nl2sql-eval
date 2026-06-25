@@ -64,6 +64,15 @@ def test_eligible_errors_counts_only_execution_failures():
     assert sc._eligible_errors(_twin_no_fire()) == 0
 
 
+def test_model_id_reads_env_with_default(monkeypatch):
+    monkeypatch.delenv("MODEL", raising=False)
+    assert sc.model_id() == "anthropic/claude-sonnet-4-6"
+    monkeypatch.setenv("MODEL", "openrouter/moonshotai/kimi-k2.7-code")
+    assert sc.model_id() == "openrouter/moonshotai/kimi-k2.7-code"
+    monkeypatch.setenv("MODEL", "  ")  # blank → falls back to the default
+    assert sc.model_id() == "anthropic/claude-sonnet-4-6"
+
+
 def test_results_row_carries_config_gap_and_eligible_count():
     row = sc.results_row(_twin_with_recovery(), k=3, model=MODEL, commit="abc1234")
     assert row.startswith("| ") and "| 5 |" in row
