@@ -22,17 +22,31 @@ A provider key (e.g. ``ANTHROPIC_API_KEY``) is required for the live model call.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
-import streamlit as st
-from dotenv import load_dotenv
+# Streamlit runs this file as a *script*, so it puts apps/demo/ (the script's
+# own dir) on sys.path, not the repo root — and the repo-root peer packages
+# ``apps`` and ``eval`` are then unimportable (``ModuleNotFoundError: No module
+# named 'apps'``). pytest avoids this via ``pythonpath = ["."]``; for the
+# ``streamlit run apps/demo/app.py`` entrypoint we put the repo root on the path
+# explicitly, before importing those packages.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-from apps.demo.runner import DemoView, badge_for, parse_dataset, run_demo
-from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy
+import streamlit as st  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
 
-PAYMENTS_SCHEMA = (
-    Path(__file__).resolve().parents[2] / "eval/datasets/payments/schema.sql"
+from apps.demo.runner import (  # noqa: E402
+    DemoView,
+    badge_for,
+    parse_dataset,
+    run_demo,
 )
+from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy  # noqa: E402
+
+PAYMENTS_SCHEMA = _REPO_ROOT / "eval/datasets/payments/schema.sql"
 
 # Generic badge severity → the Streamlit status widget that renders it.
 _LEVEL_WIDGET = {"ok": "success", "warn": "warning", "error": "error", "info": "info"}

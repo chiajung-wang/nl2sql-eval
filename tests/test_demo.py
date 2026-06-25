@@ -163,3 +163,31 @@ def test_parse_dataset_rejects_unknown_choice():
         parse_dataset("mysql/whatever")
     with pytest.raises(ValueError):
         parse_dataset("bird/")  # no db id
+
+
+def test_app_imports_under_streamlit_path_model():
+    # Streamlit runs app.py as a script with apps/demo/ (not the repo root) on
+    # sys.path, so the repo-root peers `apps`/`eval` are unimportable unless the
+    # app bootstraps the path itself. Reproduce that exact path model and exec the
+    # module body (main() is guarded, so it does not run). Skips when the demo
+    # group isn't installed — the core suite stays streamlit-free.
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    pytest.importorskip("streamlit")
+    repo = Path(__file__).resolve().parents[1]
+    app = repo / "apps" / "demo" / "app.py"
+    code = (
+        "import sys;"
+        f"sys.path[:] = [p for p in sys.path if p not in ('', {str(repo)!r})];"
+        f"sys.path.insert(0, {str(app.parent)!r});"
+        f"ns = {{'__name__': 'appmod', '__file__': {str(app)!r}}};"
+        f"exec(compile(open({str(app)!r}).read(), {str(app)!r}, 'exec'), ns)"
+    )
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    proc = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, env=env
+    )
+    assert proc.returncode == 0, proc.stderr
