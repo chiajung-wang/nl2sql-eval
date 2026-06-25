@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Step 5 Follow-up — What Self-Correction Is Worth (controlled study)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  tbody tr:hover{background:rgba(56,189,248,.05)}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .zero{color:var(--mod);font-weight:700} .fire{color:var(--add);font-weight:700}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)}
+  .good-txt{color:var(--add)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #107 · Step 5 follow-up</span>
+    <h1>What self-correction is worth — a controlled study</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Branch:</b> <code>step-5-follow-up/selfcorrect-large-schema</code> → <code>main</code></span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> The question</h2><div class="card">
+      <p class="lede"><b>"Really test self-correction."</b> Step 5 measured the pass@1→pass@k gap at <b>+0.000</b> —
+      but that was an <em>eligibility</em> result, not a verdict: the loop only feeds back <b>execution errors</b>,
+      and a strong model on the small Step-3 slice produced none. To find where the loop earns its keep, run the
+      <em>same twin</em> on a workload that can actually produce errors, varying two axes.</p>
+      <div class="stats">
+        <div><b class="good-txt">0</b> pipeline/harness logic forked</div>
+        <div><b>2</b> axes: budget, generator</div>
+        <div><b>5</b> offline tests (no model)</div>
+        <div><b>477</b> suite green</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The result</h2><div class="card">
+      <p>Same frozen large-schema slice (40 questions, naive dump, up to 14 tables). Hold the model, sweep the
+      budget; then hold the slice, swap the generator strong → weak:</p>
+      <table>
+        <thead><tr><th>run</th><th>model</th><th>pass@1</th><th>pass@k</th><th>gap</th><th>eligible exec-errors</th><th>recovered</th></tr></thead>
+        <tbody>
+          <tr><td>k=3</td><td><code>sonnet-4.6</code></td><td>0.725</td><td>0.725</td><td class="zero">+0.000</td><td class="zero">0</td><td>0</td></tr>
+          <tr><td>k=5</td><td><code>sonnet-4.6</code></td><td>0.675</td><td>0.675</td><td class="zero">+0.000</td><td class="zero">0</td><td>0</td></tr>
+          <tr><td>k=3</td><td><code>kimi-k2.7-code</code> (weak)</td><td>0.425</td><td>0.475</td><td class="fire">+0.050</td><td class="fire">5</td><td>2 (+7 attempts)</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-bottom:0"><b>The lever is generator weakness — not schema size or budget.</b> A strong model
+      writes valid SQL even on a 14-table schema (0 errors to feed back → raising k does nothing). A weaker model
+      finally gives the loop fuel: 5 attempt-1 execution errors, 2 recovered, a real +0.050 — bought with 7 extra
+      cycles and ~94s.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> Why +0.050 is signal, not the noise floor</h2><div class="card">
+      <p>This is the distinction the twin metric exists to make:</p>
+      <ul style="margin:.3rem 0">
+        <li>The strong-model <b>0.725 vs 0.675</b> difference is <em>between two independent runs</em> → pure resampling jitter (~0.05 floor, temperature&gt;0).</li>
+        <li>The weak-model <b>+0.050</b> is <em>within one run</em>: pass@1 is derived from the <em>same</em> pass@3 run's first attempts, so the 2 recovered questions specifically <b>errored on attempt 1 and the loop flipped them correct</b> — <code>recovery_rate</code> + the <b>+7 added attempts</b> are the causal proof, not a second sample.</li>
+      </ul>
+      <p style="margin-bottom:0" class="note"><b>Honest limit (disclosed):</b> the weak arm is <b>n=1 at one k</b> — a clean
+      demonstration that the loop fires and recovers, not a precise magnitude; <code>+0.050</code> is illustrative.
+      Added <em>dollar</em> cost is unpriced (kimi routes via OpenRouter, which the twin's dated list table doesn't
+      carry; reconciled by the cross-provider table, #52).</p>
+    </div></section>
+
+    <section><h2><span class="num">4</span> Two-axis review — both clean</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards — conformant</h3><ul>
+          <li>No fork: reuses <code>run_batch</code> / <code>derive_pass1_report</code> / <code>TwinReport</code> and the cross-provider <code>make_factory</code> (§3)</li>
+          <li>pass@1 AND pass@k reported; no result rows / PII in any output (§5)</li>
+          <li>All 3 RESULTS rows carry full config + commit (§6); lift reported with its retry price</li>
+          <li>Deterministic pieces covered offline (row/prose, eligible-count, <code>model_id</code>); no Claude trailers</li>
+        </ul></div>
+        <div class="group good"><h3>Spec — honest</h3><ul>
+          <li>Genuinely tests self-correction; the negative strong-model result is preserved, not buried</li>
+          <li>Controlled-study framing sound (hold slice/vary budget; hold slice/vary model)</li>
+          <li><b>Fix applied:</b> reconciled +0.050 vs the ~0.05 noise floor (within-run vs between-run) and disclosed the weak arm as n=1</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">5</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>eval/eval_bird_selfcorrect.py</code></td><td><span class="st A">A</span></td><td>The twin on the large slice with a <code>MODEL</code> knob; reuses the cross-provider factory; reports the eligible-error decomposition + recovery + cost.</td></tr>
+          <tr><td class="f"><code>tests/test_eval_bird_selfcorrect.py</code></td><td><span class="st A">A</span></td><td>5 offline tests: eligible-error count, row/prose (fired vs never-fired), <code>model_id</code> env behavior.</td></tr>
+          <tr><td class="f"><code>RESULTS.md</code></td><td><span class="st M">M</span></td><td>3 data rows + the controlled-study write-up with the noise-floor reconciliation and n=1 disclosure.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">6</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest</code> → 477 passed (5 new); ruff check + format clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Strong model: 0 eligible execution errors, gap +0.000 across k=3/k=5 — raising budget can't help with nothing to feed back</p>
+        <p style="margin:.2rem 0"><b>✓</b> Weak model (same slice): 5 eligible errors, 2 recovered, +0.050 — the loop demonstrably fires, with its retry price reported</p>
+        <p style="margin:.2rem 0"><b>✓</b> Numbers are real live runs, traceable in <code>RESULTS.md</code> (commits <code>74ae104</code>, <code>fc99e7c</code>)</p>
+        <p style="margin:.2rem 0"><b>✓</b> Two-axis <code>/review</code> → standards conformant, spec honest; noise-floor reconciliation + n=1 disclosure applied</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for PR #107 · base <code>main</code> ← <code>step-5-follow-up/selfcorrect-large-schema</code>
+    </footer>
+  </div>
+</body>
+</html>
