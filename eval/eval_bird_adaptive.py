@@ -49,8 +49,8 @@ from eval.eval_bird import (
 from eval.eval_bird_rag import _index, make_naive_run_one, make_rag_run_one, slice6_id
 from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
+from eval.model_select import model_id
 from nl2sql import obs
-from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.retrieve import DEFAULT_SCHEMA_TOKEN_BUDGET, schema_fits_budget
 from nl2sql.pipeline.state import RunState
@@ -69,6 +69,7 @@ def make_adaptive_run_one(evidence: dict[str, str], *, budget_tokens: int):
             dialect=DIALECT,
             evidence=evidence.get(case.id, ""),
             budget_tokens=budget_tokens,
+            model=model_id(),
         )
 
     return run_one
@@ -103,7 +104,7 @@ def _row(
     )
     return (
         f"| {date.today().isoformat()} | 6 | adaptive-gate pass@1 | {number} | "
-        f"{DEFAULT_MODEL} | {slice6_id()} | {PROMPT_VERSION} | {commit} |"
+        f"{model_id()} | {slice6_id()} | {PROMPT_VERSION} | {commit} |"
     )
 
 
@@ -151,7 +152,7 @@ def _cost_row(footprint: dict[str, dict[str, int]], *, budget: int, commit: str)
     )
     return (
         f"| {date.today().isoformat()} | 6 | adaptive-gate cost | {number} | "
-        f"{DEFAULT_MODEL} | {slice6_id()} | {PROMPT_VERSION} | {commit} |"
+        f"{model_id()} | {slice6_id()} | {PROMPT_VERSION} | {commit} |"
     )
 
 
@@ -257,7 +258,7 @@ def main(argv: list[str] | None = None) -> int:
         cases,
         make_naive_run_one(evidence),
         session_id=batch_session_id(
-            "bird-adaptive-naive", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+            "bird-adaptive-naive", model=model_id(), prompt_version=PROMPT_VERSION
         ),
     )
     print("\n".join(summary_lines(naive)))
@@ -267,7 +268,7 @@ def main(argv: list[str] | None = None) -> int:
         cases,
         make_rag_run_one(evidence),
         session_id=batch_session_id(
-            "bird-adaptive-rag", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+            "bird-adaptive-rag", model=model_id(), prompt_version=PROMPT_VERSION
         ),
     )
     print("\n".join(summary_lines(rag)))
@@ -278,7 +279,7 @@ def main(argv: list[str] | None = None) -> int:
         make_adaptive_run_one(evidence, budget_tokens=budget),
         session_id=batch_session_id(
             f"bird-adaptive-gate@{budget}t",
-            model=DEFAULT_MODEL,
+            model=model_id(),
             prompt_version=PROMPT_VERSION,
         ),
     )

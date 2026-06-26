@@ -27,7 +27,6 @@ eligible-error population the loop had to work with.
 from __future__ import annotations
 
 import logging
-import os
 import sys
 from datetime import date
 
@@ -45,16 +44,10 @@ from eval.eval_bird_twin import append_results, retry_budget
 from eval.eval_cross_provider import make_factory, provider_errors
 from eval.harness import batch_session_id, derive_pass1_report, run_batch
 from eval.metrics import TwinReport, twin_summary_lines
+from eval.model_select import model_id  # MODEL env override → generator model
 from nl2sql import obs
-from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.state import TerminalState
 from nl2sql.prompts import PROMPT_VERSION
-
-
-def model_id() -> str:
-    """The generator model — ``MODEL`` env var or the default. A weaker model
-    produces more malformed SQL, the only thing the correction loop can recover."""
-    return os.environ.get("MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
 
 def _eligible_errors(twin: TwinReport) -> int:

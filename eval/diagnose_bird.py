@@ -37,8 +37,8 @@ from eval.datasets.bird import loader
 from eval.eval_bird import DIALECT, _engine, build_bird_cases, make_run_one
 from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport
+from eval.model_select import model_id
 from nl2sql import obs
-from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.prompts import PROMPT_VERSION
 
 REPORT_PATH = (
@@ -167,7 +167,9 @@ def rescore_under_bird(records: list[dict[str, Any]]) -> None:
             pass
 
 
-def _render_report(report: BatchReport, records: list[dict[str, Any]]) -> str:
+def _render_report(
+    report: BatchReport, records: list[dict[str, Any]], model: str
+) -> str:
     """Markdown: headline, taxonomy counts, by-difficulty/db cuts, per-failure."""
     scorer_artifacts = [r for r in records if r.get("bird_correct")]
     genuine = [r for r in records if not r.get("bird_correct")]
@@ -182,7 +184,7 @@ def _render_report(report: BatchReport, records: list[dict[str, Any]]) -> str:
         "# BIRD baseline — failure analysis",
         "",
         f"**pass@1 {report.pass_at_1:.3f} ({report.n_correct}/{report.total})** "
-        f"(strict multiset default) · model `{DEFAULT_MODEL}` · prompt "
+        f"(strict multiset default) · model `{model}` · prompt "
         f"`{PROMPT_VERSION}` · single-shot, naive schema dump.",
         "",
         "## Scorer artifact vs genuine model error",
@@ -256,22 +258,24 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
+    model = model_id()
     cases, evidence = build_bird_cases()
     by_id = {c.id: c for c in cases}
     print(
-        f"diagnosing {len(cases)} BIRD questions ({DIALECT}, naive dump, single-shot)…"
+        f"diagnosing {len(cases)} BIRD questions ({DIALECT}, naive dump, single-shot) "
+        f"on `{model}`…"
     )
     report = run_batch(
         cases,
-        make_run_one(evidence),
+        make_run_one(evidence, model),
         session_id=batch_session_id(
-            "bird-diagnose", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+            "bird-diagnose", model=model, prompt_version=PROMPT_VERSION
         ),
     )
     records = _failure_records(report, by_id)
     rescore_under_bird(records)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(_render_report(report, records))
+    out.write_text(_render_report(report, records, model))
     out.with_suffix(".json").write_text(json.dumps(records, indent=2) + "\n")
 
     genuine = [r for r in records if not r.get("bird_correct")]
