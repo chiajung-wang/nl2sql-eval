@@ -14,7 +14,7 @@ Each "Source" cell links to the committed [`RESULTS.md`](RESULTS.md) log and nam
 |---|---|---|---|
 | **First real BIRD number** (pass@1) | 0.420 (21/50) | The naive schema-dump baseline on a frozen, stratified 50-question slice | [Step 3](RESULTS.md#log) · `5d9d8ae` |
 | **Guardrail catch rate** (red-team) | 1.000 (29/29) | Every dangerous query in the red-team fixture blocked pre-execution; 43/43 verdicts correct | [Step 4](RESULTS.md#log) · `e56fbcd` |
-| **What self-correction is worth** (pass@1→pass@3) | 0.420 → 0.420, gap **+0.000** | On this slice the loop *never fired* — the failures are semantic, not syntactic. The twin metric proves the feature adds nothing here rather than letting a headline imply otherwise | [Step 5](RESULTS.md#log) · `7ae5bb5` |
+| **What self-correction is worth** (pass@1→pass@k) | strong model **+0.000**; weak model **+0.050** | The loop can only recover *execution errors*. A strong model makes ~none (its failures are semantic) so the gap is **0** even on 14-table schemas; a weaker generator produces them and the loop recovers some. The value tracks **generator weakness**, not budget — the twin reports the lift with its retry price | [Step 5](RESULTS.md#log) · `7ae5bb5` + [follow-up](RESULTS.md#log) · `fc99e7c` |
 | **What retrieval is worth** (naive→schema-RAG lift) | 0.700 → 0.575, lift **−0.125**, recall 0.942 | Where the whole schema *fits* the context, RAG can only lose information by dropping a needed table; recall diagnoses the loss directly | [Step 6](RESULTS.md#log) · `ff342d7` |
 | **Cross-provider** (accuracy × cost × latency) | best pass@1 **0.540** (`gemini-3-flash`) | One import-shared pipeline, many providers via LiteLLM; cheapest model ~70× less than priciest | [Step 7](RESULTS.md#log) · `26328de` |
 | **Framework-swap parity** (pass@1) | 0.420 → 0.420 | LangGraph + LiteLLM refactor was behavior-preserving — the harness proves the swap changed *exactly nothing* | [Step 7](RESULTS.md#log) · `2040ef9` |
@@ -112,6 +112,12 @@ uv run python -m eval.eval_bird
 
 # Step 5 — the twin metric: pass@1 vs pass@k and the cost the gap buys
 uv run python -m eval.eval_bird_twin
+
+# Step 5 follow-up — where self-correction actually fires: the twin on the
+# large-schema slice, with a selectable generator (MODEL env var). A strong model
+# makes ~0 execution errors (gap 0); a weaker one gives the loop something to fix.
+uv run python -m eval.eval_bird_selfcorrect
+MODEL=openrouter/moonshotai/kimi-k2.7-code uv run python -m eval.eval_bird_selfcorrect
 
 # Step 6 — naive-dump vs schema-RAG retrieval lift (+ retrieval recall)
 uv run python -m eval.eval_bird_rag
