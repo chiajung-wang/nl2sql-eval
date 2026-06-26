@@ -74,7 +74,7 @@ flowchart LR
 - **A Langfuse account / keys** — for observability (optional; offline it is pure structured logging)
 - **BIRD benchmark data** — downloaded separately (see `eval/datasets/bird/`)
 
-> **BigQuery is a documented future reach, not built.** The cloud-warehouse executor (sqlglot transpilation to the BigQuery dialect) was scoped as optional reach and deliberately deferred — it carries real integration risk (auth, dialect quirks, cost) that must never block the legibility deliverables. The executor is already multi-engine and the guard already recognizes the `bigquery` dialect, so the path is open; the connection itself is left for a follow-up. See *Configuration & Data Sources*.
+> **BigQuery is a documented future reach, not built.** The cloud-warehouse executor (sqlglot transpilation to the BigQuery dialect) was scoped as optional reach and deliberately deferred — it carries real integration risk (auth, dialect quirks, cost) that must never block the legibility deliverables. The executor is already multi-engine and the guard already recognizes the `bigquery` dialect, so the path is open; the connection itself is left for a follow-up. See *Planning*.
 
 ## Installation
 
@@ -177,8 +177,6 @@ Configuration is supplied via environment variables (e.g. an `.env` file).
 | `LANGFUSE_HOST` | Langfuse host URL — set to your region (EU `cloud.langfuse.com`, US `us.cloud.langfuse.com`, JP `jp.cloud.langfuse.com`, or self-hosted). `LANGFUSE_BASE_URL` is honored as a fallback. | Step 8+ | `https://cloud.langfuse.com` |
 | `RETRY_BUDGET` | Max self-correction attempts per question | No | `3` |
 | `CROSS_PROVIDER_MODELS` | Comma-separated model ids for the Step-7 cross-provider table; unset → the default single model | Step 7 cross-provider run | `openrouter/anthropic/claude-sonnet-4,openrouter/openai/gpt-4o-mini` |
-| `BIGQUERY_PROJECT` | GCP project for BigQuery — **future reach, not implemented** | No | `my-gcp-project` |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service-account JSON — **future reach, not implemented** | No | `./gcp-key.json` |
 
 The **model is chosen per run** by the provider-prefixed `model` argument to `run_pipeline` (default `anthropic/claude-sonnet-4-6`); LiteLLM routes to the matching backend and reads the corresponding key above. No separate provider/key env var is needed — the identifier *is* the selector.
 
@@ -241,6 +239,17 @@ nl2sql-eval/
     └── eval.yml              # prompt-CI: run frozen slice on change, post deltas
 ```
 
+## Planning
+
+The project was built **measurement-first** (the eval before the feature) across ten steps, and the planning trail is committed so every decision and number is traceable:
+
+- [`docs/prd.md`](docs/prd.md) — the product requirements document the whole build derives from.
+- [`docs/plans/step-N/`](docs/plans/) — per-step plan plus its broken-down, independently-grabbable issues, each with a self-contained HTML summary of what shipped.
+- [`RESULTS.md`](RESULTS.md) — the running results log; every reported number links to its model, slice, prompt version, date, and commit.
+- [`docs/blogs/`](docs/blogs/) — the step-by-step narrative, capped by the [capstone](docs/blogs/the-wrapper-is-the-product.md).
+
+**Status:** Steps 1–10 complete. The one deliberately deferred item is the optional BigQuery cloud-warehouse executor (the guard already recognizes the `bigquery` dialect; transpiling verified SQL via sqlglot is the remaining step).
+
 ## Testing
 
 Tests concentrate on the **deterministic, correctness-critical cores**: the comparator (`eval/compare.py`) and the guardrails (`src/nl2sql/pipeline/guard.py`). A comparator bug silently invalidates every reported number, so the comparator must pass its **entire** golden fixture, and guardrails are measured against the red-team fixture.
@@ -265,11 +274,10 @@ uv run pytest tests/test_compare.py tests/test_guard.py
     `tests/test_payments_questions.py` is the CI-safe (no-db) structural guard for the same file.
   - `human_reviewed` — a human's separate sign-off that each question's wording matches intent. The agent never self-ticks it; flip it to `true` only after eyeballing the questions against the seeded rows.
 
-## Configuration & Data Sources
+## Data Sources
 
 - **BIRD** — hard, realistic public benchmark; the quantitative backbone. Provides large-N comparable accuracy and leaderboard anchoring.
 - **Payments-platform schema (Postgres)** — hand-built qualitative showcase (users, merchants, transactions, payment_methods, refunds, disputes, ledger/balances) with ~30–60 verified gold answers. Drives the demo and the guardrail/PII exercise.
-- **BigQuery** — the cloud-warehouse checkbox, scoped as **optional reach and deliberately deferred** (documented future work, not built). The plan quarantined it precisely so its integration risk (auth, dialect quirks, cost) could never block the README, blog, and demo that make the project legible. The executor is multi-engine and the guard already recognizes the `bigquery` dialect — transpiling verified SQL via sqlglot is the remaining step.
 
 ## Contributing
 
