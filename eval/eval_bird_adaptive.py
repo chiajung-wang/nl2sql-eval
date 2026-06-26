@@ -69,6 +69,7 @@ def make_adaptive_run_one(evidence: dict[str, str], *, budget_tokens: int):
             dialect=DIALECT,
             evidence=evidence.get(case.id, ""),
             budget_tokens=budget_tokens,
+            model=model_id(),
         )
 
     return run_one
