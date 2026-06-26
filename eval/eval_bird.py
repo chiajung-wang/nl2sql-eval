@@ -32,6 +32,7 @@ from eval.datasets.bird import loader
 from eval.datasets.bird.slice import SLICE_FILE, load_slice_ids
 from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
+from eval.model_select import model_id
 from nl2sql import obs
 from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.graph import run_pipeline
@@ -81,9 +82,10 @@ def build_bird_cases(
     return cases, evidence
 
 
-def make_run_one(evidence: dict[str, str]):
+def make_run_one(evidence: dict[str, str], model: str = DEFAULT_MODEL):
     """Bind the import-shared pipeline for the BIRD path: SQLite dialect + the
-    per-question evidence hint, against each case's tagged read-only db."""
+    per-question evidence hint, against each case's tagged read-only db. ``model``
+    selects the generator (the ``MODEL`` env override resolves to it)."""
 
     def run_one(case: Case) -> RunState:
         return run_pipeline(
@@ -93,6 +95,7 @@ def make_run_one(evidence: dict[str, str]):
             db_id=case.db_id,
             dialect=DIALECT,
             evidence=evidence.get(case.id, ""),
+            model=model,
         )
 
     return run_one
@@ -137,19 +140,23 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
+    model = model_id()
     cases, evidence = build_bird_cases()
-    print(f"scoring {len(cases)} BIRD questions ({DIALECT}, naive schema dump)…")
+    print(
+        f"scoring {len(cases)} BIRD questions ({DIALECT}, naive schema dump) "
+        f"on `{model}`…"
+    )
     report = run_batch(
         cases,
-        make_run_one(evidence),
+        make_run_one(evidence, model),
         session_id=batch_session_id(
-            "bird-naive", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+            "bird-naive", model=model, prompt_version=PROMPT_VERSION
         ),
     )
 
     print("\n" + "\n".join(summary_lines(report)))
     row = results_row(
-        report, model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION, commit=_git_commit()
+        report, model=model, prompt_version=PROMPT_VERSION, commit=_git_commit()
     )
     print("\nRESULTS.md row:\n" + row)
     if write:

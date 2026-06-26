@@ -40,6 +40,7 @@ from eval.eval_bird import (
 from eval.eval_bird_twin import append_results
 from eval.harness import Case, RunOne, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
+from eval.model_select import model_id
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
 from nl2sql.prompts import PROMPT_VERSION
@@ -64,7 +65,7 @@ def _enriched(db_id: str, mode: str) -> str:
     return enriched_schema(_engine(db_id), fks=fks, samples=samples)
 
 
-def make_run_one(evidence: dict[str, str], enriched: bool) -> RunOne:
+def make_run_one(evidence: dict[str, str], enriched: bool, model: str) -> RunOne:
     """Single-shot (pass@1) runner; ``enriched`` swaps the schema representation."""
     mode = enrich_mode()
     schema_fn = (lambda db: _enriched(db, mode)) if enriched else _schema
@@ -77,6 +78,7 @@ def make_run_one(evidence: dict[str, str], enriched: bool) -> RunOne:
             db_id=case.db_id,
             dialect=DIALECT,
             evidence=evidence.get(case.id, ""),
+            model=model,
         )
 
     return run_one
@@ -166,36 +168,36 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
+    model = model_id()
     ids, slice_name = _slice_for(args)
     cases, evidence = build_bird_cases(slice_ids=ids)
     by_id = {c.id: c for c in cases}
 
-    print(f"=== naive DDL dump ({len(cases)} questions · {slice_name}) ===")
+    print(f"=== naive DDL dump ({len(cases)} questions · {slice_name} · {model}) ===")
     naive = run_batch(
         cases,
-        make_run_one(evidence, enriched=False),
+        make_run_one(evidence, enriched=False, model=model),
         session_id=batch_session_id(
             f"bird-schema-naive-{slice_name}",
-            model="anthropic/claude-sonnet-4-6",
+            model=model,
             prompt_version=PROMPT_VERSION,
         ),
     )
     print("\n".join(summary_lines(naive)))
 
-    print(f"\n=== enriched schema ({len(cases)} questions · {slice_name}) ===")
+    print(f"\n=== enriched ({len(cases)} questions · {slice_name} · {model}) ===")
     enr = run_batch(
         cases,
-        make_run_one(evidence, enriched=True),
+        make_run_one(evidence, enriched=True, model=model),
         session_id=batch_session_id(
             f"bird-schema-enriched-{slice_name}",
-            model="anthropic/claude-sonnet-4-6",
+            model=model,
             prompt_version=PROMPT_VERSION,
         ),
     )
     print("\n".join(summary_lines(enr)))
 
     naive_join, enr_join = join_bucket(naive, by_id), join_bucket(enr, by_id)
-    model = "anthropic/claude-sonnet-4-6"
     print("\n=== schema-enrichment lift ===")
     print(f"naive    pass@1: {naive.accuracy:.3f} ({naive.n_correct}/{naive.total})")
     print(f"enriched pass@1: {enr.accuracy:.3f} ({enr.n_correct}/{enr.total})")

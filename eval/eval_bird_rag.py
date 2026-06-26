@@ -38,8 +38,8 @@ from eval.eval_bird import (
 )
 from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
+from eval.model_select import model_id
 from nl2sql import obs
-from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
 from nl2sql.prompts import PROMPT_VERSION
@@ -67,6 +67,7 @@ def make_naive_run_one(evidence: dict[str, str]):
             db_id=case.db_id,
             dialect=DIALECT,
             evidence=evidence.get(case.id, ""),
+            model=model_id(),
         )
 
     return run_one
@@ -83,6 +84,7 @@ def make_rag_run_one(evidence: dict[str, str]):
             db_id=case.db_id,
             dialect=DIALECT,
             evidence=evidence.get(case.id, ""),
+            model=model_id(),
         )
 
     return run_one
@@ -129,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
         cases,
         make_naive_run_one(evidence),
         session_id=batch_session_id(
-            "bird-rag-naive", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+            "bird-rag-naive", model=model_id(), prompt_version=PROMPT_VERSION
         ),
     )
     print("\n".join(summary_lines(naive)))
@@ -139,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
         cases,
         make_rag_run_one(evidence),
         session_id=batch_session_id(
-            "bird-rag-select", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+            "bird-rag-select", model=model_id(), prompt_version=PROMPT_VERSION
         ),
     )
     print("\n".join(summary_lines(rag)))
@@ -156,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
     row = lift_row(
         naive,
         rag,
-        model=DEFAULT_MODEL,
+        model=model_id(),
         prompt_version=PROMPT_VERSION,
         commit=_git_commit(),
     )

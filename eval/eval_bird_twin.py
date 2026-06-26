@@ -46,6 +46,7 @@ from eval.harness import (
     run_batch,
 )
 from eval.metrics import TwinReport, twin_summary_lines
+from eval.model_select import model_id
 from nl2sql import obs
 from nl2sql.pipeline.generate import DEFAULT_MODEL
 from nl2sql.pipeline.graph import run_pipeline
@@ -60,11 +61,12 @@ def retry_budget() -> int:
     return int(os.environ.get("RETRY_BUDGET", DEFAULT_RETRY_BUDGET))
 
 
-def make_factory(evidence: dict[str, str]):
+def make_factory(evidence: dict[str, str], model: str = DEFAULT_MODEL):
     """Bind the import-shared pipeline into a budget-parameterized runner factory.
 
     ``factory(1)`` is the single-shot pass@1 runner; ``factory(k)`` enables the
     capped correction loop — the harness runs the same cases through both.
+    ``model`` selects the generator (the ``MODEL`` env override resolves to it).
     """
 
     def factory(max_attempts: int) -> RunOne:
@@ -77,6 +79,7 @@ def make_factory(evidence: dict[str, str]):
                 dialect=DIALECT,
                 evidence=evidence.get(case.id, ""),
                 max_attempts=max_attempts,
+                model=model,
             )
 
         return run_one
@@ -200,27 +203,29 @@ def main(argv: list[str] | None = None) -> int:
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
     k = retry_budget()
+    model = model_id()
     cases, evidence = build_bird_cases()
     print(
-        f"twin-scoring {len(cases)} BIRD questions ({DIALECT}, naive schema dump): "
-        f"one pass@{k} run (budget {k}); pass@1 derived from its first attempts…"
+        f"twin-scoring {len(cases)} BIRD questions ({DIALECT}, naive schema dump) "
+        f"on `{model}`: one pass@{k} run (budget {k}); pass@1 derived from first "
+        f"attempts…"
     )
     passk = run_batch(
         cases,
-        make_factory(evidence)(k),
+        make_factory(evidence, model)(k),
         session_id=batch_session_id(
-            f"bird-twin-pass{k}", model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION
+            f"bird-twin-pass{k}", model=model, prompt_version=PROMPT_VERSION
         ),
     )
     pass1 = derive_pass1_report(passk)
-    twin = TwinReport(pass1=pass1, passk=passk, model=DEFAULT_MODEL)
+    twin = TwinReport(pass1=pass1, passk=passk, model=model)
 
     print("\n" + "\n".join(twin_summary_lines(twin)))
     commit = _git_commit()
     row = results_row(
-        twin, k=k, model=DEFAULT_MODEL, prompt_version=PROMPT_VERSION, commit=commit
+        twin, k=k, model=model, prompt_version=PROMPT_VERSION, commit=commit
     )
-    prose = results_prose(twin, k=k, model=DEFAULT_MODEL)
+    prose = results_prose(twin, k=k, model=model)
     print("\nRESULTS.md row:\n" + row)
     if write:
         append_results(row, prose)
