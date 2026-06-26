@@ -12,14 +12,15 @@
 The **second genuine-failure cluster** the diagnostic named: **distinct / projection** mismatches — the model adds or omits `DISTINCT` and returns the wrong number of output columns (`distinct_mismatch` 10, `projection_count_mismatch` 7).
 
 - Add **few-shot exemplars** (`question → SQL` pairs covering the failure patterns) and **output-precision rules** (exactly which columns the answer wants, when to dedupe) to a generate template variant.
-- **A/B vs baseline** on the frozen Step-3 slice; append pass@1 before/after to `RESULTS.md`, and report the **distinct/projection bucket movement** from the re-run diagnostic.
-- **Mind overfitting** the small (50-question) frozen slice — note the caveat, or confirm the lift on a held-out slice before claiming it.
+- **Leakage rule (critical):** the exemplars must come from **outside every eval slice** — other BIRD questions or the payments set — never from the dev or held-out slices, or you've trained on the test.
+- **A/B on the dev (Step-3) slice**; report pass@1 before/after + the **distinct/projection bucket movement** from the re-run diagnostic.
+- **Confirm the lift on the held-out slice** (`step11-holdout`) — few-shot is the highest overfitting-risk lever, so the held-out number is the real claim; touch it once.
 
 ## Acceptance criteria
 
-- [ ] Few-shot + output-precision prompt variant; prompts stay externalized
-- [ ] A/B on the frozen slice recorded in `RESULTS.md` with full config + commit
-- [ ] Distinct/projection bucket movement reported via the re-run diagnostic; overfitting caveat addressed
+- [ ] Few-shot + output-precision prompt variant; prompts stay externalized; exemplars sourced from outside all eval slices (no leakage)
+- [ ] Dev A/B + the diagnostic's distinct/projection bucket movement, in `RESULTS.md`
+- [ ] **Held-out lift confirmed** on `step11-holdout`; both dev and held-out numbers recorded with full config + commit
 - [ ] `uv run pytest` green; lint/format clean
 
 ## Blocked by
