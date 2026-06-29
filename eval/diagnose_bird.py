@@ -35,6 +35,7 @@ from sqlglot.errors import ParseError, TokenError
 
 from eval.compare import BIRD_RULES, Verdict, compare
 from eval.datasets.bird import loader
+from eval.datasets.bird.enrich import foreign_keys
 from eval.eval_bird import DIALECT, _engine, build_bird_cases, make_run_one
 from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport
@@ -93,10 +94,62 @@ def _features(sql: str | None) -> dict[str, Any]:
     }
 
 
-def categorize(gold_sql: str, candidate_sql: str | None) -> list[str]:
+def _joined_table_pairs(tree: exp.Expression) -> list[frozenset[str]]:
+    """The ``{tableA, tableB}`` pairs each JOIN's ON-condition connects.
+
+    Resolves aliases to real table names so a pair can be checked against the
+    db's FK graph. Only ON-conditions referencing exactly two tables are
+    returned (the unambiguous case); compound/cross joins are skipped."""
+    aliases: dict[str, str] = {}
+    for t in tree.find_all(exp.Table):
+        if t.name:
+            real = t.name.casefold()
+            aliases[real] = real
+            aliases[(t.alias or t.name).casefold()] = real
+    pairs: list[frozenset[str]] = []
+    for join in tree.find_all(exp.Join):
+        on = join.args.get("on")
+        if on is None:
+            continue
+        tables = {
+            aliases.get((col.table or "").casefold())
+            for col in on.find_all(exp.Column)
+            if col.table
+        }
+        tables.discard(None)
+        if len(tables) == 2:
+            pairs.append(frozenset(tables))  # type: ignore[arg-type]
+    return pairs
+
+
+def _has_spurious_join(candidate_sql: str, fk_edges: frozenset[frozenset[str]]) -> bool:
+    """True if the candidate joins a table-pair with no FK relationship.
+
+    Deterministic, sqlglot-AST + the db's declared FK graph (``enrich.py``) — no
+    regex/LLM for SQL semantics (CLAUDE.md §4). Distinguishes a genuinely
+    *unsound* join (unrelated tables stitched together) from the broader
+    ``join_mismatch`` (right tables, different count). Empty ``fk_edges`` (a db
+    with no declared FKs) yields ``False`` — soundness is unknowable, not failed."""
+    if not fk_edges:
+        return False
+    tree = _parse(candidate_sql)
+    if tree is None:
+        return False
+    return any(pair not in fk_edges for pair in _joined_table_pairs(tree))
+
+
+def categorize(
+    gold_sql: str,
+    candidate_sql: str | None,
+    fk_edges: frozenset[frozenset[str]] | None = None,
+) -> list[str]:
     """Tag the structural differences between gold and candidate — the likely
     root cause(s) of a wrong answer. Multiple tags allowed (failures compound);
-    empty means the shapes match and the error is finer (value/predicate-level)."""
+    empty means the shapes match and the error is finer (value/predicate-level).
+
+    ``fk_edges`` (the db's FK graph, undirected real-table-name pairs) enables the
+    finer ``spurious_join`` tag (#122): a join between FK-unrelated tables, the
+    subset of join errors a deterministic soundness check could target."""
     g, c = _features(gold_sql), _features(candidate_sql)
     if not c.get("parsed"):
         return ["candidate_unparseable"]
@@ -105,8 +158,19 @@ def categorize(gold_sql: str, candidate_sql: str | None) -> list[str]:
     tags: list[str] = []
     if g["tables"] != c["tables"]:
         tags.append("table_mismatch")
+        # Which direction — actionable: a missing gold table vs. an extra one.
+        if g["tables"] - c["tables"]:
+            tags.append("missing_table")
+        if c["tables"] - g["tables"]:
+            tags.append("extra_table")
     if g["n_joins"] != c["n_joins"]:
         tags.append("join_mismatch")
+    if (
+        fk_edges is not None
+        and candidate_sql
+        and _has_spurious_join(candidate_sql, fk_edges)
+    ):
+        tags.append("spurious_join")
     if g["aggs"] != c["aggs"]:
         tags.append("aggregate_mismatch")
     if g["group_by"] != c["group_by"]:
@@ -122,15 +186,27 @@ def categorize(gold_sql: str, candidate_sql: str | None) -> list[str]:
     return tags or ["shape_matches_value_level"]
 
 
+def _fk_edges(db_id: str) -> frozenset[frozenset[str]]:
+    """The db's FK graph as undirected real-table-name pairs (for spurious-join
+    detection). Cached per db within a run by the caller."""
+    edges = {
+        frozenset((t.casefold(), rt.casefold()))
+        for (t, _fc, rt, _rc) in foreign_keys(_engine(db_id))
+    }
+    return frozenset(edges)
+
+
 def _failure_records(
     report: BatchReport, by_id: dict[str, Case]
 ) -> list[dict[str, Any]]:
     """Join each failed case back to its gold/question/evidence + AST tags."""
     records = []
+    fk_cache: dict[str, frozenset[frozenset[str]]] = {}
     for r in report.results:
         if r.correct:
             continue
         case = by_id[r.case_id]
+        fk = fk_cache.setdefault(r.db_id, _fk_edges(r.db_id))
         records.append(
             {
                 "id": r.case_id,
@@ -141,7 +217,7 @@ def _failure_records(
                 "gold_sql": case.gold_sql,
                 "candidate_sql": r.candidate_sql,
                 "comparator_reason": r.note,
-                "tags": categorize(case.gold_sql, r.candidate_sql),
+                "tags": categorize(case.gold_sql, r.candidate_sql, fk_edges=fk),
             }
         )
     return records
