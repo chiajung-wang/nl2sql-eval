@@ -60,6 +60,29 @@ def test_active_template_is_byte_identical_to_prior_single_file_v3():
     assert _render() == _GOLDEN_NO_CORRECTION
 
 
+def test_v4_adds_precision_rules_and_generic_examples_without_touching_v3():
+    # v4 (#113) overrides only the rules block: output-precision rules + generic
+    # worked examples. The examples must be generic (no eval-slice leakage), and
+    # v3 must stay byte-identical (v4 doesn't modify the shared scaffold).
+    v4 = render(
+        "generate/v4.jinja",
+        schema="SCH",
+        question="q",
+        dialect="SQLite",
+        evidence="",
+        correction=None,
+    )
+    assert "no extra columns" in v4
+    assert "distinct / unique / different" in v4
+    assert "Worked examples" in v4
+    # generic example tables, not BIRD slice tables
+    assert "SELECT DISTINCT city FROM customers" in v4
+    # the scaffold still frames the real task after the examples
+    assert "Database schema (SQLite):" in v4 and v4.rstrip().endswith("q")
+    # v3 unchanged by v4's existence
+    assert _render() == _GOLDEN_NO_CORRECTION
+
+
 def test_correction_block_renders_through_the_shared_scaffold():
     out = _render(correction={"sql": "BAD", "error": "ERR"})
     assert "Your previous attempt failed." in out
