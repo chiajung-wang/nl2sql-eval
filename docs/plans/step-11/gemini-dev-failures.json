@@ -1,0 +1,367 @@
+[
+  {
+    "id": "25",
+    "db_id": "california_schools",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "Name schools in Riverside which the average of average math score for SAT is grater than 400, what is the funding type of these schools?",
+    "gold_sql": "SELECT T1.sname, T2.`Charter Funding Type` FROM satscores AS T1 INNER JOIN frpm AS T2 ON T1.cds = T2.CDSCode WHERE T2.`District Name` LIKE 'Riverside%' GROUP BY T1.sname, T2.`Charter Funding Type` HAVING CAST(SUM(T1.AvgScrMath) AS REAL) / COUNT(T1.cds) > 400",
+    "candidate_sql": "SELECT\n  T1.School,\n  T1.FundingType\nFROM schools AS T1\nJOIN satscores AS T2\n  ON T1.CDSCode = T2.cds\nWHERE\n  T1.County = 'Riverside' AND T2.AvgScrMath > 400;",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "table_mismatch",
+      "aggregate_mismatch",
+      "group_by_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "37",
+    "db_id": "california_schools",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "What is the complete address of the school with the lowest excellence rate? Indicate the Street, City, Zip and State.",
+    "gold_sql": "SELECT T2.Street, T2.City, T2.State, T2.Zip FROM satscores AS T1 INNER JOIN schools AS T2 ON T1.cds = T2.CDSCode ORDER BY CAST(T1.NumGE1500 AS REAL) / T1.NumTstTakr ASC LIMIT 1",
+    "candidate_sql": "SELECT T1.Street, T1.City, T1.Zip, T1.State FROM schools AS T1 JOIN satscores AS T2 ON T1.CDSCode = T2.cds WHERE T2.NumTstTakr > 0 ORDER BY (CAST(T2.NumGE1500 AS REAL) / T2.NumTstTakr) ASC LIMIT 1;",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "where_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "58",
+    "db_id": "california_schools",
+    "difficulty": "simple",
+    "terminal_state": "wrong_answer",
+    "question": "What is the phone number and extension number for the school with the zip code 95203-3704? Indicate the school's name.",
+    "gold_sql": "SELECT Phone, Ext, School FROM schools WHERE Zip = '95203-3704'",
+    "candidate_sql": "SELECT School, Phone, Ext FROM schools WHERE Zip = '95203-3704';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "shape_matches_value_level"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "70",
+    "db_id": "california_schools",
+    "difficulty": "simple",
+    "terminal_state": "wrong_answer",
+    "question": "How many active and closed District Community Day Schools are there in the county of Alpine?",
+    "gold_sql": "SELECT COUNT(School) FROM schools WHERE (StatusType = 'Closed' OR StatusType = 'Active') AND SOC = 69 AND County = 'Alpine'",
+    "candidate_sql": "SELECT\n  COUNT(*)\nFROM schools\nWHERE\n  County = 'Alpine' AND DOCType = 'District Community Day School';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "shape_matches_value_level"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "84",
+    "db_id": "california_schools",
+    "difficulty": "simple",
+    "terminal_state": "wrong_answer",
+    "question": "What are the two most common first names among the school administrators? Indicate the district to which they administer.",
+    "gold_sql": "SELECT DISTINCT T1.AdmFName1, T1.District FROM schools AS T1 INNER JOIN ( SELECT admfname1 FROM schools GROUP BY admfname1 ORDER BY COUNT(admfname1) DESC LIMIT 2 ) AS T2 ON T1.AdmFName1 = T2.admfname1",
+    "candidate_sql": "SELECT T1.AdmFName1, T1.District\nFROM schools AS T1\nJOIN (\n    SELECT AdmFName1\n    FROM schools\n    WHERE AdmFName1 IS NOT NULL AND AdmFName1 != ''\n    GROUP BY AdmFName1\n    ORDER BY COUNT(*) DESC\n    LIMIT 2\n) AS T2 ON T1.AdmFName1 = T2.AdmFName1;",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "distinct_mismatch",
+      "where_mismatch"
+    ],
+    "bird_correct": true
+  },
+  {
+    "id": "88",
+    "db_id": "california_schools",
+    "difficulty": "simple",
+    "terminal_state": "wrong_answer",
+    "question": "What is the administrator's email address for the school with the highest number of test takers who received SAT scores of at least 1500?Provide the name of the school.",
+    "gold_sql": "SELECT T2.AdmEmail1, T2.School FROM satscores AS T1 INNER JOIN schools AS T2 ON T1.cds = T2.CDSCode ORDER BY T1.NumGE1500 DESC LIMIT 1",
+    "candidate_sql": "SELECT\n  T2.School,\n  T2.AdmEmail1\nFROM satscores AS T1\nJOIN schools AS T2\n  ON T1.cds = T2.CDSCode\nORDER BY\n  T1.NumGE1500 DESC\nLIMIT 1;",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "shape_matches_value_level"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "205",
+    "db_id": "toxicology",
+    "difficulty": "simple",
+    "terminal_state": "wrong_answer",
+    "question": "Identify by their ID the molecules in which there is carbon.",
+    "gold_sql": "SELECT T.molecule_id FROM atom AS T WHERE T.element = 'c'",
+    "candidate_sql": "SELECT DISTINCT molecule_id FROM atom WHERE element = 'c';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "distinct_mismatch"
+    ],
+    "bird_correct": true
+  },
+  {
+    "id": "234",
+    "db_id": "toxicology",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "How many bonds which involved atom 12 does molecule TR009 have?",
+    "gold_sql": "SELECT COUNT(T2.bond_id) FROM bond AS T1 INNER JOIN connected AS T2 ON T1.bond_id = T2.bond_id WHERE T1.molecule_id = 'TR009' AND T2.atom_id = T1.molecule_id || '_1' AND T2.atom_id2 = T1.molecule_id || '_2'",
+    "candidate_sql": "SELECT COUNT(DISTINCT bond_id) FROM connected WHERE (atom_id = 'TR009_12' OR atom_id2 = 'TR009_12') AND bond_id IS NOT NULL;",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "table_mismatch",
+      "join_mismatch",
+      "distinct_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "247",
+    "db_id": "toxicology",
+    "difficulty": "challenging",
+    "terminal_state": "wrong_answer",
+    "question": "List all the elements of atoms that can not bond with any other atoms.",
+    "gold_sql": "SELECT DISTINCT T.element FROM atom AS T WHERE T.element NOT IN ( SELECT DISTINCT T1.element FROM atom AS T1 INNER JOIN connected AS T2 ON T1.atom_id = T2.atom_id )",
+    "candidate_sql": "SELECT DISTINCT element FROM atom WHERE atom_id NOT IN (SELECT atom_id FROM connected UNION SELECT atom_id2 FROM connected);",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "join_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "259",
+    "db_id": "toxicology",
+    "difficulty": "simple",
+    "terminal_state": "wrong_answer",
+    "question": "How many elements are there for single bond molecules?",
+    "gold_sql": "SELECT COUNT(DISTINCT T.element) FROM ( SELECT DISTINCT T2.molecule_id, T1.element FROM atom AS T1 INNER JOIN molecule AS T2 ON T1.molecule_id = T2.molecule_id INNER JOIN bond AS T3 ON T2.molecule_id = T3.molecule_id WHERE T3.bond_type = '-' ) AS T",
+    "candidate_sql": "SELECT count(DISTINCT T1.element) FROM atom AS T1 JOIN bond AS T2 ON T1.molecule_id = T2.molecule_id WHERE T2.bond_type = '-';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "table_mismatch",
+      "join_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "273",
+    "db_id": "toxicology",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "What is the percentage of element chlorine in carcinogenic molecules?",
+    "gold_sql": "SELECT CAST(COUNT( CASE WHEN T1.element = 'cl' THEN T1.element ELSE NULL END) AS REAL) * 100 / COUNT(T1.element) FROM atom AS T1 INNER JOIN molecule AS T2 ON T1.molecule_id = T2.molecule_id WHERE T2.label = '+'",
+    "candidate_sql": "SELECT (CAST(SUM(CASE WHEN T1.element = 'cl' THEN 1 ELSE 0 END) AS REAL) / COUNT(T1.molecule_id)) FROM atom AS T1 JOIN molecule AS T2 ON T1.molecule_id = T2.molecule_id WHERE T2.label = '+';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "aggregate_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "296",
+    "db_id": "toxicology",
+    "difficulty": "simple",
+    "terminal_state": "wrong_answer",
+    "question": "Indicate the molecule id is belonging to the TR000_1_2 bond that has the first atom named TR000_1.",
+    "gold_sql": "SELECT T2.molecule_id, T2.bond_id, T1.atom_id FROM connected AS T1 INNER JOIN bond AS T2 ON T1.bond_id = T2.bond_id WHERE T1.atom_id = 'TR000_1' AND T2.bond_id = 'TR000_1_2'",
+    "candidate_sql": "SELECT T2.molecule_id FROM connected AS T1 JOIN bond AS T2 ON T1.bond_id = T2.bond_id WHERE T1.bond_id = 'TR000_1_2' AND T1.atom_id = 'TR000_1';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "projection_count_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "306",
+    "db_id": "toxicology",
+    "difficulty": "challenging",
+    "terminal_state": "wrong_answer",
+    "question": "Which molecules have triple bonds and list all the elements they contain.",
+    "gold_sql": "SELECT DISTINCT T1.molecule_id, T2.element FROM bond AS T1 INNER JOIN atom AS T2 ON T1.molecule_id = T2.molecule_id WHERE T1.bond_type = '#'",
+    "candidate_sql": "SELECT DISTINCT\n  T1.molecule_id,\n  T3.element\nFROM molecule AS T1\nJOIN bond AS T2\n  ON T1.molecule_id = T2.molecule_id\nJOIN atom AS T3\n  ON T1.molecule_id = T3.molecule_id\nWHERE\n  T2.bond_type = '#';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "table_mismatch",
+      "join_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "311",
+    "db_id": "toxicology",
+    "difficulty": "simple",
+    "terminal_state": "wrong_answer",
+    "question": "How many molecules without sulphur element is not having double bond?",
+    "gold_sql": "SELECT COUNT(DISTINCT T1.molecule_id) FROM atom AS T1 INNER JOIN bond AS T2 ON T1.molecule_id = T2.molecule_id WHERE T1.element <> 's' AND T2.bond_type <> '='",
+    "candidate_sql": "SELECT COUNT(molecule_id) FROM molecule WHERE molecule_id NOT IN (SELECT DISTINCT molecule_id FROM atom WHERE element = 's') AND molecule_id NOT IN (SELECT DISTINCT molecule_id FROM bond WHERE bond_type = ' = ');",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "table_mismatch",
+      "join_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "1189",
+    "db_id": "thrombosis_prediction",
+    "difficulty": "challenging",
+    "terminal_state": "wrong_answer",
+    "question": "What number of patients with a degree of thrombosis level 2 and ANA pattern of only S, have a level of anti-Cardiolip in antibody (IgM) 20% higher than average?",
+    "gold_sql": "SELECT COUNT(*) FROM Examination WHERE Thrombosis = 2 AND `ANA Pattern` = 'S' AND `aCL IgM` > (SELECT AVG(`aCL IgM`) * 1.2 FROM Examination WHERE Thrombosis = 2 AND `ANA Pattern` = 'S')",
+    "candidate_sql": "SELECT COUNT(DISTINCT ID)\nFROM Examination\nWHERE Thrombosis = 2 \n  AND `ANA Pattern` = 'S' \n  AND `aCL IgM` > (SELECT AVG(`aCL IgM`) * 1.2 FROM Examination);",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "distinct_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "1228",
+    "db_id": "thrombosis_prediction",
+    "difficulty": "simple",
+    "terminal_state": "wrong_answer",
+    "question": "Provide list of patients and their diagnosis with triglyceride (TG) index greater than 100 of the normal range?",
+    "gold_sql": "SELECT T1.ID, T1.Diagnosis FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T2.TG > 300",
+    "candidate_sql": "SELECT DISTINCT T1.ID, T1.Diagnosis FROM Patient AS T1 JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T2.TG > 300;",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "distinct_mismatch"
+    ],
+    "bird_correct": true
+  },
+  {
+    "id": "1243",
+    "db_id": "thrombosis_prediction",
+    "difficulty": "challenging",
+    "terminal_state": "wrong_answer",
+    "question": "For all patients who are older than 55 years old, what is the percentage of female who has abnormal prothrombin time (PT)?",
+    "gold_sql": "SELECT CAST(SUM(CASE WHEN T2.PT >= 14 AND T1.SEX = 'F' THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(*) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE STRFTIME('%Y', CURRENT_TIMESTAMP) - STRFTIME('%Y', T1.Birthday) > 55",
+    "candidate_sql": "SELECT CAST(SUM(CASE WHEN Patient.SEX = 'F' AND Laboratory.PT >= 14 THEN 1 ELSE 0 END) AS REAL) / SUM(CASE WHEN Laboratory.PT >= 14 THEN 1 ELSE 0 END) * 100\nFROM Patient\nJOIN Laboratory ON Patient.ID = Laboratory.ID\nWHERE (strftime('%Y', 'now') - strftime('%Y', Patient.Birthday)) > 55;",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "aggregate_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "1248",
+    "db_id": "thrombosis_prediction",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "How many patients born after 1980/1/1 have an abnormal fibrinogen level?",
+    "gold_sql": "SELECT COUNT(DISTINCT T1.ID) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T2.FG <= 150 OR T2.FG >= 450 AND T1.Birthday > '1980-01-01'",
+    "candidate_sql": "SELECT COUNT(DISTINCT Patient.ID)\nFROM Patient\nJOIN Laboratory ON Patient.ID = Laboratory.ID\nWHERE Patient.Birthday > '1980-01-01'\n  AND (Laboratory.FG < 150 OR Laboratory.FG > 450);",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "shape_matches_value_level"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "1252",
+    "db_id": "thrombosis_prediction",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "Among the patients with a normal Ig G level, how many of them have symptoms?",
+    "gold_sql": "SELECT COUNT(T1.ID) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID INNER JOIN Examination AS T3 ON T3.ID = T2.ID WHERE T2.IGG BETWEEN 900 AND 2000 AND T3.Symptoms IS NOT NULL",
+    "candidate_sql": "SELECT COUNT(DISTINCT Laboratory.ID) FROM Laboratory JOIN Examination ON Laboratory.ID = Examination.ID WHERE Laboratory.IGG > 900 AND Laboratory.IGG < 2000 AND Examination.Symptoms IS NOT NULL;",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "table_mismatch",
+      "join_mismatch",
+      "distinct_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "1254",
+    "db_id": "thrombosis_prediction",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "How many patients with a normal Ig A level came to the hospital after 1990/1/1?",
+    "gold_sql": "SELECT COUNT(T1.ID) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T2.IGA BETWEEN 80 AND 500 AND  strftime('%Y',  T1.`First Date`) > '1990'",
+    "candidate_sql": "SELECT COUNT(DISTINCT T1.ID) FROM Patient AS T1 JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T2.IGA > 80 AND T2.IGA < 500 AND STRFTIME('%Y', T1.`First Date`) >= '1990';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "distinct_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "1265",
+    "db_id": "thrombosis_prediction",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "How many patients have a normal level of anti-ribonuclear protein and have been admitted to the hospital?",
+    "gold_sql": "SELECT COUNT(DISTINCT T1.ID) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T2.RNP = 'negative' OR T2.RNP = '0' AND T1.Admission = '+'",
+    "candidate_sql": "SELECT COUNT(DISTINCT Patient.ID)\nFROM Patient\nJOIN Laboratory ON Patient.ID = Laboratory.ID\nWHERE Laboratory.RNP IN ('-', '+-')\n  AND Patient.Admission = '+';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "shape_matches_value_level"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "1273",
+    "db_id": "thrombosis_prediction",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "How many patients have a normal anti-SSB and are diagnosed with SLE in the examination?",
+    "gold_sql": "SELECT COUNT(DISTINCT T1.ID) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T2.SSB = 'negative' OR '0' AND T1.Diagnosis = 'SLE'",
+    "candidate_sql": "SELECT COUNT(DISTINCT Patient.ID)\nFROM Patient\nJOIN Laboratory ON Patient.ID = Laboratory.ID\nJOIN Examination ON Patient.ID = Examination.ID\nWHERE (Laboratory.SSB = 'negative' OR Laboratory.SSB = '0')\nAND Examination.Diagnosis = 'SLE';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "table_mismatch",
+      "join_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "1298",
+    "db_id": "thrombosis_prediction",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "Among the patients whose total cholesterol is within the normal range, how many of them have a P pattern observed in the sheet of ANA examination?",
+    "gold_sql": "SELECT COUNT(T1.ID) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID INNER JOIN Examination AS T3 ON T1.ID = T3.ID WHERE T3.`ANA Pattern` = 'P' AND T2.`T-CHO` < 250",
+    "candidate_sql": "SELECT COUNT(DISTINCT Laboratory.ID)\nFROM Laboratory\nJOIN Examination ON Laboratory.ID = Examination.ID\nWHERE Laboratory.`T-CHO` < 250\n  AND Examination.`ANA Pattern` = 'P';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "table_mismatch",
+      "join_mismatch",
+      "distinct_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "1475",
+    "db_id": "debit_card_specializing",
+    "difficulty": "moderate",
+    "terminal_state": "wrong_answer",
+    "question": "How many customers in KAM had a consumption of less than 30,000 for the year 2012?",
+    "gold_sql": "SELECT COUNT(*) FROM ( SELECT T2.CustomerID FROM customers AS T1 INNER JOIN yearmonth AS T2 ON T1.CustomerID = T2.CustomerID WHERE T1.Segment = 'KAM' AND SUBSTRING(T2.Date, 1, 4) = '2012' GROUP BY T2.CustomerID HAVING SUM(T2.Consumption) < 30000 ) AS t1",
+    "candidate_sql": "SELECT COUNT(DISTINCT T1.CustomerID)\nFROM customers AS T1\nJOIN yearmonth AS T2 ON T1.CustomerID = T2.CustomerID\nWHERE T1.Segment = 'KAM'\n  AND T2.Date BETWEEN '201201' AND '201212'\nGROUP BY T1.CustomerID\nHAVING SUM(T2.Consumption) < 30000;",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "distinct_mismatch"
+    ],
+    "bird_correct": false
+  },
+  {
+    "id": "1500",
+    "db_id": "debit_card_specializing",
+    "difficulty": "simple",
+    "terminal_state": "wrong_answer",
+    "question": "Please list the product description of the products consumed in September, 2013.",
+    "gold_sql": "SELECT T3.Description FROM transactions_1k AS T1 INNER JOIN yearmonth AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN products AS T3 ON T1.ProductID = T3.ProductID WHERE T2.Date = '201309'",
+    "candidate_sql": "SELECT DISTINCT products.Description\nFROM products\nJOIN transactions_1k ON products.ProductID = transactions_1k.ProductID\nWHERE transactions_1k.Date BETWEEN '2013-09-01' AND '2013-09-30';",
+    "comparator_reason": "result sets differ",
+    "tags": [
+      "table_mismatch",
+      "join_mismatch",
+      "distinct_mismatch"
+    ],
+    "bird_correct": false
+  }
+]
