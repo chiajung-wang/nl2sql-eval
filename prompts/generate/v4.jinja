@@ -1,0 +1,39 @@
+{% extends "generate/_base.jinja" %}
+{# Generate stage — v4 (SHELVED candidate). Few-shot + output-precision (Step 11, #113).
+
+   STATUS: tested, NOT adopted. v3 remains the active prompt. The precision buckets
+   this targets are already near-zero on the recommended flash-class generators
+   (#117), so few-shot buys ~nothing there; on a reasoning/weak model the example
+   format raised candidate_unparseable. Kept as a documented negative result —
+   see RESULTS.md → Step 11 (#117 follow-up) and docs/plans/step-11/issue-3.
+
+
+   v4 overrides only the {% block rules %} of the shared scaffold to target the
+   two genuine-failure clusters the error analysis (#111) named for the sonnet
+   baseline: distinct/projection mismatches (adds/omits DISTINCT, wrong output
+   columns). It adds two output-precision rules and three **generic worked
+   examples** that illustrate them.
+
+   LEAKAGE: the worked examples use made-up tables (users / customers / products)
+   — they are *not* drawn from any eval slice (dev, held-out, CI, large), so they
+   demonstrate the format/precision rules without training on the test (the
+   critical guard for a few-shot lever).
+
+   Everything else (schema framing, evidence, the correction block) is the
+   scaffold verbatim, so the prompt-CI diff is exactly this rules block. A/B'd
+   against v3 on dev, then validated on the held-out slice. Bump to v5 for any
+   change. #}
+{% block rules %}- Return ONLY the SQL query — no prose, no explanation, no markdown code fences.
+- Use only the tables and columns defined in the schema below.
+- Use {{ dialect }} syntax.
+- The query must be read-only: a single SELECT statement.
+- Select exactly the column(s) the question asks for, in the order asked — no extra columns.
+- Use SELECT DISTINCT only when the question asks for distinct / unique / different values; otherwise do not deduplicate.
+
+Worked examples (generic — they illustrate the rules above, not the schema below):
+Q: How many users are based in the US?
+A: SELECT COUNT(*) FROM users WHERE country = 'US'
+Q: What are the distinct cities of the customers?
+A: SELECT DISTINCT city FROM customers
+Q: What is the name of the highest-paid employee?
+A: SELECT name FROM employees ORDER BY salary DESC LIMIT 1{% endblock %}

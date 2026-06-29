@@ -29,11 +29,31 @@ The **second genuine-failure cluster** the diagnostic named: **distinct / projec
 
 ---
 
+## Outcome — CLOSED (shelved, not merged as active)
+
+The few-shot + output-precision `generate/v4.jinja` was built and A/B'd, but the
+lever is **subsumed by the model swap** and is not adopted as the active prompt:
+
+- The buckets v4 targets (`projection_count`, `where`, `distinct`) are already
+  near-zero on the flash-class generators that are now recommended — `gemini-3-flash`
+  (#117) and `gemini-3.1-flash-lite` (`projection` 2, `where` 1 on dev). There is
+  almost nothing left for few-shot to fix on the recommended model.
+- On a weak/reasoning generator the `A: SELECT …` example format *increased*
+  `candidate_unparseable` (the model echoes the example shape / emits preamble) —
+  the same brittle-`_extract_sql` issue surfaced by `gemini-3.5-flash`.
+- The honest residual bottleneck is **join/table semantics**, which few-shot does
+  not address.
+
+`generate/v4.jinja` and its render test stay in the repo as a **documented,
+reproducible negative-ish result** (it is *not* the active prompt — `v3` remains
+active). Full write-up: `RESULTS.md` → Step 11 (#117 follow-up). Next-lever
+suggestions live there and in the step plan.
+
 ## Tracking
 
-**GitHub:** [#113](https://github.com/chiajung-wang/nl2sql-eval/issues/113) · label `agent-ready`, `step-11`
+**GitHub:** [#113](https://github.com/chiajung-wang/nl2sql-eval/issues/113) · CLOSED (shelved) · label `agent-ready`, `step-11`
 
-**PR:** _pending_
+**PR:** few-shot tested & shelved + flash-lite baseline
 
 **Blocked by (GitHub):** [#111](https://github.com/chiajung-wang/nl2sql-eval/issues/111)
 

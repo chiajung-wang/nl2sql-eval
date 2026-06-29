@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -259,11 +260,20 @@ def main(argv: list[str] | None = None) -> int:
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
     model = model_id()
-    cases, evidence = build_bird_cases()
+    # SLICE=holdout diagnoses the held-out slice (Step-11 protocol: validate a
+    # dev lift there); default is the dev (Step-3) slice.
+    if os.environ.get("SLICE") == "holdout":
+        from eval.datasets.bird.slice_step11_holdout import load_holdout_slice_ids
+
+        slice_ids: list[int] | None = load_holdout_slice_ids()
+        slice_label = "step11-holdout"
+    else:
+        slice_ids, slice_label = None, "step3-dev"
+    cases, evidence = build_bird_cases(slice_ids=slice_ids)
     by_id = {c.id: c for c in cases}
     print(
         f"diagnosing {len(cases)} BIRD questions ({DIALECT}, naive dump, single-shot) "
-        f"on `{model}`…"
+        f"on `{model}` · slice `{slice_label}`…"
     )
     report = run_batch(
         cases,
