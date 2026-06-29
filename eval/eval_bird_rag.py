@@ -85,6 +85,10 @@ def make_rag_run_one(evidence: dict[str, str]):
             dialect=DIALECT,
             evidence=evidence.get(case.id, ""),
             model=model_id(),
+            # This entrypoint measures *always-RAG* (the Step-6 −0.125 mechanism),
+            # so opt out of the now-default adaptive gate explicitly — the gate is
+            # measured separately in ``eval.eval_bird_adaptive``.
+            budget_tokens=None,
         )
 
     return run_one

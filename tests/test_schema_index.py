@@ -233,6 +233,7 @@ def test_run_pipeline_feeds_only_retrieved_tables_to_generate(store_engine):
     state = run_pipeline(
         "how many products are there?",
         schema_index=index,
+        budget_tokens=None,  # always-RAG: assert retrieval narrows to one table
         engine=store_engine,
         db_id="store",
         dialect="SQLite",

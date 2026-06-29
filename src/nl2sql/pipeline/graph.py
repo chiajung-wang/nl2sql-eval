@@ -47,7 +47,12 @@ from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.guard import guard
 from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy, redact
-from nl2sql.pipeline.retrieve import is_not_found_error, missing_identifier, retrieve
+from nl2sql.pipeline.retrieve import (
+    DEFAULT_SCHEMA_TOKEN_BUDGET,
+    is_not_found_error,
+    missing_identifier,
+    retrieve,
+)
 from nl2sql.pipeline.state import RunState
 from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
 
@@ -265,7 +270,7 @@ def run_pipeline(
     client: Any | None = None,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
     max_tables: int = DEFAULT_MAX_TABLES,
-    budget_tokens: int | None = None,
+    budget_tokens: int | None = DEFAULT_SCHEMA_TOKEN_BUDGET,
     redaction_policy: RedactionPolicy = NO_REDACTION,
 ) -> RunState:
     """Run one question through the capped ``generate → guard → execute`` loop.
@@ -295,9 +300,13 @@ def run_pipeline(
     ``budget_tokens`` (schema-RAG path only) arms the **adaptive retrieval gate**
     (#76): when the whole schema fits the configured schema-token budget the
     generator gets the full dump (no retrieval, no dropped tables); when it
-    overflows, the ``retrieve`` stage selects the relevant tables. ``None``
-    (default) leaves the gate off — the prior always-RAG behaviour. The demo and
-    the harness pass the *same* value, so the gate is import-shared, never forked.
+    overflows, the ``retrieve`` stage selects the relevant tables. It defaults to
+    :data:`DEFAULT_SCHEMA_TOKEN_BUDGET` — the gate is **on by default**, the
+    no-regret choice Step 6 measured (full dump where it fits never pays the
+    table-drop risk; RAG only where the schema overflows). Pass ``None`` to force
+    the prior always-RAG behaviour (used by the always-RAG measurement in
+    ``eval.eval_bird_rag`` and the re-retrieve tests). The demo and the harness
+    pass the *same* value, so the gate is import-shared, never forked.
 
     Step 7: the loop above is now executed by a compiled LangGraph state machine
     (``_GRAPH``); the control flow and the ``RunState`` it returns are identical —

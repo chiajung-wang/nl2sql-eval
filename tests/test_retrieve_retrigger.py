@@ -96,6 +96,7 @@ def test_not_found_error_re_retrieves_a_wider_schema_and_recovers(abc_engine):
     state = run_pipeline(
         "count alpha rows",
         schema_index=index,
+        budget_tokens=None,  # always-RAG: exercise the re-retrieve widening
         engine=abc_engine,
         db_id="abc",
         dialect="SQLite",
@@ -134,6 +135,7 @@ def test_column_not_found_on_in_scope_table_re_retrieves_via_execution(abc_engin
     state = run_pipeline(
         "count alpha rows",
         schema_index=index,
+        budget_tokens=None,  # always-RAG: exercise the re-retrieve widening
         engine=abc_engine,
         db_id="abc",
         dialect="SQLite",
@@ -166,6 +168,7 @@ def test_non_not_found_error_regenerates_without_re_retrieving(abc_engine):
     state = run_pipeline(
         "count alpha rows",
         schema_index=index,
+        budget_tokens=None,  # always-RAG: exercise the re-retrieve widening
         engine=abc_engine,
         db_id="abc",
         dialect="SQLite",
@@ -197,6 +200,7 @@ def test_re_retrieve_stays_inside_the_budget(abc_engine):
     state = run_pipeline(
         "count alpha rows",
         schema_index=index,
+        budget_tokens=None,  # always-RAG: exercise the re-retrieve widening
         engine=abc_engine,
         db_id="abc",
         dialect="SQLite",
