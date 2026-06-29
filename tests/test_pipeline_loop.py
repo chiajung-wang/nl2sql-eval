@@ -81,6 +81,7 @@ def test_render_prompt_inlines_schema_and_question():
 @pytest.mark.parametrize(
     "raw, expected",
     [
+        # --- clean replies: behavior unchanged ---
         ("SELECT 1;", "SELECT 1;"),
         ("  SELECT 1;  ", "SELECT 1;"),
         ("```sql\nSELECT 1;\n```", "SELECT 1;"),
@@ -89,6 +90,43 @@ def test_render_prompt_inlines_schema_and_question():
     ],
 )
 def test_extract_sql_strips_fences_and_whitespace(raw, expected):
+    assert _extract_sql(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        # reasoning preamble before a fenced answer (the #121 / gemini-3.5 case)
+        ("Let me think about the joins here.\n```sql\nSELECT 1;\n```", "SELECT 1;"),
+        # multiple fenced blocks — the LAST one is the final answer
+        (
+            "First attempt:\n```sql\nSELECT 0;\n```\nActually:\n```sql\nSELECT 1;\n```",
+            "SELECT 1;",
+        ),
+        # trailing prose after a fenced answer
+        ("```sql\nSELECT 1;\n```\nThat answers the question.", "SELECT 1;"),
+        # an un-closed / truncated leading fence still recovers the SQL
+        ("```sql\nSELECT 1;", "SELECT 1;"),
+        # no fence, prose preamble then the query on its own line
+        ("Here is the query you asked for:\nSELECT 1;", "SELECT 1;"),
+        # prose containing the word "select" must not be mistaken for the query
+        ("First I select the right table.\nSELECT 1;", "SELECT 1;"),
+        # nested subquery — the outer SELECT (first line-opener) wins, intact
+        (
+            "Reasoning...\nSELECT a FROM t WHERE id IN (SELECT id FROM u);",
+            "SELECT a FROM t WHERE id IN (SELECT id FROM u);",
+        ),
+        # a CTE answer opens with WITH
+        (
+            "Final:\n```sql\nWITH x AS (SELECT 1) SELECT * FROM x;\n```",
+            "WITH x AS (SELECT 1) SELECT * FROM x;",
+        ),
+    ],
+)
+def test_extract_sql_recovers_sql_from_reasoning_model_output(raw, expected):
+    # #121: reasoning-style models wrap SQL in chain-of-thought prose; the
+    # extractor must find the (last) fenced block or the trailing statement
+    # rather than dropping the whole reply through as unparsable.
     assert _extract_sql(raw) == expected
 
 

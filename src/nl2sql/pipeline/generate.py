@@ -36,11 +36,14 @@ MAX_TOKENS = 1024
 # rather than dialect mismatch on a non-Postgres benchmark.
 DEFAULT_DIALECT = "PostgreSQL"
 
-# Strips a ```sql ... ``` (or bare ```) fence if the model wraps its answer.
-_FENCE_RE = re.compile(
-    r"^\s*```(?:sql)?\s*(?P<body>.*?)\s*```\s*$",
-    re.IGNORECASE | re.DOTALL,
-)
+# A fenced code block ```sql … ``` (language tag optional) appearing *anywhere*
+# in the reply — used to pull the SQL out of a reasoning model's surrounding
+# chain-of-thought prose, not only when the whole reply is one fence.
+_FENCE_BLOCK_RE = re.compile(r"```[^\n]*\n(?P<body>.*?)```", re.DOTALL)
+# A SQL statement opener at the start of a line — the no-fence fallback. Anchored
+# to line-start so prose like "let me select the table" doesn't match; a bare-SQL
+# reply matches at offset 0, so the clean case is unchanged.
+_STMT_OPENER_RE = re.compile(r"(?im)^[ \t]*(?:SELECT|WITH)\b")
 
 
 def render_prompt(
@@ -70,14 +73,30 @@ def render_prompt(
 
 
 def _extract_sql(text: str) -> str:
-    """Unwrap a markdown fence from the model response (presentation only).
+    """Pull the candidate SQL out of the model reply (presentation only).
 
-    NOT semantic SQL handling — no parsing of meaning here. The "no regex for
-    SQL" rule (CLAUDE.md §4) governs semantics (table scope, write detection),
-    which is sqlglot's job downstream in guard/.
+    Robust to reasoning-style models that wrap the SQL in chain-of-thought prose
+    (e.g. gemini-3.5-flash leaks its reasoning into ``content``, where the older
+    whole-reply-only unwrap dropped it as unparsable, #121):
+
+    1. Prefer the **last** fenced ``` block — the final answer; any earlier fence
+       is usually scratch work. Also recovers a truncated/un-closed leading fence.
+    2. No fence → take from the first line-starting ``SELECT``/``WITH`` to the end
+       (a bare-SQL reply matches at offset 0, so the clean case is byte-identical).
+    3. Neither → return the stripped text unchanged.
+
+    NOT semantic SQL handling — no parsing of meaning here. The "no regex for SQL"
+    rule (CLAUDE.md §4) governs semantics (table scope, write detection), which is
+    sqlglot's job downstream in guard/; a wrong guess here is simply rejected
+    there, exactly as an unparsable reply is today.
     """
-    match = _FENCE_RE.match(text)
-    return (match.group("body") if match else text).strip()
+    fences = _FENCE_BLOCK_RE.findall(text)
+    if fences:
+        return fences[-1].strip()
+    opener = _STMT_OPENER_RE.search(text)
+    if opener:
+        return text[opener.start() :].strip()
+    return text.strip()
 
 
 def generate(
