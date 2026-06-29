@@ -129,3 +129,36 @@ def test_rescore_completes_and_marks_runaway_candidate_failed(monkeypatch):
     assert time.monotonic() - start < 5.0  # finished, didn't hang
     assert records[0]["bird_correct"] is False
     assert records[1]["bird_correct"] is False
+
+
+# --- #122: FK-graph-based join-soundness tags ----------------------------------
+
+_FK = frozenset({frozenset({"users", "orders"})})
+
+
+def test_spurious_join_flagged_when_joining_fk_unrelated_tables():
+    # Candidate stitches users to an FK-UNrelated table ('logs') — unsound.
+    gold = "SELECT u.name FROM users u JOIN orders o ON o.uid = u.id"
+    cand = "SELECT u.name FROM users u JOIN logs l ON l.uid = u.id"
+    tags = categorize(gold, cand, fk_edges=_FK)
+    assert "spurious_join" in tags
+
+
+def test_fk_valid_join_is_not_spurious():
+    gold = "SELECT u.name FROM users u JOIN orders o ON o.uid = u.id"
+    cand = "SELECT u.name FROM users u JOIN orders o ON o.uid = u.id WHERE o.paid = 1"
+    assert "spurious_join" not in categorize(gold, cand, fk_edges=_FK)
+
+
+def test_no_fk_graph_means_no_spurious_tag():
+    # Backward-compatible: without the FK graph the tag never fires.
+    gold = "SELECT u.name FROM users u JOIN orders o ON o.uid = u.id"
+    cand = "SELECT u.name FROM users u JOIN logs l ON l.uid = u.id"
+    assert "spurious_join" not in categorize(gold, cand)
+
+
+def test_table_mismatch_splits_into_missing_and_extra():
+    gold = "SELECT * FROM users u JOIN orders o ON o.uid = u.id"
+    cand = "SELECT * FROM users u JOIN logs l ON l.uid = u.id"
+    tags = categorize(gold, cand)
+    assert {"table_mismatch", "missing_table", "extra_table"} <= set(tags)
