@@ -49,6 +49,9 @@ REPORT_PATH = (
 # BIRD is SQLite; fall back to the generic parser for robustness (mirrors the
 # comparator's tolerant gold parse).
 _DIALECTS: tuple[str | None, ...] = ("sqlite", None)
+# Wall-clock bound for re-executing an untrusted candidate during BIRD re-scoring
+# (#125): generous for a legitimate query, short enough that a runaway can't hang.
+_RESCORE_TIMEOUT_S = 15.0
 _AGGS = (exp.Count, exp.Sum, exp.Avg, exp.Min, exp.Max)
 
 
@@ -159,7 +162,13 @@ def rescore_under_bird(records: list[dict[str, Any]]) -> None:
         try:
             engine = _engine(r["db_id"])
             gold = loader.run_query(engine, r["gold_sql"])
-            cand = loader.run_query(engine, r["candidate_sql"])
+            # The candidate is untrusted model output: a truncated/garbled query
+            # can parse yet execute as a runaway (e.g. an unbounded cross-join),
+            # which would hang the whole diagnostic. Bound it (#125); a timeout
+            # is just another genuine failure.
+            cand = loader.run_query(
+                engine, r["candidate_sql"], timeout=_RESCORE_TIMEOUT_S
+            )
             r["bird_correct"] = (
                 compare(gold, cand, r["gold_sql"], rules=BIRD_RULES).verdict
                 is Verdict.CORRECT
