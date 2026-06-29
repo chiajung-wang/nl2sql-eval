@@ -176,9 +176,12 @@ Configuration is supplied via environment variables (e.g. an `.env` file).
 | `LANGFUSE_SECRET_KEY` | Langfuse secret key | Step 8+ | `sk-lf-...` |
 | `LANGFUSE_HOST` | Langfuse host URL — set to your region (EU `cloud.langfuse.com`, US `us.cloud.langfuse.com`, JP `jp.cloud.langfuse.com`, or self-hosted). `LANGFUSE_BASE_URL` is honored as a fallback. | Step 8+ | `https://cloud.langfuse.com` |
 | `RETRY_BUDGET` | Max self-correction attempts per question | No | `3` |
+| `MODEL` | Override the generator model for eval runs (recorded in `RESULTS.md`); unset → the pinned default | No | `openrouter/google/gemini-3-flash-preview` |
 | `CROSS_PROVIDER_MODELS` | Comma-separated model ids for the Step-7 cross-provider table; unset → the default single model | Step 7 cross-provider run | `openrouter/anthropic/claude-sonnet-4,openrouter/openai/gpt-4o-mini` |
 
 The **model is chosen per run** by the provider-prefixed `model` argument to `run_pipeline` (default `anthropic/claude-sonnet-4-6`); LiteLLM routes to the matching backend and reads the corresponding key above. No separate provider/key env var is needed — the identifier *is* the selector.
+
+> **Recommended generator: `openrouter/google/gemini-3-flash-preview`.** Step 11's error analysis identified the model swap as the lever with real headroom, and the measurement confirms it: gemini-3-flash scores **pass@1 0.500–0.540** on the frozen slice vs the sonnet baseline's 0.420 ([RESULTS.md](RESULTS.md#log) — Step 11 #117, Step 7 cross-provider). Set `MODEL=openrouter/google/gemini-3-flash-preview` (needs `OPENROUTER_API_KEY`) for the higher-accuracy run. The **pinned default stays `anthropic/claude-sonnet-4-6`** deliberately — a direct, list-priced model — so the project's default doesn't depend on a third-party aggregator or forfeit clean cost accounting (OpenRouter models are priced by provider-report, not the dated list table). It's a *recommended override*, not the pin.
 
 **Reproduce the trace.** Tracing activates only when both Langfuse keys are set (offline it is pure structured logging — no keys, no network). With keys in `.env`, confirm export end to end before a full run:
 
