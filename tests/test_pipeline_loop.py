@@ -15,7 +15,9 @@ from sqlalchemy import create_engine, text
 from nl2sql.llm import LLMResponse
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import (
+    DEFAULT_MAX_TOKENS,
     _extract_sql,
+    _max_tokens,
     generate,
     render_prompt,
 )
@@ -144,6 +146,27 @@ def test_generate_sets_candidate_sql_via_injected_client():
     sent = client.calls[0]["messages"][0]["content"]
     assert "CREATE TABLE users (id INT);" in sent
     assert "how many users?" in sent
+
+
+def test_max_tokens_env_override_with_default_fallback(monkeypatch):
+    # #124: reasoning models need headroom; MAX_TOKENS is opt-in (env) over a
+    # pinned default. Unset / blank / non-integer -> the committed default.
+    monkeypatch.delenv("MAX_TOKENS", raising=False)
+    assert _max_tokens() == DEFAULT_MAX_TOKENS
+    monkeypatch.setenv("MAX_TOKENS", "8192")
+    assert _max_tokens() == 8192
+    for bad in ("", "  ", "lots", "0", "-5"):
+        monkeypatch.setenv("MAX_TOKENS", bad)
+        assert _max_tokens() == DEFAULT_MAX_TOKENS
+
+
+def test_generate_passes_resolved_max_tokens_to_client(monkeypatch):
+    # The resolved budget reaches the LLM call (the truncation lever, #124).
+    monkeypatch.setenv("MAX_TOKENS", "4096")
+    state = RunState(question="q", db_id="payments")
+    client = FakeLLMClient(reply="SELECT 1;")
+    generate(state, schema="CREATE TABLE t (id INT);", client=client)
+    assert client.calls[0]["max_tokens"] == 4096
 
 
 # --- execute stage ----------------------------------------------------------
