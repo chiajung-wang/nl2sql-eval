@@ -51,8 +51,8 @@ Make `_extract_sql` robust to surrounding prose, **as presentation-only string h
 
 ## Tracking
 
-**GitHub:** _to be filed_ · label `agent-ready`, `step-11`
+**GitHub:** [#121](https://github.com/chiajung-wang/nl2sql-eval/issues/121) · label `agent-ready`, `step-11`
 
 **PR:** _pending_
 
-**Step 11 follow-up set:** #5 (this) · #6 (join/table semantics)
+**Step 11 follow-up set:** [#121](https://github.com/chiajung-wang/nl2sql-eval/issues/121) (this) · [#122](https://github.com/chiajung-wang/nl2sql-eval/issues/122) (join/table semantics)

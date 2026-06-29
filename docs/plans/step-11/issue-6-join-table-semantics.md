@@ -42,14 +42,14 @@ Crucially, #112 already proved this is join **semantics**, not join **discovery*
 
 ## Blocked by
 
-- None hard. Reuses `enrich.py`'s FK graph (#112) for sub-experiment 2. Independent of #5, though #5 (robust extractor) should land first so reasoning-class generators can be measured cleanly here.
+- None hard. Reuses `enrich.py`'s FK graph (#112) for sub-experiment 2. Independent of [#121](https://github.com/chiajung-wang/nl2sql-eval/issues/121), though the robust extractor should land first so reasoning-class generators can be measured cleanly here.
 
 ---
 
 ## Tracking
 
-**GitHub:** _to be filed_ · label `agent-ready`, `step-11`
+**GitHub:** [#122](https://github.com/chiajung-wang/nl2sql-eval/issues/122) · label `agent-ready`, `step-11`
 
 **PR:** _pending_
 
-**Step 11 follow-up set:** #5 (robust `_extract_sql`) · #6 (this)
+**Step 11 follow-up set:** [#121](https://github.com/chiajung-wang/nl2sql-eval/issues/121) (robust `_extract_sql`) · [#122](https://github.com/chiajung-wang/nl2sql-eval/issues/122) (this)
