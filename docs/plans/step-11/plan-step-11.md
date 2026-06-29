@@ -30,7 +30,11 @@ Each lever reports pass@1 on **both** (dev for the bucket-movement check, held-o
 ## What to build
 1. **Baseline error-analysis diagnostic** (#111) — **done** (PR #110). `eval/diagnose_bird.py`: the failure taxonomy + the scorer-vs-genuine split. Establishes the targets above and is re-runnable to confirm a fix moved the right bucket.
 2. **Schema enrichment** (#112) — the #1 lever. A `v4` generate template injecting **explicit foreign-key relationships** + a few **sample column values** alongside the DDL, so the model stops guessing join paths. A/B vs the naive dump on the frozen slice; report pass@1 before/after **and** the join/table bucket movement (re-run the diagnostic).
-3. **Targeted prompting** (#113) — the second cluster. Few-shot exemplars + output-precision rules (which columns to return, when to dedupe) for the distinct/projection bucket. A/B on the frozen slice with bucket movement.
+3. **Targeted prompting** (#113) — **closed, shelved** (PR #120). Few-shot + output-precision `generate/v4.jinja` was built and A/B'd, but the precision buckets it targets are already near-zero on the recommended flash-class generators — the lever is subsumed by the model swap. Kept as a documented negative result; `v3` stays active.
+
+### Follow-up levers (post-#113 — `issue-5`/#121, `issue-6`/#122)
+4. **Robust `_extract_sql`** (`issue-5`, #121) — pipeline-robustness fix. Reasoning-model output (e.g. `gemini-3.5-flash`) wraps the SQL in chain-of-thought prose, which the anchored whole-reply-only extractor drops as `candidate_unparseable` (25/50). Find the fenced/trailing SQL block anywhere (presentation-only; sqlglot still validates). Unblocks measuring reasoning-class generators' true accuracy.
+5. **Join/table semantics** (`issue-6`, #122) — the residual bottleneck (~21/27 dev failures are wrong joins/tables; #112 proved it is join *semantics*, not *discovery*). Candidate sub-experiments: join-path-focused few-shot; a deterministic sqlglot+FK-graph join-soundness correction signal. Research lever — an honest null is an acceptable outcome.
 
 ## Done when
 At least one targeted lever lands a **measured pass@1 lift that holds on the held-out slice** (or an honest, explained null), with the diagnostic showing the **targeted bucket shrank on dev** — every number appended to `RESULTS.md` with its config and commit, dev and held-out both.
