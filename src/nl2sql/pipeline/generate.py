@@ -14,6 +14,7 @@ the caller (later: harness / demo) owns where the schema text comes from.
 
 from __future__ import annotations
 
+import os
 import re
 
 from nl2sql.llm import LLMClient, default_client
@@ -29,7 +30,25 @@ from nl2sql.prompts import GENERATE_TEMPLATE, render
 # Default to a current, capable Claude model (Sonnet 4.x) per CLAUDE.md §2,
 # provider-prefixed for LiteLLM routing (``anthropic/`` = a direct provider key).
 DEFAULT_MODEL = "anthropic/claude-sonnet-4-6"
-MAX_TOKENS = 1024
+
+# Output-token budget for the completion. A non-reasoning model emits the SQL
+# directly (~70 tokens), but a reasoning model (e.g. gemini-3.5-flash) spends
+# ~1000-1150 tokens *thinking* before it emits the SQL (measured) — so the old
+# 1024 cap truncated it mid-thought, leaving no SQL to extract (#124). 4096 gives
+# ample headroom for that while changing nothing for non-reasoning models (the
+# cap is only a ceiling). Override per-run with the MAX_TOKENS env var for an
+# unusually verbose reasoning model; the pinned default reproduces the baseline.
+DEFAULT_MAX_TOKENS = 4096
+
+
+def _max_tokens() -> int:
+    """Resolve the output-token budget: ``MAX_TOKENS`` env, else the default.
+
+    Opt-in like ``RETRY_BUDGET`` / ``MODEL`` — unset reproduces the committed
+    default. A blank or non-integer value falls back rather than raising."""
+    raw = os.environ.get("MAX_TOKENS", "").strip()
+    return int(raw) if raw.isdigit() and int(raw) > 0 else DEFAULT_MAX_TOKENS
+
 
 # Default dialect — the payments demo is PostgreSQL; the BIRD path passes
 # "SQLite". A variable (not hardcoded) so the prompt measures generation quality
@@ -130,7 +149,7 @@ def generate(
         )
         client = client or default_client()
 
-        response = client.complete(prompt, model=model, max_tokens=MAX_TOKENS)
+        response = client.complete(prompt, model=model, max_tokens=_max_tokens())
         state.candidate_sql = _extract_sql(response.text)
 
         # candidate_sql is generated SQL (no PII); safe to attach to the span.
