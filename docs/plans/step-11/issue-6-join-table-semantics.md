@@ -46,10 +46,26 @@ Crucially, #112 already proved this is join **semantics**, not join **discovery*
 
 ---
 
+## Outcome — measured, model-bound frontier (sharpened diagnostic shipped)
+
+The diagnostic now decomposes the join/table cluster deterministically (sqlglot
++ FK graph): `spurious_join` (FK-unrelated join), `missing_table`, `extra_table`.
+The measurement settled the question: the FK-unsound `spurious_join` subset is a
+**minority** (sonnet 5/10, gemini-3.5 4/8) and overlaps with extra-table errors;
+the cluster is dominated by **table selection**, which schema-enrichment (#112)
+already couldn't fix. So neither a deterministic guardrail nor schema-hints reach
+it — it's a **model-capability frontier**, and the model swap is what moved it
+(gemini-3.5 shrank the cluster 10→8). **Decision:** ship the sharpened diagnostic
+(sub-experiment's detection primitive + the measurement); **do not** wire a live
+FK-soundness correction signal — at ≤5/50 it sits inside the ~0.05 noise floor, so
+its A/B would be inconclusive by construction (deferred, not pursued). Honest null
+on the accuracy lever, real gain on the apparatus. Full write-up: `RESULTS.md` →
+Step 11 (#122).
+
 ## Tracking
 
-**GitHub:** [#122](https://github.com/chiajung-wang/nl2sql-eval/issues/122) · label `agent-ready`, `step-11`
+**GitHub:** [#122](https://github.com/chiajung-wang/nl2sql-eval/issues/122) · CLOSED · label `agent-ready`, `step-11`
 
-**PR:** _pending_
+**PR:** join-soundness diagnostic tags + decomposition finding
 
 **Step 11 follow-up set:** [#121](https://github.com/chiajung-wang/nl2sql-eval/issues/121) (robust `_extract_sql`) · [#122](https://github.com/chiajung-wang/nl2sql-eval/issues/122) (this)
