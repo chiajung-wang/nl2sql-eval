@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -76,16 +77,37 @@ def schema_text(engine: Engine) -> str:
         return "\n\n".join(r[0] for r in rows)
 
 
-def run_query(engine: Engine, sql: str) -> dict[str, Any]:
+def run_query(
+    engine: Engine, sql: str, *, timeout: float | None = None
+) -> dict[str, Any]:
     """Execute ``sql`` and return a comparator-shaped ``{"columns", "rows"}``.
 
     The primitive the harness uses to materialize a gold (or candidate) result
     set from a BIRD db for scoring via ``eval/compare.py``.
+
+    ``timeout`` (seconds) bounds wall-clock execution via SQLite's progress
+    handler, which aborts the query (raising ``OperationalError``) once the
+    deadline passes — including during ``fetchall``. Default ``None`` keeps the
+    original unbounded behavior for the harness's gold queries; callers that
+    execute *untrusted* candidate SQL (e.g. ``diagnose_bird`` re-scoring a model
+    that may emit a runaway cross-join) pass a timeout so a single pathological
+    query can't hang the run. The handler fires every ``n`` VM ops, so the abort
+    is coarse (op-count, not a hard real-time guarantee) but reliably bounded.
     """
     with engine.connect() as conn:
-        result = conn.execute(text(sql))
-        columns = list(result.keys())
-        rows = [tuple(row) for row in result.fetchall()]
+        raw = conn.connection.dbapi_connection if timeout is not None else None
+        if raw is not None:
+            deadline = time.monotonic() + timeout
+            raw.set_progress_handler(
+                lambda: 1 if time.monotonic() > deadline else 0, 10_000
+            )
+        try:
+            result = conn.execute(text(sql))
+            columns = list(result.keys())
+            rows = [tuple(row) for row in result.fetchall()]
+        finally:
+            if raw is not None:
+                raw.set_progress_handler(None, 10_000)
     return {"columns": columns, "rows": rows}
 
 
