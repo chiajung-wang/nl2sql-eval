@@ -155,9 +155,15 @@ def results_prose(
 
 
 def _slice_for(args: list[str]) -> tuple[list[int] | None, str]:
-    """Dev (Step-3, default) or held-out via ``SLICE=holdout`` / ``--holdout``."""
+    """Dev (Step-3, default), held-out (``SLICE=holdout`` / ``--holdout``), or the
+    250-question wide dev slice (``SLICE=dev-wide`` / ``--dev-wide``, #133) — used to
+    re-test a within-noise null on a substrate that can resolve a +0.03 effect."""
     if os.environ.get("SLICE") == "holdout" or "--holdout" in args:
         return load_holdout_slice_ids(), "step11-holdout"
+    if os.environ.get("SLICE") == "dev-wide" or "--dev-wide" in args:
+        from eval.datasets.bird.slice_step11_dev_wide import load_dev_wide_slice_ids
+
+        return load_dev_wide_slice_ids(), "step11-dev-wide"
     return None, slice_id()
 
 
