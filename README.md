@@ -178,6 +178,7 @@ Configuration is supplied via environment variables (e.g. an `.env` file).
 | `RETRY_BUDGET` | Max self-correction attempts per question | No | `3` |
 | `MODEL` | Override the generator model for eval runs (recorded in `RESULTS.md`); unset → the pinned default | No | `openrouter/google/gemini-3.5-flash` |
 | `MAX_TOKENS` | Output-token budget per generate call; unset → 4096 (ample for reasoning models, a no-op ceiling otherwise) | No | `8192` |
+| `SLICE` | Eval slice for `diagnose_bird` / `eval_bird_schema`: unset → the Step-3 dev slice (50); `holdout` → the held-out test slice (100, touch once); `dev-wide` → the wide dev slice (250, tighter sampling noise, #133) | No | `dev-wide` |
 | `CROSS_PROVIDER_MODELS` | Comma-separated model ids for the Step-7 cross-provider table; unset → the default single model | Step 7 cross-provider run | `openrouter/anthropic/claude-sonnet-4,openrouter/openai/gpt-4o-mini` |
 
 The **model is chosen per run** by the provider-prefixed `model` argument to `run_pipeline` (default `anthropic/claude-sonnet-4-6`); LiteLLM routes to the matching backend and reads the corresponding key above. No separate provider/key env var is needed — the identifier *is* the selector.

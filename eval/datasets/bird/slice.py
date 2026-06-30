@@ -113,8 +113,10 @@ def select_superset_slice(
     the base minus ``exclude``, so the top-up introduces no *new* overlap with the
     excluded slices — while any overlap the base already has is preserved (e.g. the
     dev slice's pre-existing intersection with the prompt-CI slice). The top-up is
-    **stratified by difficulty** over that non-base pool; both halves track the
-    pool's mix, so the union does too. Deterministic: same inputs + seed → same IDs.
+    **stratified by difficulty** over that non-base pool; since the base (the dev
+    slice) is itself stratified over the same pool, the union stays close to the
+    pool's mix (the forced base can skew it, so this is approximate, not exact).
+    Deterministic: same inputs + seed → same IDs.
     Result size is exactly ``n`` (clamped to base + the available top-up pool).
     """
     base = set(base_ids)
