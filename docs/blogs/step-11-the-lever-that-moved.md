@@ -1,9 +1,9 @@
 ---
 title: "Step 11 — The Lever That Moved (and the Three That Didn't)"
-subtitle: "Pointing the finished apparatus back at the workload: the diagnostic turned 'pass@1 is 0.42, make it better' into a sequence of hypotheses the measurement adjudicated — schema enrichment (null), few-shot (subsumed), a model swap (+0.10), and a token-budget bug of our own that was hiding the strongest model (0.28 → 0.52)."
+subtitle: "Pointing the finished apparatus back at the workload: the diagnostic turned 'pass@1 is 0.42, make it better' into a sequence of hypotheses the measurement adjudicated — schema enrichment (null), few-shot (subsumed), a model swap (+0.10), and a token-budget bug of our own that was hiding the strongest model (0.28 → 0.52) — then banked the swap as a named config and widened the slice until 'within noise' became 'decided'."
 series: "nl2sql-eval: a case study in evaluating an LLM system"
 part: 11
-date: 2026-06-29
+date: 2026-06-30
 author: Chia-Jung Wang
 tags: [llm, nl2sql, evaluation, error-analysis, optimization, reasoning-models, measurement, negative-results]
 ---
@@ -184,6 +184,73 @@ know we can't trust. Honest null on the accuracy lever; real gain on the apparat
 
 ---
 
+## #132 — Banking the win: the swap becomes a switch
+
+A measured win that lives only in a README paragraph is half-banked. The model swap was
+*the* lever of the step, but using it meant a reader hand-assembling two env vars — `MODEL`
+and the `MAX_TOKENS` the reasoning model needs — from prose. #132 makes each configuration a
+**named bundle** the harness and the demo select identically, through a single
+`src/nl2sql/run_config.py` that the import-shared pipeline reads the same way everywhere:
+
+- **`accuracy`** — `gemini-3.5-flash` + `MAX_TOKENS=4096`, the top-of-slice config.
+- **`list-priced`** (the default) — the pinned, direct Claude model, so `eval.cost` keeps
+  pricing it dollar-for-dollar.
+
+The discipline is in what *didn't* change. The default is **not** repinned to the accuracy
+model — the OpenRouter-cost-accounting objection from #117 still stands — so a clean checkout
+is byte-identical to before; an explicit `MODEL`/`MAX_TOKENS` still overrides the bundle
+(twelve unit cases pin that precedence). The verification was deliberately *reproduction*,
+not a new claim: selecting `accuracy` re-resolved the model + budget and scored **0.480 /
+0.520** on dev — within the noise floor of #124's 0.520/0.580, exactly what "reproduces the
+banked number" should look like for a reasoning model at temperature > 0. The
+measurement-is-the-product thread, applied to operations: a result you've earned should ship
+as a switch, not a sentence. (One honest wrinkle, documented rather than hidden: a `.env`
+that already pins `MODEL` — say the cheap dev workhorse — *shadows* `RUN_CONFIG`, because the
+finer-grained override wins by design. Clear it to let the bundle take effect.)
+
+---
+
+## #133 — A sharper ruler: "within noise" becomes "decided"
+
+A phrase recurs all through this step: *within the noise floor*. On 50 questions at
+temperature > 0 that floor is about ±0.07, and it quietly downgraded several findings from
+*negative* to merely *unresolved*. FK-only enrichment's −0.020 wasn't a null — it was an
+inconclusive. The FK-soundness corrector wasn't declined because it failed; its A/B *couldn't
+clear the floor by construction*. An honest step has to notice the difference between "we
+measured no effect" and "our ruler was too coarse to measure one."
+
+So #133 builds a finer ruler: **`step11-dev-wide`**, a frozen, seeded, stratified
+**250-question** slice. Two design choices keep it honest. It is a strict **superset of the
+original dev 50**, so the committed 0.420 trail is re-measured *inside* the wider number
+rather than abandoned. And it is **strictly disjoint from the held-out slice** — the
+generalization guard is non-negotiable — with the only prompt-CI overlap being three ids the
+dev base already shared (the top-up introduces none). At n=250 the per-question sampling SE
+falls from ~0.070 to ~0.031: roughly half the floor.
+
+Re-anchored on it, the step's two real findings sharpen:
+
+| arm | dev (n=50) | dev-wide (n=250) |
+|---|---|---|
+| baseline-proxy (`gemini-3.1-flash-lite`) | 0.420 / 0.460 | **0.456 / 0.488** |
+| accuracy (`gemini-3.5-flash`) | 0.480 / 0.520 | **0.536 / 0.564** |
+
+The model-swap gap is **+0.08**, now sitting cleanly *above* the ±0.031 SE — the one lever
+that moved still moves on a slice five times the size. And the payoff the slice was built
+for: re-running FK-only enrichment lands it at **+0.012 with the target bucket flat** — a
+clean within-noise null measured at *half* the old floor. The effect's sign even flipped from
+dev's −0.020, which is the signature of pure sampling noise, not a small real lift. The
+inconclusive becomes **decided**. Widening the ruler didn't add a single point of accuracy —
+it added *certainty*, which on a project whose product is the measurement is the more
+valuable currency.
+
+(Two caveats, recorded with the number: with no Anthropic key on hand, `gemini-3.1-flash-lite`
+stood in as the baseline-proxy — it matched sonnet's 0.420/0.460 on dev — and the true-sonnet
+anchor is deferred; the FK re-test likewise changed both model *and* slice, so it
+*corroborates* the null rather than strictly replaying it. The clean claim is the dev-wide
+null itself, at half the floor.)
+
+---
+
 ## The number that matters: the gap, closed by the lever that earned it
 
 | Date | Step | Lever | Number | Model | Slice | Commit |
@@ -192,6 +259,8 @@ know we can't trust. Honest null on the accuracy lever; real gain on the apparat
 | 2026-06-29 | 11 | few-shot `v4` | moves buckets, subsumed by model | sonnet | step3 dev | — |
 | 2026-06-29 | 11 | **token budget + extractor** | **0.280 → 0.520 / 0.580** | `gemini-3.5-flash` | step3 dev | `352992e` |
 | 2026-06-29 | 11 | join/table decomposition | spurious-join a minority; model-bound | sonnet · gemini-3.5 | step3 dev | `f935010` |
+| 2026-06-30 | 11 | named-config reproduction | `accuracy` → 0.480 / 0.520 (reproduces #124) | `gemini-3.5-flash` | step3 dev | `538b9eb` |
+| 2026-06-30 | 11 | **wide-dev re-anchor** | **swap gap +0.08** holds; FK-only **+0.012 decided null** | `gemini-3.5` · flash-lite | step11-dev-wide | `8f3de37` |
 
 Every number traces to a model, a slice, and a commit in [`RESULTS.md`](../../RESULTS.md).
 Reproduce the headline on the cheap dev workhorse or the accuracy pick:
@@ -216,8 +285,13 @@ MODEL=openrouter/google/gemini-3.1-flash-lite uv run python -m eval.diagnose_bir
   is to measure the lever's ceiling first and not ship one whose A/B can't clear noise.
 - **A new pinned default chasing the top score.** `gemini-3.5-flash` is the accuracy leader,
   but the pinned `DEFAULT_MODEL` stays a direct, list-priced Claude model — so the project's
-  default doesn't depend on a third-party aggregator or forfeit clean cost accounting. The
-  winners are *recommended overrides*, documented with their tradeoffs, not the pin.
+  default doesn't depend on a third-party aggregator or forfeit clean cost accounting. #132
+  bottles both as *named configs* (`accuracy` and `list-priced`) rather than repinning the
+  default — the win is one switch away, the tradeoff stays explicit.
+- **A lever measured on a ruler too coarse to read it.** Rather than report FK-only's −0.020
+  as a result, #133 widened the slice until the floor was half as deep and re-measured — the
+  honest move when a number sits inside the noise, instead of quietly treating "unresolved"
+  as "negative."
 
 ---
 
@@ -226,10 +300,14 @@ MODEL=openrouter/google/gemini-3.1-flash-lite uv run python -m eval.diagnose_bir
 The honest verdict of Step 11 is that the apparatus is now better at finding the truth than
 the workload is at improving: three of four levers were nulls or subsumed, and the real
 gains came from a model swap and from fixing a budget bug that was hiding the best model.
-The residual headroom — table selection on multi-table joins — is a model-capability
-frontier this slice's deterministic and prompt levers can't reach. The next real movement
-there comes from a stronger generator or a fundamentally different retrieval/grounding
-approach, both of which the harness is now ready to adjudicate the moment they're tried.
+That swap is now banked as a named config (#132), and the nulls are *decided* rather than
+merely unresolved, because the slice was widened until its ruler could read them (#133). The
+residual headroom — table selection on multi-table joins — is a model-capability frontier
+this slice's deterministic and prompt levers can't reach. The next real movement there comes
+from a stronger generator or a fundamentally different grounding approach — an explicit
+table-selection step or schema-aware few-shot (filed as #134/#135, deliberately left for when
+they're worth the spend) — all of which the wider slice is now precise enough to adjudicate
+the moment they're tried.
 
 The arc of this series was one idea applied over and over: build the thing that can tell you
 the truth before you build the thing you hope is true. Step 5 proved a feature was worth
