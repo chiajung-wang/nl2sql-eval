@@ -42,16 +42,22 @@ from dataclasses import dataclass
 class RunConfig:
     """A named bundle of the generator knobs that define a run's accuracy/cost axis.
 
-    ``prompt_version`` is recorded (it lands in ``RESULTS.md`` rows) so a number is
-    always traceable to the template that produced it; both shipped configs run the
-    active ``v3`` template, so this module does not switch templates — the prompt
-    registry (``nl2sql.prompts``) remains the single source of truth for that.
+    Deliberately only **model** and **max_tokens** — the two knobs that actually
+    differ between the accuracy and cost axes. Two things a config might seem to
+    want are kept *out* on purpose, to avoid a second source of truth:
+
+    - **prompt version** is owned by the prompt registry (``nl2sql.prompts``), the
+      single source of truth CI diffs (CLAUDE.md §4). Storing a version literal
+      here would duplicate it and silently drift; both configs run the active
+      template regardless, so the config has nothing to add.
+    - **dialect** is a per-*dataset* input (SQLite on BIRD, PostgreSQL on the
+      payments demo), resolved per run — it does not vary between the accuracy and
+      list-priced axes, so it is not a property of the config.
     """
 
     name: str
     model: str
     max_tokens: int
-    prompt_version: str
 
 
 # The direct, list-priced default — unchanged from the pinned baseline. Sonnet 4.x
@@ -60,7 +66,6 @@ LIST_PRICED = RunConfig(
     name="list-priced",
     model="anthropic/claude-sonnet-4-6",
     max_tokens=4096,
-    prompt_version="v3",
 )
 
 # The top-of-slice accuracy config (#124). A *reasoning* model: it spends
@@ -70,7 +75,6 @@ ACCURACY = RunConfig(
     name="accuracy",
     model="openrouter/google/gemini-3.5-flash",
     max_tokens=4096,
-    prompt_version="v3",
 )
 
 CONFIGS: dict[str, RunConfig] = {c.name: c for c in (LIST_PRICED, ACCURACY)}
