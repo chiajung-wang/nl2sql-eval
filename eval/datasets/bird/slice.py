@@ -91,6 +91,69 @@ def select_slice(
     return sorted(chosen)
 
 
+def select_superset_slice(
+    questions: Sequence[Mapping[str, Any]],
+    table_counts: Mapping[str, int],
+    base_ids: Sequence[int],
+    *,
+    max_tables: int = MAX_TABLES,
+    min_tables: int = 0,
+    n: int = SLICE_SIZE,
+    seed: int = SEED,
+    exclude: frozenset[int] = frozenset(),
+) -> list[int]:
+    """A frozen slice that **contains** ``base_ids`` and widens it to ``n``, stratified.
+
+    Used to build a wider *dev* slice that is a strict **superset** of the existing
+    Step-3 dev slice (#133), so the committed 0.420 trail is re-measured inside the
+    wider number rather than abandoned. The forced ``base_ids`` are kept **verbatim**
+    (they must be schema-eligible, but ``exclude`` does *not* apply to them — the
+    superset base is non-negotiable). ``exclude`` constrains only the **top-up**:
+    the fill to ``n`` is sampled (fixed ``seed``) from the schema-eligible pool minus
+    the base minus ``exclude``, so the top-up introduces no *new* overlap with the
+    excluded slices — while any overlap the base already has is preserved (e.g. the
+    dev slice's pre-existing intersection with the prompt-CI slice). The top-up is
+    **stratified by difficulty** over that non-base pool; both halves track the
+    pool's mix, so the union does too. Deterministic: same inputs + seed → same IDs.
+    Result size is exactly ``n`` (clamped to base + the available top-up pool).
+    """
+    base = set(base_ids)
+    schema_eligible = [
+        q
+        for q in questions
+        if min_tables <= table_counts.get(q["db_id"], math.inf) <= max_tables
+    ]
+    schema_eligible_ids = {q["question_id"] for q in schema_eligible}
+    missing = base - schema_eligible_ids
+    if missing:
+        raise ValueError(
+            f"base_ids not schema-eligible (≤{max_tables} tables): {sorted(missing)}"
+        )
+
+    # The top-up draws from schema-eligible questions that are neither already in
+    # the base nor in an excluded slice — so it adds no new overlap with exclude.
+    non_base = [
+        q
+        for q in schema_eligible
+        if q["question_id"] not in base and q["question_id"] not in exclude
+    ]
+    n = min(n, len(base) + len(non_base))
+    topup_n = max(0, n - len(base))
+    by_difficulty: dict[str, list[Mapping[str, Any]]] = {}
+    for q in non_base:
+        by_difficulty.setdefault(q["difficulty"], []).append(q)
+    alloc = _largest_remainder(
+        {diff: len(qs) for diff, qs in by_difficulty.items()}, topup_n
+    )
+
+    rng = random.Random(seed)
+    added: list[int] = []
+    for difficulty in sorted(by_difficulty):
+        pool = sorted(by_difficulty[difficulty], key=lambda q: q["question_id"])
+        added += [q["question_id"] for q in rng.sample(pool, alloc[difficulty])]
+    return sorted(base | set(added))
+
+
 def load_slice_ids(slice_file: Path | None = None) -> list[int]:
     """Read the frozen ``question_id`` list from ``slice_step3.json``."""
     slice_file = slice_file or SLICE_FILE

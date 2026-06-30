@@ -345,13 +345,19 @@ def main(argv: list[str] | None = None) -> int:
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
     model = model_id()
-    # SLICE=holdout diagnoses the held-out slice (Step-11 protocol: validate a
-    # dev lift there); default is the dev (Step-3) slice.
-    if os.environ.get("SLICE") == "holdout":
+    # SLICE selects the slice: holdout = the held-out test set (Step-11 protocol:
+    # validate a dev lift there); dev-wide = the 250-question wide dev slice (#133,
+    # tighter sampling noise for marginal levers); default = the dev (Step-3) slice.
+    slice_choice = os.environ.get("SLICE")
+    if slice_choice == "holdout":
         from eval.datasets.bird.slice_step11_holdout import load_holdout_slice_ids
 
         slice_ids: list[int] | None = load_holdout_slice_ids()
         slice_label = "step11-holdout"
+    elif slice_choice == "dev-wide":
+        from eval.datasets.bird.slice_step11_dev_wide import load_dev_wide_slice_ids
+
+        slice_ids, slice_label = load_dev_wide_slice_ids(), "step11-dev-wide"
     else:
         slice_ids, slice_label = None, "step3-dev"
     cases, evidence = build_bird_cases(slice_ids=slice_ids)
