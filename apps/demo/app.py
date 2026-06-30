@@ -45,6 +45,7 @@ from apps.demo.runner import (  # noqa: E402
     run_demo,
 )
 from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy  # noqa: E402
+from nl2sql.run_config import active_config  # noqa: E402
 
 PAYMENTS_SCHEMA = _REPO_ROOT / "eval/datasets/payments/schema.sql"
 
@@ -150,7 +151,10 @@ def main() -> None:
         dataset = st.text_input(
             "Dataset", value="payments", help="`payments` or `bird/<db_id>`"
         )
-        model = st.text_input("Model", value="anthropic/claude-sonnet-4-6")
+        # Default to the active named config's model (#132) — the same source the
+        # harness reads, so RUN_CONFIG=accuracy flips the demo's default too. Unset
+        # → list-priced (sonnet), identical to before. Still free-text editable.
+        model = st.text_input("Model", value=active_config().model)
         max_attempts = st.slider(
             "Retry budget (k)",
             1,
