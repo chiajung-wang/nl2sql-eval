@@ -26,10 +26,14 @@ from nl2sql.pipeline.state import RunState
 # *render*; callers that want the version/template constants import them from
 # ``nl2sql.prompts`` directly, not through this stage.
 from nl2sql.prompts import GENERATE_TEMPLATE, render
+from nl2sql.run_config import DEFAULT_CONFIG, active_config
 
-# Default to a current, capable Claude model (Sonnet 4.x) per CLAUDE.md §2,
-# provider-prefixed for LiteLLM routing (``anthropic/`` = a direct provider key).
-DEFAULT_MODEL = "anthropic/claude-sonnet-4-6"
+# The pinned default model/budget live in the named-config registry (#132), the
+# single source of truth shared by the harness and the demo. The default config
+# (``list-priced``) is the prior pinned baseline — a current, capable Claude model
+# (Sonnet 4.x) per CLAUDE.md §2, provider-prefixed for LiteLLM routing
+# (``anthropic/`` = a direct provider key) — so these constants are unchanged.
+DEFAULT_MODEL = DEFAULT_CONFIG.model
 
 # Output-token budget for the completion. A non-reasoning model emits the SQL
 # directly (~70 tokens), but a reasoning model (e.g. gemini-3.5-flash) spends
@@ -38,16 +42,18 @@ DEFAULT_MODEL = "anthropic/claude-sonnet-4-6"
 # ample headroom for that while changing nothing for non-reasoning models (the
 # cap is only a ceiling). Override per-run with the MAX_TOKENS env var for an
 # unusually verbose reasoning model; the pinned default reproduces the baseline.
-DEFAULT_MAX_TOKENS = 4096
+DEFAULT_MAX_TOKENS = DEFAULT_CONFIG.max_tokens
 
 
 def _max_tokens() -> int:
-    """Resolve the output-token budget: ``MAX_TOKENS`` env, else the default.
+    """Resolve the output-token budget: ``MAX_TOKENS`` env, else the active config's.
 
-    Opt-in like ``RETRY_BUDGET`` / ``MODEL`` — unset reproduces the committed
-    default. A blank or non-integer value falls back rather than raising."""
+    Opt-in like ``RETRY_BUDGET`` / ``MODEL`` — an explicit ``MAX_TOKENS`` still wins,
+    and with nothing set the active config is the default (``list-priced``, 4096),
+    reproducing the committed baseline. A blank or non-integer value falls back to
+    the config rather than raising."""
     raw = os.environ.get("MAX_TOKENS", "").strip()
-    return int(raw) if raw.isdigit() and int(raw) > 0 else DEFAULT_MAX_TOKENS
+    return int(raw) if raw.isdigit() and int(raw) > 0 else active_config().max_tokens
 
 
 # Default dialect — the payments demo is PostgreSQL; the BIRD path passes

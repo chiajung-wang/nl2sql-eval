@@ -176,18 +176,19 @@ Configuration is supplied via environment variables (e.g. an `.env` file).
 | `LANGFUSE_SECRET_KEY` | Langfuse secret key | Step 8+ | `sk-lf-...` |
 | `LANGFUSE_HOST` | Langfuse host URL — set to your region (EU `cloud.langfuse.com`, US `us.cloud.langfuse.com`, JP `jp.cloud.langfuse.com`, or self-hosted). `LANGFUSE_BASE_URL` is honored as a fallback. | Step 8+ | `https://cloud.langfuse.com` |
 | `RETRY_BUDGET` | Max self-correction attempts per question | No | `3` |
-| `MODEL` | Override the generator model for eval runs (recorded in `RESULTS.md`); unset → the pinned default | No | `openrouter/google/gemini-3.5-flash` |
+| `RUN_CONFIG` | Named run config bundling model + token budget (`accuracy` or `list-priced`); unset → `list-priced` default. An explicit `MODEL`/`MAX_TOKENS` overrides the bundle. | No | `accuracy` |
+| `MODEL` | Override the generator model for eval runs (recorded in `RESULTS.md`); unset → the active `RUN_CONFIG`'s model | No | `openrouter/google/gemini-3.5-flash` |
 | `MAX_TOKENS` | Output-token budget per generate call; unset → 4096 (ample for reasoning models, a no-op ceiling otherwise) | No | `8192` |
 | `CROSS_PROVIDER_MODELS` | Comma-separated model ids for the Step-7 cross-provider table; unset → the default single model | Step 7 cross-provider run | `openrouter/anthropic/claude-sonnet-4,openrouter/openai/gpt-4o-mini` |
 
 The **model is chosen per run** by the provider-prefixed `model` argument to `run_pipeline` (default `anthropic/claude-sonnet-4-6`); LiteLLM routes to the matching backend and reads the corresponding key above. No separate provider/key env var is needed — the identifier *is* the selector.
 
-> **Recommended generators (both via `MODEL`, needing `OPENROUTER_API_KEY`):**
+> **Named run configs (`RUN_CONFIG`, Step 11 #132)** — pick an *axis* by name instead of hand-assembling `MODEL` + `MAX_TOKENS`:
 >
-> - **Accuracy: `openrouter/google/gemini-3.5-flash`** — the top model on the frozen slice at **pass@1 0.520 / 0.580 BIRD** ([RESULTS.md](RESULTS.md#log) — Step 11 #124), above `gemini-3-flash-preview` (0.500/0.560) and the sonnet baseline (0.420/0.460). It's a *reasoning* model: it spends ~1000–1150 tokens thinking before emitting SQL, so it needs the **`MAX_TOKENS=4096` default** (Step 11 #124) — at the old 1024 cap it truncated mid-thought and looked broken. ~$0.009/query.
-> - **Cheap dev workhorse: `openrouter/google/gemini-3.1-flash-lite`** — matches the sonnet baseline (**0.420 / 0.460**) at a fraction of the cost, with clean (non-reasoning) output. Ideal for fast local iteration.
+> - **`accuracy`** — `openrouter/google/gemini-3.5-flash` + `MAX_TOKENS=4096` (needs `OPENROUTER_API_KEY`). The top model on the frozen slice at **pass@1 0.520 / 0.580 BIRD** ([RESULTS.md](RESULTS.md#log) — Step 11 #124), above `gemini-3-flash-preview` (0.500/0.560) and the sonnet baseline (0.420/0.460). It's a *reasoning* model: it spends ~1000–1150 tokens thinking before emitting SQL, so it relies on the bundled `MAX_TOKENS=4096` — at the old 1024 cap it truncated mid-thought and looked broken. ~$0.009/query.
+> - **`list-priced` (default)** — the pinned `anthropic/claude-sonnet-4-6`, a *direct, list-priced* model so `eval.cost` prices it dollar-for-dollar. Unset `RUN_CONFIG` resolves here — a clean checkout reproduces the committed baseline.
 >
-> The **pinned default stays `anthropic/claude-sonnet-4-6`** deliberately — a direct, list-priced model — so the project's default doesn't depend on a third-party aggregator or forfeit clean cost accounting (OpenRouter models are priced by provider-report, not the dated list table). These are *recommended overrides*, not the pin.
+> **Precedence:** an explicit `MODEL` / `MAX_TOKENS` still wins over the bundle (so a pinned dev `MODEL` shadows `RUN_CONFIG` — clear it to let `accuracy` take effect). The default stays sonnet deliberately — repinning to the OpenRouter gemini globally would make the project's default depend on a third-party aggregator and forfeit clean cost accounting (#117). A separate **cheap dev workhorse**, `openrouter/google/gemini-3.1-flash-lite` (matches the sonnet baseline **0.420 / 0.460** at a fraction of the cost, clean non-reasoning output), stays a per-knob `MODEL` override for fast local iteration.
 
 **Reproduce the trace.** Tracing activates only when both Langfuse keys are set (offline it is pure structured logging — no keys, no network). With keys in `.env`, confirm export end to end before a full run:
 
