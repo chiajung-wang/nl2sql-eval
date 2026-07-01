@@ -22,7 +22,7 @@ Guidance for AI agents working in this repository. These rules are derived from 
 
 The pipeline is an instrumented state machine wrapped by a harness that treats it as `question → result`. **Full directory tree: `README.md` → *Project Structure*.** The rules that the tree must always satisfy:
 
-- **One pipeline stage per module** under `src/nl2sql/pipeline/`. Do not collapse stages into one file. Stages: `retrieve → generate → guard → soundness → execute → correct → redact`. (`soundness`, Step 12 #139, is a post-guard deterministic bad-construction check whose hits are **correction signals**, not terminal rejections — a flag with budget left feeds back; with the budget spent the candidate still executes. `link.py`, #138, is the task-alignment alternative to `retrieve`, selected by config.)
+- **One pipeline stage per module** under `src/nl2sql/pipeline/`. Do not collapse stages into one file. Stages: `retrieve → generate → guard → soundness → literal_check → execute → correct → redact`. (`soundness` #139 and `literal_check` #141 are post-guard deterministic checks whose hits are **correction signals**, not terminal rejections — a flag with budget left feeds back; with the budget spent the candidate still executes. `literal_check` uses a sampled value index (`value_index.py`) that, like the profiler, **never indexes PII columns**. `link.py`, #138, is the task-alignment alternative to `retrieve`, selected by config.)
 - **The pipeline is import-shared.** Both `eval/harness.py` and `apps/demo/` import the *same* pipeline. Never fork or duplicate pipeline logic for the demo — no drift between what is demoed and what is measured.
 - **Two pipeline exits (critical):**
   - **Raw verified result** — scored by the harness against gold, **upstream of redaction**.
@@ -72,7 +72,7 @@ The pipeline is an instrumented state machine wrapped by a harness that treats i
 
 ## 8. Testing
 
-Tests concentrate on the deterministic cores — `eval/compare.py`, `src/nl2sql/pipeline/guard.py`, and `src/nl2sql/pipeline/soundness.py`. The comparator must pass its **entire** golden fixture; guardrails must be unit-green and measured against the red-team fixture; the soundness checks are measured against `fixtures/soundness/` (reported catch rate **and** false-positive rate). Add a fixture case for every new comparison edge case, dangerous-query pattern, or bad-construction pattern. **Commands and details: `README.md` → *Testing*.**
+Tests concentrate on the deterministic cores — `eval/compare.py`, `src/nl2sql/pipeline/guard.py`, `src/nl2sql/pipeline/soundness.py`, and the Step-12 correction-check cores `src/nl2sql/pipeline/literal_check.py` + `src/nl2sql/value_index.py` (#141). The comparator must pass its **entire** golden fixture; guardrails must be unit-green and measured against the red-team fixture; the soundness checks are measured against `fixtures/soundness/` (reported catch rate **and** false-positive rate); the literal check is unit-tested offline on a fixture db (its live trigger/recovery/false-steer rates are a deferred eval metric, not a static fixture). Add a fixture/unit case for every new comparison edge case, dangerous-query pattern, bad-construction pattern, or off-column-literal pattern. **Commands and details: `README.md` → *Testing*.**
 
 ## 9. Definition of done (the unique checks)
 

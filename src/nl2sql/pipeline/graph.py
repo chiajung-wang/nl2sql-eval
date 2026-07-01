@@ -42,16 +42,18 @@ from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.engine import Engine
 
 from nl2sql.obs import stage_span, trace_attributes
-from nl2sql.pipeline.correct import correct, correct_soundness
+from nl2sql.pipeline.correct import correct, correct_literal, correct_soundness
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.guard import guard
 from nl2sql.pipeline.link import LINK_STRATEGIES, TASK_ALIGNMENT, link_tables
+from nl2sql.pipeline.literal_check import literal_check
 from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy, redact
 from nl2sql.pipeline.retrieve import is_not_found_error, missing_identifier, retrieve
 from nl2sql.pipeline.soundness import soundness
 from nl2sql.pipeline.state import RunState
 from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
+from nl2sql.value_index import ValueIndex
 
 # Single-shot by default (the pass@1 mode): no correction unless a caller opts
 # into a budget. The harness raises this for pass@k; the cap is the explicit,
@@ -254,12 +256,45 @@ def _route_after_soundness(state: _GraphState, config: RunnableConfig) -> str:
     run = state["run"]
     if run.soundness_flag and run.attempts < _cfg(config)["budget"]:
         return "correct_soundness"
-    return "execute"
+    return "literal_check"
 
 
 def _correct_soundness(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
     """Stage the soundness flag as feedback for the next ``generate``."""
     correct_soundness(state["run"])
+    return {"run": state["run"]}
+
+
+def _literal_check(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """Literal→field steering scan (Step 12, #141), after the soundness scan.
+
+    Another post-generation *correction* signal (not a gate): it records a flag when
+    a literal is constrained against a column whose sample lacks it. A no-op when no
+    value index is configured (the naive-dump / demo path).
+    """
+    literal_check(
+        state["run"], _cfg(config)["value_index"], dialect=_cfg(config)["dialect"]
+    )
+    return {"run": state["run"]}
+
+
+def _route_after_literal(state: _GraphState, config: RunnableConfig) -> str:
+    """A clean (or budget-spent) candidate executes; an off-column literal with budget
+    left feeds the steering message back and regenerates.
+
+    Mirrors ``_route_after_soundness`` — a steering heuristic is a recoverable signal,
+    never a hard reject, and shares the one capped budget: a false steer (sampling
+    miss) costs at most a wasted retry, never a dropped run.
+    """
+    run = state["run"]
+    if run.literal_flag and run.attempts < _cfg(config)["budget"]:
+        return "correct_literal"
+    return "execute"
+
+
+def _correct_literal(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """Stage the literal-steering message as feedback for the next ``generate``."""
+    correct_literal(state["run"])
     return {"run": state["run"]}
 
 
@@ -317,6 +352,8 @@ def _build_graph() -> CompiledStateGraph:
     g.add_node("scope_re_retrieve", _scope_re_retrieve)
     g.add_node("soundness", _soundness)
     g.add_node("correct_soundness", _correct_soundness)
+    g.add_node("literal_check", _literal_check)
+    g.add_node("correct_literal", _correct_literal)
     g.add_node("execute", _execute)
     g.add_node("correct", _correct)
 
@@ -332,9 +369,15 @@ def _build_graph() -> CompiledStateGraph:
     g.add_conditional_edges(
         "soundness",
         _route_after_soundness,
-        {"correct_soundness": "correct_soundness", "execute": "execute"},
+        {"correct_soundness": "correct_soundness", "literal_check": "literal_check"},
     )
     g.add_edge("correct_soundness", "generate")
+    g.add_conditional_edges(
+        "literal_check",
+        _route_after_literal,
+        {"correct_literal": "correct_literal", "execute": "execute"},
+    )
+    g.add_edge("correct_literal", "generate")
     g.add_conditional_edges(
         "execute", _route_after_execute, {"correct": "correct", END: END}
     )
@@ -361,6 +404,7 @@ def run_pipeline(
     max_tables: int = DEFAULT_MAX_TABLES,
     budget_tokens: int | None = None,
     link_strategy: str | None = None,
+    value_index: ValueIndex | None = None,
     redaction_policy: RedactionPolicy = NO_REDACTION,
 ) -> RunState:
     """Run one question through the capped ``generate → guard → execute`` loop.
@@ -380,9 +424,14 @@ def run_pipeline(
     subquery, field catenation) that, unlike the guard, are *correction signals* —
     a flag with budget left feeds its reason back to ``generate``; a flag with the
     budget spent proceeds to ``execute`` anyway (a soundness heuristic never loses a
-    run). On a clean ``execute`` the run returns immediately. On an execution error
-    the ``correct`` stage stages the failure as feedback and the loop regenerates,
-    until the candidate succeeds or the ``max_attempts`` budget is spent.
+    run). It then passes the ``literal_check`` scan (Step 12, #141) — the same
+    correction contract for the "right value, wrong column" case: when a ``value_index``
+    is supplied and a string literal is constrained against a column whose sample
+    lacks it (while another column holds it), the steering message naming the right
+    columns is fed back to ``generate``. On a clean ``execute`` the run returns
+    immediately. On an execution error the ``correct`` stage stages the failure as
+    feedback and the loop regenerates, until the candidate succeeds or the
+    ``max_attempts`` budget is spent.
 
     ``max_attempts=1`` (default) is the single-shot pass@1 mode — no correction.
     Returns the populated ``RunState``; scoring and terminal-state classification
@@ -454,13 +503,15 @@ def run_pipeline(
                 "max_tables": max_tables,
                 "budget_tokens": budget_tokens,
                 "link_strategy": link_strategy,
+                "value_index": value_index,
                 "budget": budget,
             },
-            # Each attempt costs a few supersteps (generate→guard→soundness→execute,
-            # plus a correct / correct_soundness hop on a retry); size the ceiling to
-            # the budget so a legitimate pass@k run never trips LangGraph's recursion
-            # guard, while a genuine wiring bug (an unbounded loop) still surfaces.
-            "recursion_limit": budget * 8 + 25,
+            # Each attempt costs a few supersteps (generate→guard→soundness→
+            # literal_check→execute, plus a correct / correct_soundness /
+            # correct_literal hop on a retry); size the ceiling to the budget so a
+            # legitimate pass@k run never trips LangGraph's recursion guard, while a
+            # genuine wiring bug (an unbounded loop) still surfaces.
+            "recursion_limit": budget * 10 + 25,
         }
         result = _GRAPH.invoke({"run": state}, config=config)
         run: RunState = result["run"]

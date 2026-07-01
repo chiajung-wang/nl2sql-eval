@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from datetime import date
 from functools import cache
@@ -45,6 +46,7 @@ from nl2sql.pipeline.state import RunState
 from nl2sql.profiling import resolve_column_descriptions
 from nl2sql.prompts import PROMPT_VERSION
 from nl2sql.schema_index import build_schema_index
+from nl2sql.value_index import build_value_index
 
 
 @cache
@@ -61,6 +63,29 @@ def _index(db_id: str):
         _engine(db_id),
         column_descriptions=resolve_column_descriptions(db_id),
     )
+
+
+def _literal_steer_enabled() -> bool:
+    """Whether literal→field steering (#141) is on — the ``LITERAL_STEER`` A/B axis.
+
+    Off by default (unset/``0``/``false``), so a default run is byte-identical to
+    before; set ``LITERAL_STEER=1`` for the with-steering arm of the dev A/B."""
+    return os.environ.get("LITERAL_STEER", "").strip().lower() in {"1", "true", "yes"}
+
+
+@cache
+def _value_index(db_id: str):
+    """The db's sampled value index (cached), or ``None`` when steering is off.
+
+    Built once per db and reused across its questions. ``None`` when
+    ``LITERAL_STEER`` is disabled, so ``run_pipeline`` skips the literal_check stage
+    entirely — the default, unchanged path."""
+    if not _literal_steer_enabled():
+        return None
+    # BIRD is public data with no redaction policy, so ``redact_columns`` is empty
+    # here (correct). A payments/demo caller MUST pass the db's PII columns as
+    # ``redact_columns=`` so no PII value is indexed or surfaced in a steer (§5.3).
+    return build_value_index(_engine(db_id))
 
 
 def slice6_id() -> str:
@@ -96,6 +121,7 @@ def make_rag_run_one(evidence: dict[str, str]):
             dialect=DIALECT,
             evidence=evidence.get(case.id, ""),
             model=model_id(),
+            value_index=_value_index(case.db_id),
         )
 
     return run_one

@@ -80,3 +80,30 @@ def correct_soundness(state: RunState) -> RunState:
         extra["corrected"] = True
 
     return state
+
+
+def correct_literal(state: RunState) -> RunState:
+    """Stage a literal-steering flag as a correction signal, then clear it.
+
+    A literal_check hit (Step 12, #141) is the "right value, wrong column" case — the
+    candidate would run, but constrains a literal against a column that doesn't hold
+    it. Reuses the same ``state.correction`` channel the next ``generate`` renders,
+    carrying the steering message (which columns *do* hold the value) so the model can
+    flip to the right field — exactly the paper's ``County Name`` → ``District`` fix.
+    A no-op when nothing is flagged, so a stray call cannot fabricate a correction.
+    """
+    with stage_span("correct", db_id=state.db_id, attempt=state.attempts) as extra:
+        if not state.literal_flag:
+            extra["corrected"] = False
+            return state
+
+        state.correction = {
+            "sql": state.candidate_sql or "",
+            "error": state.literal_reason
+            or "a literal is constrained on the wrong column",
+        }
+        state.literal_flag = False
+        state.literal_reason = None
+        extra["corrected"] = True
+
+    return state
