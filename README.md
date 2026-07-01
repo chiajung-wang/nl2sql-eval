@@ -240,6 +240,8 @@ nl2sql-eval/
 │   ├── prove_step1.py        #   Step-1 end-to-end proof: one seed question → result vs gold
 │   ├── compare.py            #   canonicalization + result-set comparison (heavily tested)
 │   ├── metrics.py            #   pass@1/pass@k twin report, cost/latency aggregation
+│   ├── voting.py             #   result-set majority voting: the comparator as a candidate selector (#142)
+│   ├── candidate_diversity.py #  seeded schema-field-order randomization for candidate diversity (#142)
 │   ├── prompt_ci.py          #   prompt-CI: run frozen slice, render pass@1/pass@k delta
 │   ├── cost.py               #   token→USD price table (dated); pass@k cost accounting
 │   └── datasets/
@@ -287,6 +289,7 @@ uv run pytest tests/test_compare.py tests/test_guard.py
 - **Soundness checks (#139):** the deterministic bad-construction checks (`src/nl2sql/pipeline/soundness.py`) are measured against `fixtures/soundness/` — a reported **catch rate** and **false-positive rate** over positives + near-miss negatives. Unlike the guard these are *correction signals*, not hard rejects. Add a fixture case for every new soundness pattern.
 - **Profiling (#140):** the deterministic profiler + mechanical English renderer + cache round-trip + metadata-source selector are unit-tested offline (`tests/test_profiling.py`) on an in-memory fixture db and an injected fake LLM client — no key needed. The LLM-summarized descriptions are **prompt content only**; they are never read by the guard or comparator, so scoring stays deterministic.
 - **Literal→field steering (#141):** the sampled value index + sqlglot-AST literal check + steering + graph wiring are unit-tested offline (`tests/test_literal_field.py`) on an in-memory fixture db — the check recovers the paper's `CountyName`→`District` flip and stays silent on on-column / unknown literals (no false steer). The *matching* is deterministic (index lookup); only the rephrase is an LLM call, riding the `correct.py` loop.
+- **Majority voting (#142):** the vote selector (`eval/voting.py`) **reuses `eval/compare.py`'s result-set equivalence** to pick among candidates — no new equivalence logic, no string-match, no LLM judge. Unit-tested offline (`tests/test_voting.py`) on recorded result-sets: unanimous / majority / no-majority with a deterministic earliest-index tiebreak, errored-candidate exclusion, and the seeded schema-field-order diversity lever. Voting *selects*; the harness still scores the selected raw result against gold, upstream of redaction.
 - **Payments gold set** (`eval/datasets/payments/questions.json`) carries two distinct, independent flags:
   - `machine_verified` — the agent's claim that `gold_sql` reproduces the stored `gold_result` against the seed. Reproduce it (needs a live, seeded db):
     ```bash

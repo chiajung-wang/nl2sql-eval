@@ -74,6 +74,8 @@ The pipeline is an instrumented state machine wrapped by a harness that treats i
 
 Tests concentrate on the deterministic cores — `eval/compare.py`, `src/nl2sql/pipeline/guard.py`, `src/nl2sql/pipeline/soundness.py`, and the Step-12 correction-check cores `src/nl2sql/pipeline/literal_check.py` + `src/nl2sql/value_index.py` (#141). The comparator must pass its **entire** golden fixture; guardrails must be unit-green and measured against the red-team fixture; the soundness checks are measured against `fixtures/soundness/` (reported catch rate **and** false-positive rate); the literal check is unit-tested offline on a fixture db (its live trigger/recovery/false-steer rates are a deferred eval metric, not a static fixture). Add a fixture/unit case for every new comparison edge case, dangerous-query pattern, bad-construction pattern, or off-column-literal pattern. **Commands and details: `README.md` → *Testing*.**
 
+Majority voting (`eval/voting.py`, #142) **reuses `eval/compare.py`'s result-set equivalence** to select among candidates — never a new equivalence, string-match, or LLM judge (§7). Voting only *selects* a candidate; it never changes the gold-scoring path or the scoring boundary — the harness still scores the selected **raw verified result** upstream of redaction (§3/§5). It lives in `eval/` (not the pipeline) because it depends on the comparator, and is unit-tested offline on recorded result-sets.
+
 ## 9. Definition of done (the unique checks)
 
 - Module boundaries and import-sharing (§3) intact; no pipeline logic duplicated for the demo.
