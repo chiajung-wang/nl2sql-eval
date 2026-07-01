@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 138 — Schema linking by task-alignment (harvest tables from generated SQL)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  pre.code{background:#0b1120;border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;overflow-x:auto;
+           font-size:.82rem;color:var(--ink);line-height:1.5;margin:0}
+  pre.code .c{color:var(--muted)} pre.code .a{color:var(--add)} pre.code .k{color:var(--accent-2)}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)} .good-txt{color:var(--add)} .num-txt{color:var(--accent-2);font-weight:700}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;font-size:.82rem;margin:.4rem 0}
+  .flow .box{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:.4rem .7rem}
+  .flow .box.hi{border-color:var(--accent);color:var(--accent)}
+  .flow .arr{color:var(--muted)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #145 · Step 12 · Issue #138</span>
+    <h1>Schema linking by task-alignment — let the generator vote with its query</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #138</span>
+      <span><b>Branch:</b> <code>step-12/issue-138-schema-linking</code> → <code>main</code></span>
+      <span><b>Source:</b> Shkapenyuk et&nbsp;al., arXiv:2505.19988v2 §3 (AT&amp;T #1 BIRD)</span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>Don't ask the model which tables are relevant — ask it to write SQL, then read the tables it used.</b>
+      The paper's contrarian finding: LLMs are <em>poor</em> at directly naming relevant tables (a task they
+      were never trained on) but <em>good</em> at generating SQL. So this adds an alternative initial-retrieval
+      strategy to the lexical schema-RAG in <code>retrieve.py</code>: generate SQL against a couple of schema
+      variants, <b>harvest the tables that SQL references</b> (sqlglot AST), and union them. Recall over precision —
+      "better too many fields than too few."</p>
+      <div class="stats">
+        <div><b class="num-txt">1</b> new pipeline module (<code>link.py</code>)</div>
+        <div><b>2</b> schema variants (focused ∪ full)</div>
+        <div><b>18</b> offline tests (fake generator)</div>
+        <div><b class="good-txt">deferred</b> live A/B (gated on key)</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The idea — task-alignment vs. lexical RAG</h2><div class="card">
+      <p>Lexical schema-RAG <em>scores and drops</em> tables to fit a budget — precision-biased, and it can
+      silently drop a table the query actually needs. Task-alignment inverts the question: it lets the
+      <b>generated SQL</b> nominate the tables, then keeps the real ones.</p>
+      <div class="flow">
+        <span class="box">question</span><span class="arr">→</span>
+        <span class="box hi">generate SQL vs <b>focused</b> schema</span>
+        <span class="arr">&</span>
+        <span class="box hi">generate SQL vs <b>full</b> schema</span>
+        <span class="arr">→</span>
+        <span class="box">harvest tables (AST)</span><span class="arr">→</span>
+        <span class="box">drop hallucinated</span><span class="arr">→</span>
+        <span class="box hi">∪ = linked schema</span>
+      </div>
+      <p style="margin-bottom:0" class="note">The union is returned in the index's <b>declaration order</b> — the canonical
+      render order — so only <em>which</em> tables differ between strategies, never the rendering. The harvested set lands on
+      <code>state.retrieved_tables</code> exactly as RAG's does, so the harness's <b>retrieval-recall</b> metric (PRD rule 7)
+      scores both strategies identically.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> The deterministic core — <code>tables_in_sql</code></h2><div class="card">
+      <p>Harvesting is <b>pure sqlglot AST</b>, never a string scan (CLAUDE.md §4). One canonical extractor,
+      shared by the linker <em>and</em> the recall metric — no fork, so both read tables the same way.</p>
+      <pre class="code"><span class="c"># sqlglot exp.Table nodes — an alias, a column named like a table, or</span>
+<span class="c"># the word "from" inside a string literal can't fool it. CTE names excluded:</span>
+<span class="c"># a retriever can never surface a WITH block, so counting it would distort recall.</span>
+tables_in_sql(<span class="a">"SELECT * FROM orders JOIN customers ON ..."</span>)      <span class="c"># {orders, customers}</span>
+tables_in_sql(<span class="a">"WITH recent AS (SELECT * FROM orders) SELECT * FROM recent ..."</span>)
+                                                        <span class="c"># {orders} — 'recent' CTE dropped</span>
+tables_in_sql(<span class="a">"this is not sql at all"</span>)                       <span class="c"># set() — never raises</span></pre>
+      <p style="margin-bottom:0" class="note">A malformed generation degrades (empty set) rather than raising; the SQLite→generic
+      dialect fallback mirrors the comparator's tolerant parse. <code>eval/metrics.py</code> now delegates its gold-table
+      extraction here — the recall metric and the linker are one definition.</p>
+    </div></section>
+
+    <section><h2><span class="num">4</span> Degrade, never starve</h2><div class="card">
+      <table>
+        <thead><tr><th>situation</th><th>behaviour</th></tr></thead>
+        <tbody>
+          <tr><td>A variant generation raises (provider blip)</td><td><b>Non-fatal</b> — the other variants still contribute; the run continues.</td></tr>
+          <tr><td>Generated SQL names a table not in the schema</td><td><b>Dropped</b> — a hallucinated name can't be "retrieved".</td></tr>
+          <tr><td><em>No</em> variant yields any in-schema table</td><td><b>Falls back</b> to the lexical-RAG focused set — the generator is never handed an empty schema.</td></tr>
+          <tr><td>Linking spends extra generations</td><td><b>Priced</b> — each linking call's tokens/cost fold into <code>run.meta</code>, so the harness accounts the lift's cost.</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-bottom:0">The linking generations use a <b>throwaway <code>RunState</code></b> per variant, so they never clobber the
+      answer state — and stay distinct from #142's candidate voting (these vote on <em>schema</em>, not answers).</p>
+    </div></section>
+
+    <section><h2><span class="num">5</span> Review fix — validate <code>link_strategy</code> (Standards JC2)</h2><div class="card">
+      <p>The two-axis review found <b>no hard violations</b>. The one actionable judgement call: a typo'd or
+      unrecognized <code>link_strategy</code> silently fell back to lexical RAG — which would <b>misattribute a measured A/B</b>
+      (the run claims task-alignment linking but actually ran the baseline), violating the traceability rule (CLAUDE.md §6).</p>
+      <pre class="code"><span class="c"># run_pipeline now rejects an unknown strategy up front —</span>
+<span class="c"># mirroring link_tables' own raise on an unknown *variant* (equal strictness).</span>
+<span class="k">if</span> link_strategy <span class="k">is not</span> <span class="k">None</span> <span class="k">and</span> link_strategy <span class="k">not in</span> LINK_STRATEGIES:
+    <span class="k">raise</span> ValueError(<span class="a">f"unknown link_strategy: {link_strategy!r}"</span>)</pre>
+      <p style="margin-bottom:0" class="note">Regression test asserts the reject happens <b>before any generation is attempted</b>.
+      <code>None</code> (no linking) stays the default and is always allowed.</p>
+    </div></section>
+
+    <section><h2><span class="num">6</span> Two-axis review — clean</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards: no hard violations</h3><ul>
+          <li>Harvesting is sqlglot-AST only, no regex for SQL semantics (§4); import-shared, calls nothing from <code>eval/</code></li>
+          <li>Pipeline stages not collapsed; one canonical extractor shared with the recall metric — no fork</li>
+          <li><b>Fix (JC2):</b> validate <code>link_strategy</code> — unknown name raises, no silent RAG fallback</li>
+        </ul></div>
+        <div class="group good"><h3>Spec: core ACs met (offline)</h3><ul>
+          <li>Task-alignment strategy selectable via config beside lexical RAG; recall scored the same way</li>
+          <li>Field harvesting sqlglot-AST based; extra-generation cost folded into run totals</li>
+          <li><b>Deferred:</b> the live dev A/B, <code>diagnose_bird</code> bucket movement, held-out lift &amp; RESULTS row — gated on an authorized key/spend (<code>defer-api-key-verification</code>)</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">7</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>src/nl2sql/pipeline/link.py</code></td><td><span class="st A">A</span></td><td>The linker + canonical <code>tables_in_sql</code>; <code>LINK_STRATEGIES</code> / <code>TASK_ALIGNMENT</code> constants. (+145)</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/graph.py</code></td><td><span class="st M">M</span></td><td><code>_link_retrieve</code> node, <code>link_strategy</code> param threaded through <code>run_pipeline</code>, strategy validation. (+78)</td></tr>
+          <tr><td class="f"><code>eval/metrics.py</code></td><td><span class="st M">M</span></td><td>Recall's gold-table extraction now delegates to <code>tables_in_sql</code> — one definition, no fork. (−36 net)</td></tr>
+          <tr><td class="f"><code>tests/test_schema_linking.py</code></td><td><span class="st A">A</span></td><td>18 offline tests: harvesting edge cases, union/drop/degrade, graph wiring, cost folding, strategy reject. (+249)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">8</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest tests/test_schema_linking.py</code> → 18 passed (17 + JC2 regression)</p>
+        <p style="margin:.2rem 0"><b>✓</b> Full suite green except one pre-existing failure (<code>test_guard.py</code> needs the gitignored BIRD <code>dev.json</code>) — unrelated to this diff</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>ruff check</code> + <code>ruff format --check</code> clean on all changed files</p>
+        <p style="margin:.2rem 0"><b>✓</b> Harvesting proven sqlglot-AST: alias / CTE-exclusion / subquery / casefold / string-literal-trap / unparseable</p>
+        <p style="margin:.2rem 0"><b>✓</b> Degrade-never-starve, variant-failure-nonfatal, hallucinated-drop, cost-folding all offline-tested</p>
+        <p style="margin:.2rem 0"><b>⏳</b> <b>Deferred (gated on key/spend):</b> live dev A/B vs lexical RAG, <code>diagnose_bird</code> table-selection bucket movement, held-out lift, recall-vs-perfect-linking ceiling, RESULTS row</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #138 / PR #145 · base <code>main</code> ← <code>step-12/issue-138-schema-linking</code>
+    </footer>
+  </div>
+</body>
+</html>
