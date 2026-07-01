@@ -1,0 +1,466 @@
+{
+  "db_id": "card_games",
+  "generated_by": "profile_summary/v1 · openrouter/google/gemini-3.5-flash",
+  "fields": {
+    "cards.artist": {
+      "short": "Name of the artist who illustrated the card",
+      "long": "This column contains the name of the artist or illustrator who created the card's artwork. It is a text field of up to 29 characters supporting international names (including Unicode characters), featuring 991 distinct values and virtually no nulls."
+    },
+    "cards.asciiname": {
+      "short": "ASCII-normalized representation of card names with special characters removed",
+      "long": "This column contains the ASCII-compatible, plain-text version of card names, specifically stripping accents and special characters (e.g., matching 'El-Hajjaj' or 'Dandan'). It is highly sparse, with over 99% of rows being NULL, and is populated only for the subset of cards whose official names contain non-standard ASCII characters."
+    },
+    "cards.availability": {
+      "short": "Comma-separated list of gaming platforms where the card is available",
+      "long": "This column denotes the game platforms or releases where each card is available, formatted as a comma-separated list of values. The most common platforms represented in the dataset include 'paper', 'mtgo' (Magic: The Gathering Online), 'arena', and 'shandalar'."
+    },
+    "cards.bordercolor": {
+      "short": "card border color enum",
+      "long": "The color of the border on the physical card face. This is a non-nullable categoric column containing five distinct text values: 'black', 'white', 'gold', 'silver', and 'borderless'."
+    },
+    "cards.cardkingdomfoilid": {
+      "short": "Unique Card Kingdom foil product identifier",
+      "long": "A unique 6-digit identifier used by Card Kingdom for the foil version of a card. This column contains approximately 51% non-null values, all of which are exactly 6 characters long and consist entirely of digits ranging from '110299' to '173290' (with the profile range indicating a minor typo where '73290' represents '173290')."
+    },
+    "cards.cardkingdomid": {
+      "short": "Unique Card Kingdom vendor identifier code",
+      "long": "A unique 6-digit identifier string ranging from '100000' to '722850' that maps cards to their Card Kingdom catalog entry. All active values begin with the prefix '122' and are null for cards not sold on the platform."
+    },
+    "cards.coloridentity": {
+      "short": "Magic: The Gathering card color identity codes",
+      "long": "Represents the color identity of a card using single-character codes (W: White, U: Blue, B: Black, R: Red, G: Green), which can be combined or left NULL for colorless cards. Values range from single colors to multi-character strings up to 9 characters long for multi-colored cards."
+    },
+    "cards.colorindicator": {
+      "short": "Optional card color indicator code for Magic: The Gathering cards",
+      "long": "Represents the color indicator dots found on certain cards (such as double-faced cards) to define their color identity outside of their mana cost. Values are typically single-character color codes like 'R' (Red), 'G' (Green), 'U' (Blue), 'B' (Black), or 'W' (White), occasionally combined up to 5 characters for multi-colored cards."
+    },
+    "cards.colors": {
+      "short": "comma-separated lists of card color codes",
+      "long": "Represents the color identity of the card, using single-letter abbreviations such as 'W' (White), 'U' (Blue), 'B' (Black), 'R' (Red), and 'G' (Green). Multi-colored cards contain comma-separated combinations (e.g., 'W,U'), while colorless cards are represented by NULL values."
+    },
+    "cards.convertedmanacost": {
+      "short": "",
+      "long": "Column \"convertedManaCost\" (declared type REAL). No NULLs across 56822 rows. 19 distinct values. Values are 3–9 characters long, mixed characters. Ranges from \"0.0\" to \"1000000.0\". Most common: \"3.0\" (11776), \"2.0\" (10760), \"4.0\" (9174), \"0.0\" (7327), \"1.0\" (6223)."
+    },
+    "cards.dueldeck": {
+      "short": "duel deck release identifier",
+      "long": "Indicates which half of a dual-deck box set a card belongs to, represented by the single-character codes 'a' or 'b'. This column is highly sparse (97% NULL), as it only applies to cards released in specific pre-constructed Duel Decks."
+    },
+    "cards.edhrecrank": {
+      "short": "EDHREC popularity rank of the card",
+      "long": "The popularity rank of the Magic: The Gathering card on EDHREC, where a lower number indicates a more frequently played card in Commander/EDH decks. Values are stored as integers ranging from 1 to 20,900, with approximately 8% of cards being unranked (NULL)."
+    },
+    "cards.faceconvertedmanacost": {
+      "short": "individual face converted mana cost of multi-face cards",
+      "long": "Represents the converted mana cost (CMC) for an individual face of a double-faced, split, or adventure card, ranging from 0.0 to 7.0. It is stored as a real number (rendered with one decimal place) and is highly sparse (98% NULL) because it is only populated for multi-face cards."
+    },
+    "cards.facename": {
+      "short": "Name of the specific card face for double-faced or split cards",
+      "long": "The name of the individual card face, used primarily for multi-faced, split, or adventure cards (e.g., 'Fire', 'Bonecrusher Giant'). It is highly sparse, with 98% of rows being NULL because single-faced cards do not require a distinct face name."
+    },
+    "cards.flavorname": {
+      "short": "Promotional or alternative monster flavor names for specific card variants",
+      "long": "This column contains promotional or alternative name titles for specific card variants (such as Godzilla-themed crossovers like 'Anguirus, Armored Killer' and 'Spacegodzilla, Void Invader'). It is extremely sparse, with over 99.9% of rows being NULL, and contains unique, mixed-character strings ranging from 21 to 30 characters in length when populated."
+    },
+    "cards.flavortext": {
+      "short": "Flavor text providing lore or thematic background for cards",
+      "long": "This column contains the flavor text or lore snippets printed on the cards, which are optional (46% null) and written in various languages (including English and Japanese). Values range from 8 to 232 characters long, with some common background texts repeating across multiple printings."
+    },
+    "cards.frameeffects": {
+      "short": "List of aesthetic or structural layout styles applied to cards",
+      "long": "This column contains text labels indicating special aesthetic, structural, or thematic frame styles applied to a card, such as 'legendary', 'extendedart', or 'colorshifted'. It is highly sparse, with 95% of rows being NULL, and contains 36 low-cardinality enum-like text values."
+    },
+    "cards.frameversion": {
+      "short": "Card design frame layout version year or era",
+      "long": "Indicates the design frame style version used on the card, representing either the year of the layout's introduction or a special category. It is a mandatory alphanumeric code with five distinct values: '1993', '1997', '2003', '2015', and 'future'."
+    },
+    "cards.hand": {
+      "short": "Hand index or position identifier",
+      "long": "Indicates the specific hand index or position associated with the card, ranging from -2 to 3 with 0 and 1 being the most common values. This column is NULL for the vast majority of records, likely indicating cards that are not currently dealt into an active hand."
+    },
+    "cards.hasalternativedecklimit": {
+      "short": "Boolean flag indicating if a card has a modified deck-building limit",
+      "long": "A boolean flag indicating whether the card has an alternative deck-building limit (where 1 represents true and 0 represents false). This column has no missing values and is heavily skewed towards 0, with only 12 out of 56,822 cards possessing an alternative limit."
+    },
+    "cards.hascontentwarning": {
+      "short": "boolean flag indicating if card design has a content warning",
+      "long": "An integer flag representing boolean state (0 for false, 1 for true) indicating whether a card has a content warning. The vast majority of the 56,822 rows are flagged as 0 (no warning), with only 29 cards flagged as 1."
+    },
+    "cards.hasfoil": {
+      "short": "boolean flag indicating if card is available in foil",
+      "long": "A boolean flag stored as an integer, where '1' indicates the card is available in a foil (shiny) version and '0' indicates it is not. This column has no missing values across all records."
+    },
+    "cards.hasnonfoil": {
+      "short": "boolean flag indicating if a non-foil version exists",
+      "long": "A boolean indicator represented as an integer (0 or 1) that specifies whether the card is available in a non-foil (standard paper) printing. A value of 1 means a non-foil version exists, while 0 means it is only available in foil or other special treatments."
+    },
+    "cards.id": {
+      "short": "Unique identifier for each card",
+      "long": "A unique primary key and sequential integer identifier for each card, with values ranging from 1 to 56,832."
+    },
+    "cards.isalternative": {
+      "short": "Boolean flag indicating if the card is an alternative version",
+      "long": "An integer-based boolean flag where '1' indicates the card is an alternative variant (e.g., special art or printing) and '0' represents a standard card. There are no missing values in this column, with the vast majority of cards being standard editions."
+    },
+    "cards.isfullart": {
+      "short": "boolean flag indicating if card features full-screen artwork",
+      "long": "An integer-based boolean flag indicating whether the card features full art. A value of 1 represents a full-art card (486 occurrences), while 0 represents standard art (56,336 occurrences)."
+    },
+    "cards.isonlineonly": {
+      "short": "Boolean flag indicating if the card is online-only",
+      "long": "A boolean flag stored as an integer (0 or 1) indicating whether the card is exclusive to digital formats. '0' represents a physical card (52,089 rows) and '1' represents an online-only card (4,733 rows)."
+    },
+    "cards.isoversized": {
+      "short": "boolean flag indicating if the card is oversized",
+      "long": "A boolean-like indicator stored as an integer, where '1' represents an oversized card and '0' represents a standard-sized card. This column contains no null values, with the vast majority of the 56,822 cards being standard-sized."
+    },
+    "cards.ispromo": {
+      "short": "boolean flag indicating if the card is a promotional release",
+      "long": "An integer-based boolean flag indicating whether the card is a promotional release. A value of 1 represents a promo card, while 0 represents a standard release."
+    },
+    "cards.isreprint": {
+      "short": "Boolean flag indicating if the card is a reprint",
+      "long": "An integer flag representing whether the card is a reprint (1) or an original printing (0). It contains no NULL values across all 56,822 records, functioning as a binary boolean indicator."
+    },
+    "cards.isreserved": {
+      "short": "Boolean flag indicating if the card is reserved",
+      "long": "A boolean flag indicating whether the card has a reserved status. It is stored as an integer where '1' represents reserved and '0' represents not reserved."
+    },
+    "cards.isstarter": {
+      "short": "boolean flag indicating if card is a starter card",
+      "long": "A boolean flag stored as an integer, where '1' indicates the card is part of a starter deck or starting hand and '0' indicates it is not. Contains no NULL values across its 56,822 rows."
+    },
+    "cards.isstoryspotlight": {
+      "short": "Boolean flag indicating if a card represents a story spotlight",
+      "long": "An integer column acting as a boolean flag (0 for false, 1 for true) that indicates whether the card depicts a key 'Story Spotlight' moment in the game's lore. The vast majority of the 56,822 cards are not story spotlights (value 0), with only 104 cards flagged as active (value 1)."
+    },
+    "cards.istextless": {
+      "short": "boolean flag indicating if the card has no text",
+      "long": "A boolean flag indicating whether the card is textless, represented as an integer where 1 means true (textless) and 0 means false (contains text). Most cards in the dataset contain text, with only 115 records flagged as textless."
+    },
+    "cards.istimeshifted": {
+      "short": "boolean flag indicating if a card is timeshifted",
+      "long": "An integer-based boolean flag indicating whether the card belongs to a 'timeshifted' set (such as in Magic: The Gathering). A value of 1 represents true (timeshifted, occurring in 215 rows), while 0 represents false (not timeshifted, occurring in 56,607 rows)."
+    },
+    "cards.keywords": {
+      "short": "comma-separated card mechanics and keywords like Flying or Trample",
+      "long": "This nullable column contains gaming-mechanic keywords associated with each card. It contains mixed-character text values representing individual or combined keywords (ranging from 'Adamant' to 'Wither'), with the most common values being standard mechanics such as 'Flying', 'Enchant', and 'Trample'."
+    },
+    "cards.layout": {
+      "short": "Card layout type enumeration",
+      "long": "Indicates the physical or visual layout style of the card (e.g., 'normal', 'transform', 'modal_dfc', 'adventure', 'split'), functioning as a text-based enum. The vast majority of cards use the 'normal' layout, with 15 distinct lowercase text values overall."
+    },
+    "cards.leadershipskills": {
+      "short": "Legality of cards as leaders in specific Magic formats",
+      "long": "This column contains a python-style dictionary string indicating whether a card can serve as a leader (e.g., Commander, Brawl commander, or Oathbreaker) in various Magic: The Gathering formats. It is highly sparse (93% NULL) and contains boolean flags representing format legality for the remaining cards."
+    },
+    "cards.life": {
+      "short": "Optional numeric life or health modifier value",
+      "long": "An optional character-based numeric value representing a card's life or health modifier, ranging from -5 to 9. It is highly sparse, with over 99% of rows containing NULL, and holds small integers as text."
+    },
+    "cards.loyalty": {
+      "short": "Starting loyalty points for Planeswalker or character cards",
+      "long": "Represents the starting loyalty value for Planeswalker or character cards, typically populated for only a small subset of cards (about 1%). Values are generally small integers styled as text (e.g., '3' to '7'), but can include special characters or variables ranging from '*' to 'X'."
+    },
+    "cards.manacost": {
+      "short": "Symbolic mana cost representation for casting magic cards",
+      "long": "The serialized mana cost required to cast a card, represented as a bracketed sequence of generic, colored, or variable cost symbols (e.g., '{1}{W}' or '{X}{Y}{Z}{R}{R}'). This column contains null values for cards with no mana cost, such as lands."
+    },
+    "cards.mcmid": {
+      "short": "",
+      "long": "Column \"mcmId\" (declared type TEXT). 8024 of 56822 rows are NULL (14%). 47971 distinct values. Values are exactly 5 characters long, all digits, always beginning with \"16\". Ranges from \"1\" to \"9999\". Most common: \"288658\" (6), \"14883\" (5), \"438469\" (5), \"19399\" (4), \"19403\" (4)."
+    },
+    "cards.mcmmetaid": {
+      "short": "Cardmarket Metaproduct ID",
+      "long": "An identifier representing the Cardmarket (MCM) geopreferenced metaproduct ID, stored as a numeric string ranging from 1 to 9999. It is nullable for roughly 32% of rows, indicating cards that are not mapped to a Cardmarket metaproduct."
+    },
+    "cards.mtgarenaid": {
+      "short": "Magic: The Gathering Arena digital card identifier",
+      "long": "An identifier representing the card in the Magic: The Gathering Arena digital game. When present, the value is a 5-digit numeric string mostly beginning with '7', though historically ranging from '13491' to '9135' (interpreted alphanumerically)."
+    },
+    "cards.mtgjsonv4id": {
+      "short": "Unique MTGJSON v4 UUIDv5 identifier for the card",
+      "long": "A globally unique, 36-character hexadecimal UUID (v5 format) that serves as the primary key identifying each card version in MTGJSON version 4. This column contains no null values and is entirely unique across all 56,822 records."
+    },
+    "cards.mtgofoilid": {
+      "short": "MTGO foil version unique identifier",
+      "long": "Unique Magic: The Gathering Online (MTGO) identifier for the foil version of a card, represented as a 5-digit string starting with '2'."
+    },
+    "cards.mtgoid": {
+      "short": "",
+      "long": "Column \"mtgoId\" (declared type TEXT). 24684 of 56822 rows are NULL (43%). 31811 distinct values. Values are exactly 5 characters long, all digits, always beginning with \"2\". Ranges from \"10\" to \"9999\". Most common: \"15023\" (2), \"15025\" (2), \"15027\" (2), \"15029\" (2), \"15031\" (2)."
+    },
+    "cards.multiverseid": {
+      "short": "",
+      "long": "Column \"multiverseId\" (declared type TEXT). 14753 of 56822 rows are NULL (26%). 41871 distinct values. Values are exactly 6 characters long, all digits, always beginning with \"1\". Ranges from \"1\" to \"999\". Most common: \"479463\" (5), \"74358\" (5), \"476230\" (3), \"107259\" (2), \"107285\" (2)."
+    },
+    "cards.name": {
+      "short": "The canonical name of the game card",
+      "long": "This column stores the name of each card, with values ranging from 4 to 24 characters. It is not unique as cards can have multiple printings or editions, with basic Magic: The Gathering lands like 'Forest' and 'Swamp' being the most common entries."
+    },
+    "cards.number": {
+      "short": "Card collector number or alphanumeric identifier within a set",
+      "long": "Represents the collector number of the card within its set, ranging from one to four characters in length. While most entries are sequential integers, some contain letters and special characters like '*112' or 'we97' for promotional, parallel, or variant cards."
+    },
+    "cards.originalreleasedate": {
+      "short": "The original release date of the card",
+      "long": "Represents the original release or publication date of each card. The values are stored as text in a 'YYYY/M/D' or 'YYYY/MM/DD' format, spanning from November 1, 1993, to March 5, 2021, though approximately 96% of the rows contain NULL values."
+    },
+    "cards.originaltext": {
+      "short": "original rules text of a card",
+      "long": "The original, unaltered rules and mechanics text printed on the card, including abilities, mana costs, and flavor text. While most values are multi-line descriptions of card effects, the most common entries are single characters representing standard mana colors (G, R, B, W, U)."
+    },
+    "cards.originaltype": {
+      "short": "Original printed card type text, including foreign language translations",
+      "long": "This column stores the raw, unparsed card type text as originally printed on the card, which can include non-English localized strings (e.g., '基本 土地 — 沼'). It typically contains standard card game types such as 'Instant', 'Sorcery', or 'Land', but can be null for certain cards or contain the placeholder '(none)'."
+    },
+    "cards.otherfaceids": {
+      "short": "Comma-separated list of UUIDs representing associated card face identifiers",
+      "long": "This column contains one or more UUIDs pointing to the identifiers of other faces of the card, populated primarily for multi-faced cards (such as double-sided or split cards). Values are stored as a delimited string of UUIDs ranging from 36 to 73 characters in length, with approximately 98% of rows being NULL."
+    },
+    "cards.power": {
+      "short": "Card power rating as a numeric or symbolic string",
+      "long": "Represents the combat power or strength of a card, which is null for about 54% of cards (likely non-creature or non-character cards). Values are typically small integers ranging from 1 to 5, but can also include special gameplay symbols such as '*' or '∞'."
+    },
+    "cards.printings": {
+      "short": "Comma-separated list of Magic: The Gathering set codes",
+      "long": "This column contains a comma-separated list of 3-character expansion or set acronyms (e.g., '10E', '2ED', 'ZNR') representing all printings of a Magic: The Gathering card. Based on the profile data, every active card record in this dataset features a history starts with or contains '10E', with lengths ranging up to 188 characters."
+    },
+    "cards.promotypes": {
+      "short": "Comma-separated promotional release types for a card",
+      "long": "This column contains promotional event or release categories for a card, stored as comma-separated text values (e.g., 'setpromo,prerelease,datestamped'). It is highly sparse, with roughly 89% of rows being NULL, and includes values ranging from single promo types like 'arenaleague' to multi-tag combinations like 'promostamped,promopack,planeswalkerstamped'."
+    },
+    "cards.purchaseurls": {
+      "short": "JSON-like dictionary of affiliate purchase links by store",
+      "long": "This column contains key-value mappings of retail store names to their respective affiliate purchase URLs for each card, stored in a Python-like dictionary format. Common keys include 'cardKingdom', 'cardKingdomFoil', 'cardmarket', and 'tcgplayer', pointing to redirected mtgjson.com referral links."
+    },
+    "cards.rarity": {
+      "short": "card rarity classification tier",
+      "long": "Represents the rarity level of the card. This is a non-null, four-value enumeration containing 'common' (most frequent), 'rare', 'uncommon', and 'mythic'."
+    },
+    "cards.scryfallid": {
+      "short": "Unique Scryfall API identifier for Magic: The Gathering cards",
+      "long": "This column acts as a foreign key containing 36-character UUIDv4 identifiers that map directly to the card's entry in the external Scryfall database. The values are non-null and largely unique, though there are minor duplicates where cards have multiple printings or variations."
+    },
+    "cards.scryfallillustrationid": {
+      "short": "Scryfall illustration UUID",
+      "long": "Unique identifier (UUIDv4 format, 36 characters) representing the specific card artwork on Scryfall. It is used to associate cards sharing the exact same illustration, with values ranging from '000098db-2a02-4926-b0af-d76d12167e2a' to 'ffff24c5-05b4-48e7-88d9-534efede500f'."
+    },
+    "cards.scryfalloracleid": {
+      "short": "Unique 36-character UUID representing a Scryfall card oracle ID",
+      "long": "This column contains a 36-character UUID that uniquely identifies a card's 'oracle' identity on Scryfall, grouping different printings of the same functional card together. There are no NULL values across the 56,822 rows, and it links cards in this dataset to Scryfall's external catalog."
+    },
+    "cards.setcode": {
+      "short": "Alphanumeric code identifying the card's expansion or print set",
+      "long": "An alphanumeric code identifying the specific expansion or print set a card belongs to (e.g., 'MB1', 'PRM'). Values are 3 to 5 characters in length, containing no nulls across more than 500 distinct expansion sets ranging alphabetically from '10E' to 'ZNR'."
+    },
+    "cards.side": {
+      "short": "single-letter card side identifier for multi-faced cards",
+      "long": "Indicates the specific face or side of a multi-sided card, represented as a single-letter code ranging from 'a' to 'e'. This column is highly sparse (98% NULL) as it only applies to multi-faced cards, with 'a' and 'b' being the most common values."
+    },
+    "cards.subtypes": {
+      "short": "Comma-separated list of card subtypes",
+      "long": "This column contains the subtypes of game cards, stored as comma-separated lists of values (e.g., 'Human,Wizard' or 'Zubera,Spirit') or single attributes (e.g., 'Aura', 'Elemental'). It is NULL for the 39% of cards that do not have subtypes, and contains over 1,500 distinct combinations ranging from 3 to 22 characters in length."
+    },
+    "cards.supertypes": {
+      "short": "Optional comma-separated gameplay supertypes for cards",
+      "long": "Indicates the special category or categorization of a card (such as 'Legendary', 'Basic', or 'Snow'), which can be combined as comma-separated values (e.g., 'Basic,Snow'). It is null for the vast majority of cards (86%), acting as an optional classifier with at least 8 distinct single or combined values."
+    },
+    "cards.tcgplayerproductid": {
+      "short": "TCGplayer product identifier",
+      "long": "An identifier representing a card's product ID on TCGplayer. The column is stored as a text string of digits (e.g., '100021'), with values ranging up to '99958', and is null for about 12% of the records."
+    },
+    "cards.text": {
+      "short": "rules text explaining the mechanics and abilities of the card",
+      "long": "This column contains the rules text detailing the abilities, activation costs, and effects of each game card (such as Magic: The Gathering). The data includes formatted text with mana symbols, brackets, and tap actions, with common values representing standard basic land mana-generation rules."
+    },
+    "cards.toughness": {
+      "short": "Creature toughness values in a card game",
+      "long": "Represents the defense or toughness of game cards, typically creatures. While mostly numeric (commonly '1' to '5'), it is stored as text to accommodate special non-numeric values like '*' or '?' and is null for card types without a toughness attribute."
+    },
+    "cards.type": {
+      "short": "",
+      "long": "Column \"type\" (declared type TEXT). No NULLs across 56822 rows. 2022 distinct values. Values are 4–36 characters long, mixed characters. Ranges from \"Artifact\" to \"instant\". Most common: \"Instant\" (6546), \"Sorcery\" (6180), \"Artifact\" (3046), \"Enchantment\" (3044), \"Land\" (2605)."
+    },
+    "cards.types": {
+      "short": "The primary card type or category",
+      "long": "Specifies the primary gameplay type of the card, such as 'Creature', 'Instant', 'Land', 'Sorcery', or 'Enchantment'. It contains 37 distinct non-null text values ranging from 4 to 33 characters with mixed casing, which may require case-insensitive matching in queries."
+    },
+    "cards.uuid": {
+      "short": "Unique 36-character UUID identifier for each card",
+      "long": "A universally unique identifier (UUID) assigned to each card in the database. Every record contains a unique, non-null, 36-character string in standard hyphenated hexadecimal format, ranging from '00010d56-fe38-5e35-8aed-518019aa36a5' to 'fffdd333-3789-5104-a8be-37be199a2cb1'."
+    },
+    "cards.variations": {
+      "short": "Comma-separated list of UUIDs referencing other card variations",
+      "long": "This column contains a comma-separated list of UUIDs representing alternative variations of the card. It is highly sparse, with 85% of values being NULL, and contains 36-character UUID strings (or concatenated chains of them) that link related prints or editions together."
+    },
+    "cards.watermark": {
+      "short": "marching faction symbol or set watermark printed on the card",
+      "long": "Represents the text name of the faction, guild, or promotional watermark printed behind the text box of a collectible card (e.g., 'mirran', 'phyrexian', 'golgari'). It is highly sparse, with over 90% of rows being NULL, and contains 161 unique lowercase string values ranging from 3 to 21 characters."
+    },
+    "foreign_data.flavortext": {
+      "short": "Multilingual collectible card flavor text",
+      "long": "This column contains the flavor text printed on collectible cards, translated into various languages including Japanese, German, and Spanish. It contains no database NULLs but frequently uses an empty string as a default value when no flavor text is present."
+    },
+    "foreign_data.id": {
+      "short": "Unique identifier for each foreign data record",
+      "long": "A unique, non-null sequential integer serving as the primary key for the foreign data table, with values ranging from 1 to 229,205."
+    },
+    "foreign_data.language": {
+      "short": "Language name for translated card data",
+      "long": "Indicates the full English name of the language into which the card data is translated, such as 'Japanese', 'French', or 'Ancient Greek'. This column contains 16 distinct text values with no nulls, representing the available localizations for the card game."
+    },
+    "foreign_data.multiverseid": {
+      "short": "Gatherer Multiverse ID for foreign-language Magic card printings",
+      "long": "The official Wizards of the Coast Gatherer Multiverse identifier for cards printed in foreign languages. This nullable integer column contains mostly unique IDs ranging from 73246 to 507640 used to reference specific card editions."
+    },
+    "foreign_data.name": {
+      "short": "Localized card names in various languages",
+      "long": "This column stores the translated or localized name of a game card in various non-English languages (including German, Spanish, and Korean). It contains non-null, mixed-character text strings ranging from 2 to 29 characters, with some duplicate values representing different editions or printings of the same card."
+    },
+    "foreign_data.text": {
+      "short": "Localized rules and ability text of game cards",
+      "long": "Contains translated rules, flavor, or ability text for game cards in various foreign languages. Empty strings are common, representing cards without rules text or missing translations, and non-empty values range up to 255 characters."
+    },
+    "foreign_data.type": {
+      "short": "localized magic card game types and subtypes",
+      "long": "This column contains card types and subtypes (such as 'Spontanzauber', 'Hexerei', or 'Éphémère') translated into various foreign languages, including German, French, Japanese, and Korean. Note that empty string values are highly prevalent and represent about 14% of the dataset."
+    },
+    "foreign_data.uuid": {
+      "short": "Universally unique identifier for foreign card-related data",
+      "long": "A 36-character RFC 4122 compliant universally unique identifier (UUID) linking records to external data sources. It contains no NULL values, with 34,056 distinct IDs repeated across the table, indicating a many-to-one relationship for related foreign entities."
+    },
+    "legalities.format": {
+      "short": "supported collectible card game format name",
+      "long": "The format or game mode of a card game (e.g., 'commander', 'legacy', 'vintage', 'modern', 'duel', and 'brawl') in which specific deck-building legality rules apply. This is a non-null, lowercase text enum containing 15 distinct game formats."
+    },
+    "legalities.id": {
+      "short": "Unique primary key for the card legality records",
+      "long": "A unique, auto-incrementing integer identifier serving as the primary key for the table. Values are sequentially assigned and range from 1 to 427,907 with no missing or duplicate records."
+    },
+    "legalities.status": {
+      "short": "card legality status in various game formats",
+      "long": "Indicates whether a card is permitted in tournament play, containing one of three enum-like text values: 'Legal', 'Banned', or 'Restricted'. The vast majority of records are 'Legal'."
+    },
+    "legalities.uuid": {
+      "short": "Universally unique identifier (UUID) referencing a specific card",
+      "long": "A 36-character hyphenated universally unique identifier (UUID) that links legality status records to a specific card. Since there are multiple format custom legalities per card, each identifier appears multiple times across the dataset."
+    },
+    "rulings.date": {
+      "short": "Date the card game ruling was officially issued",
+      "long": "The official publication or effective date of the card game ruling, formatted as 'YYYY-MM-DD'. There are no NULL values in this column, with dates spanning from October 4, 2004, to February 5, 2021."
+    },
+    "rulings.id": {
+      "short": "Unique identifier for each card game ruling record",
+      "long": "A unique, sequential integer serving as the primary key for each ruling record, ranging from 1 to 87769 with no null values."
+    },
+    "rulings.text": {
+      "short": "Official rules clarifications and card gameplay rulings",
+      "long": "This column contains the official text of rulings and clarifications for specific cards and game mechanics. It stores mixed-character strings up to 255 characters long, with identical texts frequently repeated across different cards that share the same mechanics."
+    },
+    "rulings.uuid": {
+      "short": "Unique identifier linking the ruling to its associated card",
+      "long": "A 36-character standard UUID used as a foreign key to associate rulings with their corresponding cards. It is not unique within this table, as a single card may have multiple distinct clarifications or rulings."
+    },
+    "set_translations.id": {
+      "short": "Unique primary key identifier for each card set translation",
+      "long": "A unique, sequential integer primary key identifying each card set translation in the database. Values are densely populated from 1 to 1210 with no duplicate or missing entries."
+    },
+    "set_translations.language": {
+      "short": "Language of the card set translation",
+      "long": "This column stores the full English name of the language used for the card set translation. It contains exactly 10 distinct, uniformly distributed values (e.g., 'Chinese Simplified', 'French', 'German', and 'Spanish') with no NULLs."
+    },
+    "set_translations.setcode": {
+      "short": "Three-character alphanumeric code identifying a card game set",
+      "long": "This column contains a unique, three-character alphanumeric code identifying a specific card game set (e.g., '10E', '5DN', 'WTH'). It acts as a foreign key or lookup code, with exactly 10 translation records per set code across all 121 distinct sets in the table."
+    },
+    "set_translations.translation": {
+      "short": "Multilingual translated names of card game sets",
+      "long": "Contains the translated names of card game sets in various languages, supporting mixed character sets including non-Latin scripts (e.g., '2010 Hauptset' or '합일'). This column is nullable (19% NULLs) and contains text values ranging from 2 to 33 characters."
+    },
+    "sets.basesetsize": {
+      "short": "Total number of cards in the core set release",
+      "long": "The official number of base cards in the set, excluding secret rares or promotional inserts. Values are integers ranging from 0 to 1694, with smaller numbers (like 1, 2, 5, and 6) representing tiny promo or introductory sets."
+    },
+    "sets.block": {
+      "short": "The thematic block or release group for the card set",
+      "long": "This column defines the expansion block or promotional release category (e.g., 'Alara', 'Core Set', 'Theros') associated with each card set. It is a nullable text field containing 33 distinct values, with about 51% of rows being NULL for sets that do not belong to a specific block."
+    },
+    "sets.booster": {
+      "short": "Booster pack card contents and distribution configuration",
+      "long": "A serialized Python dictionary or JSON string defining the contents, rarities, sheet distributions, and weights of booster packs in the set. It is NULL for approximately 75% of sets that do not have standard booster configurations."
+    },
+    "sets.code": {
+      "short": "Unique alphanumeric code identifying each card game set",
+      "long": "A unique, 3-to-5 character alphanumeric identifier for each card game set (such as '10E' or 'ZNR'). This column contains no null values and can be used as a primary or natural key to reliably join card set information."
+    },
+    "sets.id": {
+      "short": "Unique primary key identifying each card set",
+      "long": "The unique primary key for each card set in the database, containing sequential, non-null integer values ranging from 1 to 551."
+    },
+    "sets.isfoilonly": {
+      "short": "Boolean flag indicating if the set is exclusively foil",
+      "long": "An integer flag indicating whether the card set is only available in a foil format, where 1 means the set is foil-only and 0 indicates it contains non-foil cards."
+    },
+    "sets.isforeignonly": {
+      "short": "Boolean flag indicating sets released only in foreign markets",
+      "long": "A binary integer flag indicating whether a card set was released exclusively in foreign (non-primary) languages or markets. A value of '1' indicates the set is foreign-only, while '0' indicates it had a primary or domestic release."
+    },
+    "sets.isnonfoilonly": {
+      "short": "Exclusively non-foil card set indicator flag",
+      "long": "A boolean flag stored as an integer indicating whether the card set contains only non-foil cards (1) or contains foil variations (0)."
+    },
+    "sets.isonlineonly": {
+      "short": "Boolean flag for online-only card set availability",
+      "long": "A boolean flag indicating whether the card set was released exclusively on digital platforms. A value of 1 designates an online-only release, while 0 represents a set with physical distribution."
+    },
+    "sets.ispartialpreview": {
+      "short": "Boolean flag indicating if the set is a partial preview",
+      "long": "This column acts as a boolean flag (represented as an INTEGER) indicating whether the card set is a partial preview. It contains no NULL values, with '0' representing false (550 rows) and '1' representing true (1 row)."
+    },
+    "sets.keyrunecode": {
+      "short": "Keyrune vector icon identifier code for card set symbols",
+      "long": "An alphanumeric code representing the symbol of a specific card set used by the Keyrune web font to render set icons, ranging from 3 to 12 characters (e.g., '10E' to 'ZNR') with 'DEFAULT' representing a fallback icon."
+    },
+    "sets.mcmid": {
+      "short": "Unique Cardmarket dataset identifier",
+      "long": "The Cardmarket (MCM) internal database ID for Cardmarket-affiliated card sets. This column contains unique, variable-length numeric strings ranging from 4 to 3660, and is populated for approximately 36% of the sets in the database."
+    },
+    "sets.mcmidextras": {
+      "short": "Cardmarket identifier for extra items in a set",
+      "long": "An optional 4-digit Cardmarket (MCM) identifier used to reference promotional, extra, or special items associated with the card set. Most values are NULL, but populated entries contain unique numerical IDs ranging from 2371 to 3680."
+    },
+    "sets.mcmname": {
+      "short": "Cardmarket equivalent set name",
+      "long": "The name of the card game set as it is formatted on Cardmarket (formerly MagicCardMarket, or MCM). While it correlates with the official set name, it is a nullable string ranging from 6 to 39 characters used specifically for external marketplace integration."
+    },
+    "sets.mtgocode": {
+      "short": "Unique Magic: The Gathering Online set code",
+      "long": "An alphanumeric code of 2 to 4 characters identifying the card set on Magic: The Gathering Online (MTGO), ranging from '10E' to 'ZNR'. It is highly sparse, with about 71% of records being NULL, but is strictly unique when populated."
+    },
+    "sets.name": {
+      "short": "Unique name of the card game expansion set",
+      "long": "The unique, official name of each card game expansion set, ranging from 6 to 40 characters in length. This column contains no null values, and examples include '15th Anniversary Cards' and 'Zendikar Rising Substitute Cards'."
+    },
+    "sets.parentcode": {
+      "short": "Parent set identifier code for expansion or promotional subsets",
+      "long": "The identifier of the parent card set to which a subset, promotional release, or expansion belongs, typically represented as a 3 to 4-character alphanumeric code (e.g., 'ZNR' or '10E'). It is NULL for primary sets that do not have a parent."
+    },
+    "sets.releasedate": {
+      "short": "the official publication date of the card game set",
+      "long": "The official release date of each card game set, formatted as a standard 'YYYY-MM-DD' date string. Values span from August 5, 1993, to March 19, 2021, containing no nulls, with some generic New Year's Day placeholders (e.g., '2006-01-01') representing sets with imprecise historical release dates."
+    },
+    "sets.tcgplayergroupid": {
+      "short": "TCGplayer group identifier for card sets",
+      "long": "An identifier linking the set to its corresponding group on TCGplayer, ranging from 1 to 2778. It is stored as an integer, with over half of the records being NULL, representing sets not indexed or available on TCGplayer."
+    },
+    "sets.totalsetsize": {
+      "short": "total number of cards originally printed in the set",
+      "long": "Represents the official or total number of cards in each set, ranging from 0 to 1694. This integer field contains no NULL values across its 551 records and is typically used to determine a set's base size."
+    },
+    "sets.type": {
+      "short": "Categorical classification of card game release set formats",
+      "long": "This column classifies the release format of card game sets using a closed vocabulary of 20 distinct lowercase text categories. Common values include 'promo', 'expansion', 'memorabilia', 'box', and 'duel_deck', with no missing values across the dataset."
+    }
+  }
+}
