@@ -15,7 +15,7 @@ recall** (Step 6).
 | 2026-06-11 | 3 | pass@1 | 0.420 (21/50) | claude-sonnet-4-6 | step3-naive-schema-dump-baseline | generate/v2 | 5d9d8ae |
 | 2026-06-12 | 4 | red-team catch rate | 1.000 (29/29) | — (deterministic gate) | redteam_guard | guard rules: read_only+dangerous_op+cost | e56fbcd |
 | 2026-06-12 | 5 | pass@1→pass@3 | 0.420 (21/50) → 0.420 (21/50) [gap +0.000] | claude-sonnet-4-6 | step3-naive-schema-dump-baseline | generate/v3 | 7ae5bb5 |
-| 2026-07-01 | 12 (#139) | soundness catch rate / false-positive rate | 1.000 (9/9) / 0.000 (0/12) | — (deterministic checks) | fixtures/soundness | soundness checks: null_ordering+minmax_subquery+field_catenation | 646d2cc |
+| 2026-07-01 | 12 (#139) | soundness catch rate / false-positive rate | 1.000 (9/9) / 0.000 (0/12) | — (deterministic checks) | fixtures/soundness | soundness checks: null_ordering+minmax_subquery+field_catenation | c9f3702 |
 
 **Step 4 — guardrail catch rate.** The deterministic, pre-execution guard gate
 (`src/nl2sql/pipeline/guard.py`) caught **29/29 (100%)** of the dangerous queries
