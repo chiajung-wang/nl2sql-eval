@@ -82,6 +82,9 @@ def _value_index(db_id: str):
     entirely — the default, unchanged path."""
     if not _literal_steer_enabled():
         return None
+    # BIRD is public data with no redaction policy, so ``redact_columns`` is empty
+    # here (correct). A payments/demo caller MUST pass the db's PII columns as
+    # ``redact_columns=`` so no PII value is indexed or surfaced in a steer (§5.3).
     return build_value_index(_engine(db_id))
 
 
