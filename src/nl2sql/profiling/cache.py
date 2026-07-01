@@ -174,11 +174,13 @@ def resolve_column_descriptions(
 ) -> dict[str, str]:
     """The per-column description dict for ``build_schema_index``, for one source.
 
-    The single call the harness/demo make to turn a metadata *source* into the
+    The single call a caller makes to turn a metadata *source* into the
     ``column_descriptions=`` map: it loads the profiling cache (empty if the db has
     no artifact) and merges it with ``supplied`` via :func:`select_descriptions`.
     ``source`` defaults to :func:`active_metadata_source` (the ``METADATA_SOURCE``
-    env axis), so harness and demo resolve metadata identically (import-shared).
+    env axis). The BIRD eval index-build (``eval/eval_bird_rag.py``) calls it, so a
+    run reflects the selected source; anything else that builds an index resolves
+    metadata the same way (import-shared, no fork).
     """
     source = source if source is not None else active_metadata_source()
     profiling = load_field_descriptions(db_id, profiles_dir=profiles_dir)

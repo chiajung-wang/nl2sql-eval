@@ -28,6 +28,7 @@ from nl2sql.profiling import (
     save_field_descriptions,
     select_descriptions,
 )
+from nl2sql.profiling.profiler import profile_column
 from nl2sql.profiling.summarize import _parse_summary, summarize_column, summarize_db
 from nl2sql.schema_index import build_schema_index
 
@@ -113,6 +114,40 @@ def test_profiler_handles_all_null_column():
     col = profile_db(engine, "d").tables[0].columns[0]
     assert col.row_count == 2 and col.non_null_count == 0
     assert col.null_fraction == 1.0 and col.char_class is CharClass.EMPTY
+
+
+# --- PII redaction: shape-only profile for policy columns -------------------
+
+
+def test_redacted_column_suppresses_raw_values(profiled_engine):
+    # A PII column keeps shape-only stats but never a raw value.
+    prof = profile_db(profiled_engine, "d", redact_columns=frozenset({"schools.cds"}))
+    cols = {c.name: c for c in prof.tables[0].columns}
+    cds = cols["cds"]
+    # Shape-only stats survive (no value revealed).
+    assert cds.non_null_count == 3 and cds.distinct_count == 3
+    assert cds.char_class is CharClass.DIGITS and cds.is_constant_length
+    # Value-bearing fields are suppressed.
+    assert cds.min_value is None and cds.max_value is None
+    assert cds.common_prefix == "" and cds.top_values == ()
+    # A non-redacted column in the same table is unaffected.
+    assert cols["status"].top_values  # still carries its enum values
+
+
+def test_redacted_column_english_leaks_no_value(profiled_engine):
+    prof = profile_db(profiled_engine, "d", redact_columns=frozenset({"schools.cds"}))
+    cds = {c.name: c for c in prof.tables[0].columns}["cds"]
+    english = render_column_english(cds)
+    assert "01100170000001" not in english  # no raw value
+    assert "0110017000000" not in english  # not even the common prefix
+    assert "all digits" in english  # shape still described
+
+
+def test_profile_column_redact_flag_is_a_noop_off(profiled_engine):
+    # The default (redact=False) is unchanged behaviour — values present.
+    with profiled_engine.connect() as conn:
+        col = profile_column(conn, "schools", "cds", "TEXT", 3)
+    assert col.min_value is not None and col.common_prefix
 
 
 # --- mechanical English renderer -------------------------------------------

@@ -159,6 +159,7 @@ def profile_column(
     *,
     top_k: int = DEFAULT_TOP_K,
     sample_limit: int = DEFAULT_SAMPLE_LIMIT,
+    redact: bool = False,
 ) -> ColumnProfile:
     """Profile one column via bounded aggregate + sample queries.
 
@@ -167,11 +168,17 @@ def profile_column(
     over a bounded distinct-value sample. ``top_values`` is a ``GROUP BY … ORDER BY
     COUNT DESC`` — the enum/skew signal. Every read degrades to a null/empty result
     rather than raising, so a single unreadable column never fails the precompute.
+
+    ``redact`` (for a PII column, per the db's redaction policy) suppresses the
+    **value-bearing** fields — ``min_value``/``max_value``/``common_prefix``/
+    ``top_values`` — so a raw value can never reach the committed artifact, the
+    generate prompt, or a trace (CLAUDE.md §5.3). The *shape-only* stats (counts,
+    distinct, NULL, length range, character class) are kept: they describe the
+    column without revealing any value. On BIRD (public data, no policy) nothing is
+    redacted, so this is a no-op there.
     """
     non_null = _scalar(conn, "SELECT COUNT({col}) FROM {tbl}", table, column)
     distinct = _scalar(conn, "SELECT COUNT(DISTINCT {col}) FROM {tbl}", table, column)
-    min_value = _scalar(conn, "SELECT MIN({col}) FROM {tbl}", table, column)
-    max_value = _scalar(conn, "SELECT MAX({col}) FROM {tbl}", table, column)
 
     sample: list[str] = []
     try:
@@ -186,6 +193,24 @@ def profile_column(
     except Exception:
         sample = []
 
+    lengths = [len(v) for v in sample]
+    # Shape-only stats are always safe (they reveal no value). Value-bearing
+    # extremes / prefix / top values are computed only for a non-redacted column.
+    if redact:
+        return ColumnProfile(
+            table=table,
+            name=column,
+            declared_type=declared_type,
+            row_count=row_count,
+            non_null_count=int(non_null or 0),
+            distinct_count=int(distinct or 0),
+            char_class=_char_class(sample),
+            min_len=min(lengths) if lengths else None,
+            max_len=max(lengths) if lengths else None,
+        )
+
+    min_value = _scalar(conn, "SELECT MIN({col}) FROM {tbl}", table, column)
+    max_value = _scalar(conn, "SELECT MAX({col}) FROM {tbl}", table, column)
     top_values: tuple[tuple[str, int], ...] = ()
     if top_k > 0:
         try:
@@ -201,7 +226,6 @@ def profile_column(
         except Exception:
             top_values = ()
 
-    lengths = [len(v) for v in sample]
     return ColumnProfile(
         table=table,
         name=column,
@@ -226,12 +250,25 @@ def profile_table(
     *,
     top_k: int = DEFAULT_TOP_K,
     sample_limit: int = DEFAULT_SAMPLE_LIMIT,
+    redact_columns: frozenset[str] = frozenset(),
 ) -> TableProfile:
-    """Profile every column of ``table``; ``columns`` is ``(name, declared_type)``."""
+    """Profile every column of ``table``; ``columns`` is ``(name, declared_type)``.
+
+    ``redact_columns`` is a set of casefolded ``"table.column"`` keys (the db's PII
+    columns); a matching column is profiled shape-only (no raw values) — see
+    :func:`profile_column`.
+    """
     row_count = int(_scalar(conn, "SELECT COUNT(*) FROM {tbl}", table, "*") or 0)
     profiles = tuple(
         profile_column(
-            conn, table, name, dtype, row_count, top_k=top_k, sample_limit=sample_limit
+            conn,
+            table,
+            name,
+            dtype,
+            row_count,
+            top_k=top_k,
+            sample_limit=sample_limit,
+            redact=f"{table.casefold()}.{name.casefold()}" in redact_columns,
         )
         for name, dtype in columns
     )
@@ -244,12 +281,18 @@ def profile_db(
     *,
     top_k: int = DEFAULT_TOP_K,
     sample_limit: int = DEFAULT_SAMPLE_LIMIT,
+    redact_columns: frozenset[str] = frozenset(),
 ) -> DbProfile:
     """Profile every table of ``engine`` (read-only) into a :class:`DbProfile`.
 
     Tables and columns come from SQLAlchemy's ``Inspector`` (portable across the
     BIRD/SQLite and payments/Postgres paths), sorted by name so the profile — and
     any artifact derived from it — is stable across runs.
+
+    ``redact_columns`` (casefolded ``"table.column"`` keys — the db's PII columns
+    from its redaction policy) forces those columns to profile **shape-only**, so no
+    raw value is ever persisted or rendered into a prompt (CLAUDE.md §5.3). On the
+    BIRD path (public data, no policy) it defaults to empty — a no-op.
     """
     inspector = inspect(engine)
     tables: list[TableProfile] = []
@@ -261,7 +304,12 @@ def profile_db(
             ]
             tables.append(
                 profile_table(
-                    conn, name, columns, top_k=top_k, sample_limit=sample_limit
+                    conn,
+                    name,
+                    columns,
+                    top_k=top_k,
+                    sample_limit=sample_limit,
+                    redact_columns=redact_columns,
                 )
             )
     return DbProfile(db_id=db_id, tables=tuple(tables))
