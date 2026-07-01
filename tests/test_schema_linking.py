@@ -228,3 +228,22 @@ def test_default_strategy_is_unchanged_lexical_rag(store_engine):
     # No link_strategy → the prior lexical RAG path, one generation only.
     assert state.retrieval_mode == "rag"
     assert len(client.calls) == 1
+
+
+def test_run_pipeline_rejects_unknown_link_strategy(store_engine):
+    """A typo'd strategy must raise, not silently run lexical RAG — otherwise the
+    measured A/B is misattributed (the run claims linking but ran baseline)."""
+    index = build_schema_index(store_engine)
+    client = FakeLLMClient("SELECT * FROM orders")
+    with pytest.raises(ValueError, match="unknown link_strategy"):
+        run_pipeline(
+            "orders",
+            schema_index=index,
+            engine=store_engine,
+            db_id="store",
+            dialect="SQLite",
+            client=client,
+            link_strategy="task_alignmnet",  # deliberate typo
+        )
+    # The strategy is rejected before any generation is attempted.
+    assert client.calls == []

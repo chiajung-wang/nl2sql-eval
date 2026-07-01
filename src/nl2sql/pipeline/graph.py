@@ -46,7 +46,7 @@ from nl2sql.pipeline.correct import correct
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.guard import guard
-from nl2sql.pipeline.link import link_tables
+from nl2sql.pipeline.link import LINK_STRATEGIES, TASK_ALIGNMENT, link_tables
 from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy, redact
 from nl2sql.pipeline.retrieve import is_not_found_error, missing_identifier, retrieve
 from nl2sql.pipeline.state import RunState
@@ -108,7 +108,7 @@ def _init_retrieve(state: _GraphState, config: RunnableConfig) -> dict[str, Any]
             "re_retrievals": 0,
         }
     allowed_tables: set[str] | None = {t.name for t in index.tables}
-    if c.get("link_strategy") == "task_alignment":
+    if c.get("link_strategy") == TASK_ALIGNMENT:
         active_schema = _link_retrieve(run, index, c)
     else:
         active_schema = retrieve(
@@ -372,6 +372,13 @@ def run_pipeline(
     """
     if (schema is None) == (schema_index is None):
         raise ValueError("run_pipeline needs exactly one of schema= or schema_index=")
+    # Validate the strategy up front: an unrecognized name (a typo like
+    # "task_alignmnet") must raise, not silently run lexical RAG — a silent fallback
+    # would misattribute the measured A/B (CLAUDE.md §6 traceability). ``None`` is the
+    # no-linking default and is always allowed. Mirrors ``link_tables``' own raise on
+    # an unknown variant, so the strategy and variant selectors are equally strict.
+    if link_strategy is not None and link_strategy not in LINK_STRATEGIES:
+        raise ValueError(f"unknown link_strategy: {link_strategy!r}")
     budget = max(1, max_attempts)
     # Name and tag the trace so a run is findable/filterable in the Langfuse UI
     # (db and model are the cross-provider / single-db filter axes, CLAUDE.md §5.8).

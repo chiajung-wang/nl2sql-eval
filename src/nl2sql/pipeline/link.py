@@ -43,6 +43,15 @@ LINK_DIALECTS: tuple[str | None, ...] = ("sqlite", None)
 # variants ("minimal"/"maximal") slot in once #140's profiling metadata lands.
 DEFAULT_LINK_VARIANTS: tuple[str, ...] = ("focused", "full")
 
+# The one task-alignment linking strategy this module implements, and the set of
+# recognized ``link_strategy`` names. ``run_pipeline`` validates against this set so
+# a typo'd strategy raises rather than silently falling back to lexical RAG — a
+# silent fallback would misattribute a measured A/B (the run says "linking" but ran
+# baseline), which the project's traceability rule (CLAUDE.md §6) forbids. ``None``
+# (no linking) is handled by the caller, so it is deliberately not in this set.
+TASK_ALIGNMENT = "task_alignment"
+LINK_STRATEGIES: frozenset[str] = frozenset({TASK_ALIGNMENT})
+
 
 def tables_in_sql(
     sql: str, *, dialects: Sequence[str | None] = LINK_DIALECTS
