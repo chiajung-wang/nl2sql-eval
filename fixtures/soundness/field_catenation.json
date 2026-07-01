@@ -1,0 +1,49 @@
+{
+  "_meta": {
+    "fixture": "soundness/field_catenation",
+    "purpose": "Step 12, #139 — proves the field_catenation check in src/nl2sql/pipeline/soundness.py. Concatenating two or more distinct fields in the projection fuses values the question almost certainly wants returned separately — a wrong result SHAPE. Flagged as a correction signal.",
+    "format": "(candidate SQL, expected verdict) pairs; 'flag' → soundness hit, 'pass' → clean. See null_ordering.json for the catch-rate / false-positive semantics.",
+    "rule": "Flag a projection whose || (DPipe) or CONCAT fuses TWO OR MORE distinct columns. Concatenating a single column with string literals (formatting) is not flagged; a bare column is never flagged."
+  },
+  "cases": [
+    {
+      "id": "dpipe-two-fields-flag",
+      "description": "first || ' ' || last fuses two name fields — the question likely wants them as separate columns.",
+      "sql": "SELECT first || ' ' || last FROM people",
+      "expected_verdict": "flag",
+      "expected_rule": "field_catenation"
+    },
+    {
+      "id": "concat-func-two-fields-flag",
+      "description": "CONCAT(fname, lname) is the same field-fusing shape via the function form.",
+      "sql": "SELECT CONCAT(fname, lname) FROM people",
+      "expected_verdict": "flag",
+      "expected_rule": "field_catenation"
+    },
+    {
+      "id": "dpipe-three-fields-flag",
+      "description": "street || ', ' || city || ', ' || zip fuses three address fields into one column.",
+      "sql": "SELECT street || ', ' || city || ', ' || zip FROM addresses",
+      "expected_verdict": "flag",
+      "expected_rule": "field_catenation"
+    },
+    {
+      "id": "column-with-literal-pass",
+      "description": "The near-miss negative: one column concatenated with a string literal (formatting) fuses no two fields — must NOT be flagged.",
+      "sql": "SELECT name || ' (active)' FROM users",
+      "expected_verdict": "pass"
+    },
+    {
+      "id": "separate-columns-pass",
+      "description": "Returning the fields as separate columns is the correct shape — nothing to flag.",
+      "sql": "SELECT first, last FROM people",
+      "expected_verdict": "pass"
+    },
+    {
+      "id": "bare-column-pass",
+      "description": "A single projected column with no concatenation at all.",
+      "sql": "SELECT full_name FROM people",
+      "expected_verdict": "pass"
+    }
+  ]
+}

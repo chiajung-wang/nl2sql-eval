@@ -95,5 +95,17 @@ class RunState:
     guard_reason: str | None = None
     guard_rule: str | None = None
 
+    # Set by the soundness stage (Step 12, #139) when a candidate trips a
+    # deterministic bad-construction check (NULL-ordering hazard, min/max-by-
+    # subquery, field catenation). Unlike a guard rejection these are *correction
+    # signals*, never terminal: with retry budget left the graph feeds
+    # ``soundness_reason`` back to ``generate``; with the budget spent the candidate
+    # proceeds to ``execute`` anyway (a soundness heuristic never loses a run).
+    # ``soundness_reason`` is "rule: why" — no rows. Reset on every soundness scan so
+    # a re-tried candidate is not judged by a stale prior flag.
+    soundness_flag: bool = False
+    soundness_reason: str | None = None
+    soundness_rule: str | None = None
+
     # Free-form per-stage diagnostics; cost/latency/tokens land here later.
     meta: dict[str, Any] = field(default_factory=dict)

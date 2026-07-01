@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 139 — Deterministic bad-construction (soundness) checks as correction signals</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  pre.code{background:#0b1120;border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;overflow-x:auto;
+           font-size:.82rem;color:var(--ink);line-height:1.5;margin:0}
+  pre.code .c{color:var(--muted)} pre.code .a{color:var(--add)} pre.code .k{color:var(--accent-2)} pre.code .x{color:var(--del)}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)} .good-txt{color:var(--add)} .num-txt{color:var(--accent-2);font-weight:700}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;font-size:.82rem;margin:.4rem 0}
+  .flow .box{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:.4rem .7rem}
+  .flow .box.hi{border-color:var(--accent);color:var(--accent)}
+  .flow .box.warn{border-color:var(--mod);color:var(--mod)}
+  .flow .arr{color:var(--muted)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #146 · Step 12 · Issue #139</span>
+    <h1>Deterministic bad-construction checks — a correction signal, not a gate</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #139</span>
+      <span><b>Branch:</b> <code>step-12/issue-139-soundness-checks</code> → <code>main</code></span>
+      <span><b>Source:</b> Shkapenyuk et&nbsp;al., arXiv:2505.19988v2 §4 (AT&amp;T #1 BIRD)</span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>Some wrong answers have a mechanical shape a deterministic check can catch.</b>
+      Where the table-selection cluster (#122) is a model-capability wall, the paper's
+      bad-construction checks are concrete, AST-detectable defects — the rare Step-12 lever with a
+      non-model mechanism. Three sqlglot-AST checks land in a new <code>soundness</code> stage: same
+      shape as the guard, but a <b>correction contract</b> — a hit feeds a fix back to the generator,
+      it never terminally rejects.</p>
+      <div class="stats">
+        <div><b class="num-txt">3</b> AST checks (null-order, minmax-subq, catenation)</div>
+        <div><b class="good-txt">1.000</b> catch rate (9/9)</div>
+        <div><b class="good-txt">0.000</b> false-positive rate (0/12)</div>
+        <div><b>34</b> offline tests · <b>582</b> suite green</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The three checks — each a wrong-answer shape</h2><div class="card">
+      <table>
+        <thead><tr><th>check</th><th>flags</th><th>why it's wrong</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>null_ordering</code></td><td><code>min(f)</code> / <code>ORDER BY f ASC LIMIT</code> over an unguarded column</td><td>A NULL sorts <em>first</em> ascending — the top row / minimum can be NULL-driven. <code>MAX</code>/<code>DESC</code> are safe (NULLs sort last).</td></tr>
+          <tr><td class="f"><code>minmax_subquery</code></td><td><code>= (SELECT MIN/MAX(x) …)</code>, uncorrelated only</td><td>Selecting the extreme-value row by a scalar subquery is what <code>ORDER BY x LIMIT 1</code> expresses more reliably. A <em>correlated</em> subquery needs the form — not flagged.</td></tr>
+          <tr><td class="f"><code>field_catenation</code></td><td><code>a || b</code> / <code>CONCAT(a,b)</code> of ≥2 distinct fields</td><td>Fuses values the question wants as separate columns — a wrong result <em>shape</em>. A column-plus-literal is not flagged.</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-bottom:0" class="note">Checks judge the <b>outermost query — the result the user receives</b> — so a scalar
+      <code>MIN(x)</code> building-block subquery (a common, correct idiom) is never flagged. Detection is pure sqlglot AST:
+      a column literally named <code>minimum</code>, or the word <code>from</code> in a string literal, can't fool it.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> The contract — a correction signal, never a lost run</h2><div class="card">
+      <p>This is the same AST-check shape as <code>guard.py</code> but the opposite contract. A guard hit is a
+      terminal <code>GUARDRAIL_REJECTED</code>; a soundness hit is <b>recoverable</b>.</p>
+      <div class="flow">
+        <span class="box">guard&nbsp;allow</span><span class="arr">→</span>
+        <span class="box hi">soundness</span><span class="arr">→</span>
+        <span class="box warn">flag + budget&nbsp;left</span><span class="arr">→</span>
+        <span class="box">correct_soundness</span><span class="arr">→</span>
+        <span class="box">generate&nbsp;(retry)</span>
+      </div>
+      <div class="flow">
+        <span class="box hi">soundness</span><span class="arr">→</span>
+        <span class="box warn">flag + budget&nbsp;spent</span><span class="arr">→</span>
+        <span class="box">execute&nbsp;anyway</span>
+        <span class="arr">|</span>
+        <span class="box">clean</span><span class="arr">→</span><span class="box">execute</span>
+      </div>
+      <p style="margin-bottom:0">So a <b>false positive costs at most a wasted retry</b>, never a dropped answer — a soundness heuristic
+      must never <em>lose</em> a run (CLAUDE.md §5). Retries share the one capped budget (the ceiling was widened for the
+      two extra supersteps); feedback reuses the existing <code>correct.py</code> channel.</p>
+    </div></section>
+
+    <section><h2><span class="num">4</span> The deliverable — fixture catch rate + false-positive rate</h2><div class="card">
+      <p>The primary, offline deliverable (PRD rule 11): <code>fixtures/soundness/</code> pairs positives with
+      <b>near-miss negatives</b> — the cases that separate a real check from an over-firing one.</p>
+      <pre class="code"><span class="c"># fixtures/soundness/ — replayed through check_soundness_sql</span>
+catch_rate           = <span class="a">1.000</span>  (9/9  positives flagged)
+false_positive_rate  = <span class="a">0.000</span>  (0/12 near-miss negatives flagged)
+
+<span class="c"># near-miss negatives that must NOT flag:</span>
+MIN(price) WHERE price IS NOT NULL     <span class="c"># guarded</span>
+MAX(salary)                            <span class="c"># NULLs sort last</span>
+ORDER BY score ASC                     <span class="c"># no LIMIT — full list</span>
+price = (SELECT MIN(p2.price) … WHERE p2.cat = p.cat)   <span class="c"># correlated</span>
+name || ' (active)'                    <span class="c"># column + literal</span></pre>
+      <p style="margin-bottom:0" class="note"><b>Honest caveat (surfaced in review):</b> SQL <code>MIN</code> ignores NULLs, so the bare-<code>min(f)</code>
+      positives encode the paper's/spec's hazard claim rather than objective SQL truth — they hold on the BIRD questions where the
+      <em>gold</em> query itself adds <code>… IS NOT NULL</code>. The <code>ORDER BY … ASC LIMIT</code> positives are the unambiguous
+      hazard. So <code>9/9</code> is a catch rate against a spec-inherited ground truth for ~3 of the 9, which the deferred live A/B adjudicates.</p>
+    </div></section>
+
+    <section><h2><span class="num">5</span> Two-axis review — clean</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards: no hard violations</h3><ul>
+          <li>AST-only, no regex/LLM in detection; one-stage-per-module; classifier stays out of <code>state.py</code></li>
+          <li>Fixture-measured (catch + FP rate); RESULTS row with commit; CLAUDE.md + README updated together</li>
+          <li>3 judgement calls (verdict-enum reuse, <code>correct_soundness</code> home, dialect-map dup) — defensible, left as-is</li>
+        </ul></div>
+        <div class="group good"><h3>Spec: ACs met (offline)</h3><ul>
+          <li>All non-deferred ACs satisfied; reject-vs-feedback decided per check &amp; documented; budget not bypassed</li>
+          <li><b>Fix:</b> honest caveat on the <code>min(f)</code> catch-rate label (RESULTS + fixture README)</li>
+          <li><b>Deferred:</b> live dev A/B pass@1, <code>diagnose_bird</code> bucket movement, added-retry cost — gated on a key</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">6</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>src/nl2sql/pipeline/soundness.py</code></td><td><span class="st A">A</span></td><td>The 3 pure AST checks + <code>check_soundness_sql</code> core + the <code>soundness</code> stage. (+326)</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/graph.py</code></td><td><span class="st M">M</span></td><td><code>soundness</code> + <code>correct_soundness</code> nodes, routing, widened recursion ceiling. (+66)</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/correct.py</code></td><td><span class="st M">M</span></td><td><code>correct_soundness</code> — stage a soundness flag as feedback via the existing channel. (+28)</td></tr>
+          <tr><td class="f"><code>src/nl2sql/pipeline/state.py</code></td><td><span class="st M">M</span></td><td><code>soundness_flag</code>/<code>reason</code>/<code>rule</code> — data fields only, no classifier. (+12)</td></tr>
+          <tr><td class="f"><code>fixtures/soundness/*.json</code> · <code>README.md</code></td><td><span class="st A">A</span></td><td>3 fixtures (positives + near-miss negatives) + the fixture doc. (+221)</td></tr>
+          <tr><td class="f"><code>tests/test_soundness.py</code></td><td><span class="st A">A</span></td><td>34 tests: verdicts, catch/FP measurement, unit contract, graph wiring. (+254)</td></tr>
+          <tr><td class="f"><code>RESULTS.md</code> · <code>README.md</code> · <code>CLAUDE.md</code></td><td><span class="st M">M</span></td><td>Catch/FP row + prose; stage list + fixture dir (also backfilled <code>link.py</code> from #138).</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">7</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest tests/test_soundness.py</code> → 34 passed; catch 1.000 (9/9), FP 0.000 (0/12)</p>
+        <p style="margin:.2rem 0"><b>✓</b> Full suite 582 passed; the guard red-team set (43/43) is unaffected</p>
+        <p style="margin:.2rem 0"><b>✓</b> One pre-existing failure (<code>test_guard.py</code> needs the gitignored BIRD <code>dev.json</code>) — not this diff</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>ruff check</code> + <code>ruff format --check</code> clean</p>
+        <p style="margin:.2rem 0"><b>✓</b> Wiring proven offline: feed-back-and-regenerate, execute-when-budget-spent, single-shot, clean-path</p>
+        <p style="margin:.2rem 0"><b>⏳</b> <b>Deferred (gated on key/spend):</b> live dev A/B pass@1 (± checks), <code>diagnose_bird</code> bucket movement, added-retry cost</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #139 / PR #146 · base <code>main</code> ← <code>step-12/issue-139-soundness-checks</code>
+    </footer>
+  </div>
+</body>
+</html>
