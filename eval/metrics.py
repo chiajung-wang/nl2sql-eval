@@ -15,44 +15,20 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 
-import sqlglot
-from sqlglot import exp
-from sqlglot.errors import ParseError
-
 from eval.cost import cost_usd
+from nl2sql.pipeline.link import tables_in_sql
 from nl2sql.pipeline.state import TerminalState
-
-# BIRD is SQLite; fall back to the generic parser so gold-table extraction is
-# dialect-robust (mirrors the comparator's tolerant gold parse).
-_RECALL_DIALECTS: tuple[str | None, ...] = ("sqlite", None)
 
 
 def gold_query_tables(gold_sql: str) -> set[str]:
     """The base table names a gold query references, casefolded, from the AST.
 
-    Deterministic — sqlglot ``exp.Table`` nodes, never a string scan (CLAUDE.md
-    §4): an alias, a column literally named like a table, or the word ``from`` in
-    a string literal can't fool it. **CTE names are excluded**: a reference to a
-    ``WITH`` block parses as a ``Table`` too, but the retriever (which selects
-    real schema tables) can never "retrieve" a CTE, so counting it would
-    permanently deflate recall — and a CTE that *shadows* a real table name would
-    falsely credit it. Returns an empty set if the gold parses under no known
-    dialect (recall is then undefined for that case)."""
-    for dialect in _RECALL_DIALECTS:
-        try:
-            tree = sqlglot.parse_one(gold_sql, dialect=dialect)
-        except ParseError:
-            continue
-        if tree is None:
-            continue
-        tables = {t.name.casefold() for t in tree.find_all(exp.Table) if t.name}
-        cte_names = {
-            c.alias_or_name.casefold()
-            for c in tree.find_all(exp.CTE)
-            if c.alias_or_name
-        }
-        return tables - cte_names
-    return set()
+    Delegates to :func:`nl2sql.pipeline.link.tables_in_sql` — the one canonical
+    "tables in a SQL string" extractor, shared with the task-alignment linker
+    (#138) so the recall metric and the linker read tables identically (CTE names
+    excluded, dialect-robust SQLite→generic fallback). Returns an empty set if the
+    gold parses under no known dialect (recall is then undefined for that case)."""
+    return tables_in_sql(gold_sql)
 
 
 def retrieval_recall(retrieved: list[str] | None, gold_sql: str) -> float | None:

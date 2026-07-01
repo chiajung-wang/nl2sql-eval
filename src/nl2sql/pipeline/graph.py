@@ -46,6 +46,7 @@ from nl2sql.pipeline.correct import correct
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.guard import guard
+from nl2sql.pipeline.link import LINK_STRATEGIES, TASK_ALIGNMENT, link_tables
 from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy, redact
 from nl2sql.pipeline.retrieve import is_not_found_error, missing_identifier, retrieve
 from nl2sql.pipeline.state import RunState
@@ -88,26 +89,77 @@ def _init_retrieve(state: _GraphState, config: RunnableConfig) -> dict[str, Any]
     the adaptive gate (#76); ``allowed_tables`` is the per-db scope set, available
     only on the RAG path (``None`` on the naive dump leaves table-scope
     unenforced — it has no index to scope to).
+
+    ``link_strategy == "task_alignment"`` (Step 12, #138) replaces the lexical
+    retrieval with schema linking by harvesting generated SQL (``link.link_tables``):
+    the model writes SQL against schema variants and the linker unions the tables it
+    references. The harvested set is recorded on ``state.retrieved_tables`` exactly
+    as RAG records its selection, so retrieval recall scores both the same way.
+    Re-retrieval (the scope-widening loop) stays lexical — linking governs only the
+    first pass.
     """
     c = _cfg(config)
     run = state["run"]
     index: SchemaIndex | None = c["schema_index"]
-    if index is not None:
+    if index is None:
+        return {
+            "active_schema": c["schema"],
+            "allowed_tables": None,
+            "re_retrievals": 0,
+        }
+    allowed_tables: set[str] | None = {t.name for t in index.tables}
+    if c.get("link_strategy") == TASK_ALIGNMENT:
+        active_schema = _link_retrieve(run, index, c)
+    else:
         active_schema = retrieve(
             run,
             index,
             max_tables=c["max_tables"],
             budget_tokens=c["budget_tokens"],
         )
-        allowed_tables: set[str] | None = {t.name for t in index.tables}
-    else:
-        active_schema = c["schema"]
-        allowed_tables = None
     return {
         "active_schema": active_schema,
         "allowed_tables": allowed_tables,
         "re_retrievals": 0,
     }
+
+
+def _link_retrieve(run: RunState, index: SchemaIndex, c: dict[str, Any]) -> str:
+    """Task-alignment schema linking (#138): harvest tables from generated SQL.
+
+    Builds the ``generate_sql`` callable ``link_tables`` needs by reusing the real
+    ``generate`` stage against a throwaway ``RunState`` per variant (so the linking
+    generations never clobber the answer state), then folds each linking call's
+    token/cost into the run's running totals — a linked retrieval is **not free**,
+    so the harness prices the extra generations (the issue's cost-with-the-lift
+    rule). Records the harvested tables on ``run.retrieved_tables`` and renders them.
+    """
+    with stage_span("retrieve", db_id=run.db_id) as extra:
+
+        def generate_sql(schema: str) -> str:
+            probe = RunState(question=run.question, db_id=run.db_id)
+            generate(
+                probe,
+                schema,
+                dialect=c["dialect"],
+                evidence=c["evidence"],
+                model=c["model"],
+                client=c["client"],
+            )
+            for key in ("input_tokens", "output_tokens", "cost_usd"):
+                if key in probe.meta:
+                    run.meta[key] = run.meta.get(key, 0) + probe.meta[key]
+            return probe.candidate_sql or ""
+
+        tables = link_tables(
+            run.question, index, generate_sql, max_tables=c["max_tables"]
+        )
+        run.retrieved_tables = tables
+        run.retrieval_mode = "link"
+        extra["retrieved_tables"] = tables
+        extra["n_tables"] = len(tables)
+        extra["retrieval_mode"] = "link"
+        return index.render(tables)
 
 
 def _generate(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
@@ -266,6 +318,7 @@ def run_pipeline(
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
     max_tables: int = DEFAULT_MAX_TABLES,
     budget_tokens: int | None = None,
+    link_strategy: str | None = None,
     redaction_policy: RedactionPolicy = NO_REDACTION,
 ) -> RunState:
     """Run one question through the capped ``generate → guard → execute`` loop.
@@ -299,6 +352,13 @@ def run_pipeline(
     (default) leaves the gate off — the prior always-RAG behaviour. The demo and
     the harness pass the *same* value, so the gate is import-shared, never forked.
 
+    ``link_strategy="task_alignment"`` (schema-RAG path only; Step 12, #138) swaps
+    the lexical retrieval for schema linking by harvesting generated SQL (paper
+    §3): the generator writes SQL against schema variants and the linker unions the
+    tables it references as the focused schema. ``None`` (default) keeps lexical
+    RAG. Costs extra generations per question, folded into the run's token/cost
+    totals so the harness prices the lift.
+
     Step 7: the loop above is now executed by a compiled LangGraph state machine
     (``_GRAPH``); the control flow and the ``RunState`` it returns are identical —
     a behavior-preserving refactor the harness verifies.
@@ -312,6 +372,13 @@ def run_pipeline(
     """
     if (schema is None) == (schema_index is None):
         raise ValueError("run_pipeline needs exactly one of schema= or schema_index=")
+    # Validate the strategy up front: an unrecognized name (a typo like
+    # "task_alignmnet") must raise, not silently run lexical RAG — a silent fallback
+    # would misattribute the measured A/B (CLAUDE.md §6 traceability). ``None`` is the
+    # no-linking default and is always allowed. Mirrors ``link_tables``' own raise on
+    # an unknown variant, so the strategy and variant selectors are equally strict.
+    if link_strategy is not None and link_strategy not in LINK_STRATEGIES:
+        raise ValueError(f"unknown link_strategy: {link_strategy!r}")
     budget = max(1, max_attempts)
     # Name and tag the trace so a run is findable/filterable in the Langfuse UI
     # (db and model are the cross-provider / single-db filter axes, CLAUDE.md §5.8).
@@ -339,6 +406,7 @@ def run_pipeline(
                 "client": client,
                 "max_tables": max_tables,
                 "budget_tokens": budget_tokens,
+                "link_strategy": link_strategy,
                 "budget": budget,
             },
             # Each attempt costs a few supersteps; size the ceiling to the budget
