@@ -73,6 +73,34 @@ def _literal_steer_enabled() -> bool:
     return os.environ.get("LITERAL_STEER", "").strip().lower() in {"1", "true", "yes"}
 
 
+def _link_strategy() -> str | None:
+    """The retrieval strategy for the RAG arm — the ``LINK_STRATEGY`` A/B axis (#138).
+
+    Unset → lexical schema-RAG (the default, unchanged path); ``task_alignment`` →
+    schema linking by harvesting generated SQL. ``run_pipeline`` validates the value,
+    so a typo raises rather than silently running the baseline."""
+    value = os.environ.get("LINK_STRATEGY", "").strip().lower()
+    return value or None
+
+
+def _soundness_enabled() -> bool:
+    """Whether the soundness checks (#139) are on — the ``SOUNDNESS`` A/B axis.
+
+    Default on (unchanged behaviour); ``SOUNDNESS=0`` is the without-checks arm. Only
+    observable at pass@k (``RETRY_BUDGET>1``), where a flag feeds back within budget."""
+    return os.environ.get("SOUNDNESS", "").strip().lower() not in {"0", "false", "no"}
+
+
+def _retry_budget() -> int:
+    """The capped retry budget for the RAG arm — ``RETRY_BUDGET`` (default 1 = pass@1).
+
+    Raise it (e.g. 3) to measure the pass@k levers (self-correction, soundness #139)."""
+    try:
+        return max(1, int(os.environ.get("RETRY_BUDGET", "1")))
+    except ValueError:
+        return 1
+
+
 @cache
 def _value_index(db_id: str):
     """The db's sampled value index (cached), or ``None`` when steering is off.
@@ -122,6 +150,9 @@ def make_rag_run_one(evidence: dict[str, str]):
             evidence=evidence.get(case.id, ""),
             model=model_id(),
             value_index=_value_index(case.db_id),
+            link_strategy=_link_strategy(),
+            max_attempts=_retry_budget(),
+            soundness_enabled=_soundness_enabled(),
         )
 
     return run_one

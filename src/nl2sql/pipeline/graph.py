@@ -237,9 +237,12 @@ def _soundness(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
 
     Same AST-check shape as the guard but a *correction* contract, not a safety
     gate: it only records a flag on the state; the routing below decides whether the
-    budget allows a feed-back retry.
+    budget allows a feed-back retry. ``soundness_enabled=False`` (the ``SOUNDNESS=0``
+    A/B arm, #139) skips the scan entirely — the state carries no flag, so routing
+    falls straight through to ``literal_check``/``execute``.
     """
-    soundness(state["run"], dialect=_cfg(config)["dialect"])
+    if _cfg(config).get("soundness_enabled", True):
+        soundness(state["run"], dialect=_cfg(config)["dialect"])
     return {"run": state["run"]}
 
 
@@ -405,6 +408,7 @@ def run_pipeline(
     budget_tokens: int | None = None,
     link_strategy: str | None = None,
     value_index: ValueIndex | None = None,
+    soundness_enabled: bool = True,
     redaction_policy: RedactionPolicy = NO_REDACTION,
 ) -> RunState:
     """Run one question through the capped ``generate → guard → execute`` loop.
@@ -504,6 +508,7 @@ def run_pipeline(
                 "budget_tokens": budget_tokens,
                 "link_strategy": link_strategy,
                 "value_index": value_index,
+                "soundness_enabled": soundness_enabled,
                 "budget": budget,
             },
             # Each attempt costs a few supersteps (generate→guard→soundness→
