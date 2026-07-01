@@ -129,6 +129,12 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default="", help="model for --summarize")
     args = parser.parse_args(argv)
 
+    # Load .env so the provider key is available (mirrors the eval entrypoints); a
+    # dry-run needs no key, so a missing .env is harmless there.
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     from sqlalchemy import create_engine
 
     engine = create_engine(args.db_url, future=True)

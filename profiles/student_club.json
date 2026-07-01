@@ -1,0 +1,198 @@
+{
+  "db_id": "student_club",
+  "generated_by": "profile_summary/v1 · openrouter/google/gemini-3.5-flash",
+  "fields": {
+    "attendance.link_to_event": {
+      "short": "Airtable record identifier of the associated club event",
+      "long": "This column stores 17-character alphanumeric Airtable record IDs starting with 'rec' that link each attendance entry to a specific event. It functions as a foreign key to identify the associated event, containing 17 unique event IDs across the dataset."
+    },
+    "attendance.link_to_member": {
+      "short": "Foreign key linking attendance records to unique club members",
+      "long": "This column serves as a foreign key linking attendance records to the members table, using a 17-character alphanumeric identifier that consistently starts with the prefix 'rec'. It contains no NULL values across its 326 rows, referencing 30 unique member IDs with frequencies ranging up to 16 occurrences per member."
+    },
+    "budget.amount": {
+      "short": "Allocated budget amount in dollars",
+      "long": "This column stores the integer budget amount allocated for student club expenses, ranging from 10 to 350. Common repeated funding values include 10, 20, 25, 55, and 150."
+    },
+    "budget.budget_id": {
+      "short": "",
+      "long": "Column \"budget_id\" (declared type TEXT). No NULLs across 52 rows. All 52 non-NULL values are distinct (unique). Values are exactly 17 characters long, alphanumeric, always beginning with \"rec\". Ranges from \"rec0QmEc3cSQFQ6V2\" to \"recziC0Fccvve12RF\"."
+    },
+    "budget.category": {
+      "short": "Budget expense category for the student club",
+      "long": "The category classification for budget expenditure items, containing one of five distinct values: 'Advertisement', 'Club T-Shirts', 'Food', 'Parking', or 'Speaker Gifts'. This column is non-nullable and is ideal for grouping or filtering transaction costs."
+    },
+    "budget.event_status": {
+      "short": "Lifecycle status of the student club budget event",
+      "long": "This column indicates the current operational phase of a budget event, acting as an text-based enum with no missing values. The three permitted statuses are 'Open' (most common), 'Closed', and 'Planning'."
+    },
+    "budget.link_to_event": {
+      "short": "Airtable record identifier linking the budget item to an event",
+      "long": "This column stores a 17-character alphanumeric foreign key starting with 'rec', which serves as a unique Airtable-style record identifier linking the budget entry to a specific event. There are no NULL values across the 52 rows, mapping to 23 distinct event records."
+    },
+    "budget.remaining": {
+      "short": "",
+      "long": "Column \"remaining\" (declared type REAL). No NULLs across 52 rows. 22 distinct values. Values are 3–18 characters long, mixed characters. Ranges from \"-24.25\" to \"150.0\". Most common: \"150.0\" (8), \"10.0\" (4), \"20.0\" (4), \"25.0\" (4), \"55.0\" (4)."
+    },
+    "budget.spent": {
+      "short": "Amount of money spent from the budget",
+      "long": "This column records the actual monetary expenditure for budget items, represented as real numbers ranging from 0.0 to 327.07. A value of 0.0 is the most common, indicating no funds have been spent yet."
+    },
+    "event.event_date": {
+      "short": "Date and time of the student club event",
+      "long": "This column records the scheduled date and time for each student club event. Values are stored as 19-character text strings in ISO 8601 format (YYYY-MM-DDTHH:MM:SS), ranging from September 1, 2019, to May 5, 2020."
+    },
+    "event.event_id": {
+      "short": "Unique 17-character Airtable-style alphanumeric event identifier",
+      "long": "A unique, non-null, 17-character alphanumeric string that serves as the primary key for each club event. Values consistently begin with the prefix 'rec', indicating they are imported or synchronized record identifiers (likely from Airtable)."
+    },
+    "event.event_name": {
+      "short": "The name of the student club event",
+      "long": "This column stores the text names of student club events, meetings, and games. Values are free-form strings between 9 and 28 characters in length, ranging alphabetically from 'April Meeting' to 'Yearly Wrap-up'."
+    },
+    "event.location": {
+      "short": "Venue or physical address of the club event",
+      "long": "This column contains the location or venue where a student club event takes place, ranging from specific university rooms (e.g., 'MU 215') and outdoor campus stadiums to off-campus street addresses and 'Various locations'. It is a nullable text field with 'MU 215' being the most frequent venue."
+    },
+    "event.notes": {
+      "short": "Optional descriptive notes or guidelines for club events",
+      "long": "This column contains optional, free-form text providing additional details, rules, or target audiences for club events. Over half of the records are NULL, and the populated values range from 24 to 102 characters in length with some recurring event-type descriptions."
+    },
+    "event.status": {
+      "short": "Lifecycle status of the student club event",
+      "long": "Indicates the current planning or operational state of the event. This is a text-based enumeration containing three possible values: 'Closed', 'Open', and 'Planning'."
+    },
+    "event.type": {
+      "short": "Categorical type of student club event",
+      "long": "Indicates the category of the club event, acting as an implicit enumeration of 8 distinct text values. Common event types include 'Meeting', 'Guest Speaker', 'Game', 'Community Service', and 'Social'."
+    },
+    "expense.approved": {
+      "short": "expense approval status indicator",
+      "long": "Indicates whether the club expense has been approved. Although stored as TEXT, it currently contains only the string 'true' or NULL, effectively functioning as a boolean flag."
+    },
+    "expense.cost": {
+      "short": "Total monetary cost of a club expense",
+      "long": "This column stores the monetary cost associated with a student club expense, recorded as a real number. Values range from 6.0 to 295.12, with no missing data across the recorded transactions."
+    },
+    "expense.expense_date": {
+      "short": "date when the club expense was incurred",
+      "long": "The date on which the club expense occurred, stored as a 10-character string in the ISO 'YYYY-MM-DD' format. Values in the dataset span from August 20, 2019, to November 19, 2019, with no missing or NULL values."
+    },
+    "expense.expense_description": {
+      "short": "Description of student club expenses and purchased items",
+      "long": "This column contains free-form text descriptions of goods and services purchased by the student club, such as event supplies, parking, and refreshments. Common recurring entries in these 32 non-null rows include 'Pizza', 'Posters', and snack combinations."
+    },
+    "expense.expense_id": {
+      "short": "Unique 17-character alphanumeric record identifier starting with 'rec'",
+      "long": "This column serves as the primary key for the expense table, containing a unique, 17-character alphanumeric identifier that consistently begins with the prefix 'rec'. It is likely a system-generated record ID (such as an Airtable record ID) used to uniquely identify each expense entry."
+    },
+    "expense.link_to_budget": {
+      "short": "Unique record identifier linking the expense to a budget",
+      "long": "This column acts as a foreign key linking each expense to its corresponding budget record. It contains 17-character alphanumeric values that always begin with the prefix 'rec', which is the standard format for Airtable record IDs."
+    },
+    "expense.link_to_member": {
+      "short": "Foreign key linking the expense to a club member",
+      "long": "This column functions as a foreign key linking each expense to a specific club member, formatted as a 17-character alphanumeric identifier starting with 'rec'. It contains no null values, with thirty-two total rows mapped to three unique member IDs."
+    },
+    "income.amount": {
+      "short": "Monetary amount of club income in dollars",
+      "long": "This column records the monetary value of income received by the student club. Values are integers ranging from 50 to 3000, with the vast majority of transactions recorded at 50."
+    },
+    "income.date_received": {
+      "short": "Date when the club income was received",
+      "long": "The date on which the student club received the transaction income, stored as a text string in 'YYYY-MM-DD' format. The records in this table currently range from September 1, 2019, to October 31, 2019, with no missing values."
+    },
+    "income.income_id": {
+      "short": "Unique alphanumeric record identifier starting with \"rec\"",
+      "long": "A 17-character alphanumeric primary key uniquely identifying each income record, consistently prefixed with \"rec\" (often characteristic of Airtable record IDs). It contains no null values across all 36 entries."
+    },
+    "income.link_to_member": {
+      "short": "Foreign key linking transactions to member records",
+      "long": "This column contains 17-character alphanumeric foreign keys starting with the prefix 'rec', which associate income transactions with specific club members. It stores Airtable-style record identifiers and is nullable, meaning some income records may not be linked to a member."
+    },
+    "income.notes": {
+      "short": "Optional explanatory remarks or descriptions of income sources",
+      "long": "This column contains optional, detailed textual descriptions or explanatory remarks regarding specific income sources, with a high null rate of 92%. The non-null values are unique, mixed-character sentences ranging from 39 to 63 characters that explain the purpose or context of the received funds."
+    },
+    "income.source": {
+      "short": "Category or origin of student club income",
+      "long": "Indicates the source of the student club's revenue. Valid values function as an category classification and include 'Dues' (the most common), 'Fundraising', 'School Appropration', and 'Sponsorship'."
+    },
+    "major.college": {
+      "short": "Academic college or school housing the major",
+      "long": "This column contains the name of the academic college or school associated with each major, such as the 'College of Agriculture and Applied Sciences' or 'School of Business'. It acts as a text-based category with 8 distinct, non-null values ranging from 18 to 43 characters."
+    },
+    "major.department": {
+      "short": "Academic department name associated with the student major",
+      "long": "This column contains the full name of the academic department offering the major, such as 'Aerospace Studies Program' or 'Plants, Soils, and Climate Department'. It is a non-null text field with 47 distinct mixed-case values ranging from 16 to 60 characters in length."
+    },
+    "major.major_id": {
+      "short": "Unique primary key identifier for each major record",
+      "long": "A unique, system-generated primary key used to identify each academic major. Every value in this column is a 17-character alphanumeric string that consistently begins with the prefix 'rec'."
+    },
+    "major.major_name": {
+      "short": "Unique name of the academic major",
+      "long": "This column contains the unique, full name of an academic major, ranging from 3 to 57 characters in length (e.g., from 'Accounting' to 'Wildlife Ecology and Management'). It serves as a text identifier for majors with no duplicate or missing values across the 113 recorded entries."
+    },
+    "member.email": {
+      "short": "Unique university email address of the club member",
+      "long": "This column stores unique email addresses for all 33 club members, primary ending in the '.edu' domain (such as '@lpu.edu'). Values are mixed-case character strings ranging from 17 to 25 characters in length and contain no missing or null values."
+    },
+    "member.first_name": {
+      "short": "First name of the student club member",
+      "long": "This column stores the first name of each student club member, ranging from 3 to 9 alphabetic characters in length. Across the current 33 records, all first names are unique and contain no null values, running alphabetically from 'Adela' to 'Vincent'."
+    },
+    "member.last_name": {
+      "short": "Last name of the student club member",
+      "long": "Represents the surname or last name of each club member. The column contains 33 unique, non-null values ranging from 3 to 11 characters in length, starting alphabetically from 'Allen' to 'Woodard'."
+    },
+    "member.link_to_major": {
+      "short": "Airtable record identifier linking members to their academic majors",
+      "long": "This column contains 17-character alphanumeric foreign keys starting with 'rec', which serve as unique record identifiers linking each member to their corresponding major. It accommodates null values, indicating members with no declared major."
+    },
+    "member.member_id": {
+      "short": "Unique alphanumeric member identifier",
+      "long": "A 17-character, alphanumeric unique identifier for each club member, consistently prefixed with 'rec'. This column contains no null values and is likely a system-generated record key used as the primary identifier for joining with other tables."
+    },
+    "member.phone": {
+      "short": "Unique contact telephone numbers for club members",
+      "long": "This column stores unique, non-null voice telephone contact numbers for each student club member. The values are stored as variable-length text (12 to 14 characters) and are formatted as standard United States phone numbers, featuring variations in punctuation such as parentheses and dashes."
+    },
+    "member.position": {
+      "short": "club role or membership status of the member",
+      "long": "Represents the member's current role or active status within the student club. Contains a small set of standard officer titles ('President', 'Vice President', 'Secretary', 'Treasurer'), the default 'Member' designation, or 'Inactive' for former participants."
+    },
+    "member.t_shirt_size": {
+      "short": "T-shirt size of the club member",
+      "long": "This column records the t-shirt size of the club member. It contains four distinct text values representing standard sizes: 'Small', 'Medium', 'Large', and 'X-Large'."
+    },
+    "member.zip": {
+      "short": "ZIP code of the club member",
+      "long": "The postal ZIP code for the club member's address. Although declared as an integer, values are 4- to 5-digit numeric strings ranging from 1020 to 98290, with leading zeros omitted due to the data type."
+    },
+    "zip_code.city": {
+      "short": "US city or municipality name",
+      "long": "This column stores the name of the city or municipality corresponding to a US zip code. It contains no null values across over 41,000 records, with names ranging from 3 to 17 characters in length, including common metropolitan areas like Washington, Houston, and New York."
+    },
+    "zip_code.county": {
+      "short": "US county name including the word county",
+      "long": "This column stores the name of the county associated with a given ZIP code, formatted as mixed-case text ending with the word 'County' (e.g., 'Los Angeles County'). It contains 2,010 distinct values ranging alphabetically from 'Abbeville County' to 'Ziebach County', with a negligible null rate of under 1%."
+    },
+    "zip_code.short_state": {
+      "short": "Two-letter US state abbreviation",
+      "long": "A two-letter uppercase character code representing a US state or territory, spanning 52 distinct values from 'AK' to 'WY'. This column contains no NULL values and is ideal for geographical filtering, grouping, or joining with other regional datasets."
+    },
+    "zip_code.state": {
+      "short": "US state name",
+      "long": "The full name of the United States state associated with the zip code. This text column contains no null values and spans 52 distinct state names, ranging from 'Alabama' to 'Wyoming'."
+    },
+    "zip_code.type": {
+      "short": "US ZIP code classification type",
+      "long": "Indicates the classification of the ZIP code. This is a required categorical value consisting of one of three specific types: 'Standard' (highly most common), 'PO Box', or 'Unique'."
+    },
+    "zip_code.zip_code": {
+      "short": "Unique postal zip codes represented as numerical values",
+      "long": "This column contains unique US postal ZIP codes stored as integers, ranging from 501 to 99950. Because they are stored as integers, leading zeros are omitted, resulting in values that are 3 to 5 digits long."
+    }
+  }
+}
