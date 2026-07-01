@@ -42,6 +42,14 @@ flag on a `pass` case is a false positive).
   column (NULL sorts first → NULL-driven wrong answer), with near-miss negatives:
   an `IS NOT NULL` / comparison guard, `MAX`/`DESC` (NULLs sort last), a full
   ordered list, and a scalar-`MIN` building-block subquery.
+  **Caveat on the `min(f)`-projection positives:** SQL `MIN` ignores NULLs in
+  aggregation, so `SELECT MIN(price)` is not *objectively* wrong — these positives
+  encode the paper's/spec's claim (issue #139, line 14) that a bare `min(f)` without
+  a `NOT NULL` guard is a hazard, which holds on the BIRD questions where the gold
+  query itself filters `… IS NOT NULL` (NULL = "missing", excluded from the intended
+  answer). The `ORDER BY f ASC LIMIT` positives are the unambiguous wrong-row hazard.
+  So the catch rate over these is against a spec-inherited ground truth, not a claim
+  that every flagged query is objectively wrong SQL.
 - `minmax_subquery.json` — selecting a row by `= (SELECT MIN/MAX(x) …)` where
   `ORDER BY x LIMIT 1` is idiomatic, with near-miss negatives: a *correlated*
   subquery (needs the subquery form), a non-equality comparison, and a plain
