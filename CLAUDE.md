@@ -35,6 +35,7 @@ The pipeline is an instrumented state machine wrapped by a harness that treats i
 - File organization mirrors §3. snake_case modules/functions, PascalCase classes.
 - **Prompts are externalized** as version-controlled Jinja-style templates in `prompts/`. Never inline prompt strings in Python — CI diffs `prompts/`.
 - **Guardrails and the comparator are deterministic.** No LLM calls, no regex for SQL semantics — sqlglot ASTs only.
+- **Profiling metadata (`src/nl2sql/profiling/`, #140) is offline precompute, not a pipeline stage.** The deterministic profiler + mechanical English renderer take no LLM; the LLM *summarization* is run once, offline, and frozen to the version-controlled `profiles/<db>.json` cache (same discipline as `prompts/`). The summarized descriptions are **generate-prompt content only** — they ride into the rendered schema but must **never** be read by `guard.py` or `eval/compare.py`, which stay deterministic and data-independent so scoring is untouched.
 
 ## 5. Domain rules (correctness invariants)
 

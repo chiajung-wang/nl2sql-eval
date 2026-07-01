@@ -180,6 +180,7 @@ Configuration is supplied via environment variables (e.g. an `.env` file).
 | `MODEL` | Override the generator model for eval runs (recorded in `RESULTS.md`); unset → the active `RUN_CONFIG`'s model | No | `openrouter/google/gemini-3.5-flash` |
 | `MAX_TOKENS` | Output-token budget per generate call; unset → 4096 (ample for reasoning models, a no-op ceiling otherwise) | No | `8192` |
 | `SLICE` | Eval slice for `diagnose_bird` / `eval_bird_schema`: unset → the Step-3 dev slice (50); `holdout` → the held-out test slice (100, touch once); `dev-wide` → the wide dev slice (250, tighter sampling noise, #133) | No | `dev-wide` |
+| `METADATA_SOURCE` | Field-description source for the schema index (#140): unset → `supplied` (current behaviour); `profiling` → data-derived only; `fused` → supplied + profiling (the paper's best). Reads the version-controlled `profiles/<db>.json` cache; a db without one degrades to `supplied`. | No | `fused` |
 | `CROSS_PROVIDER_MODELS` | Comma-separated model ids for the Step-7 cross-provider table; unset → the default single model | Step 7 cross-provider run | `openrouter/anthropic/claude-sonnet-4,openrouter/openai/gpt-4o-mini` |
 
 The **model is chosen per run** by the provider-prefixed `model` argument to `run_pipeline` (default `anthropic/claude-sonnet-4-6`); LiteLLM routes to the matching backend and reads the corresponding key above. No separate provider/key env var is needed — the identifier *is* the selector.
@@ -228,6 +229,7 @@ nl2sql-eval/
 │   │   ├── correct.py        #   error / retrieval / soundness feedback loop (capped retries)
 │   │   └── redact.py         #   column-aware PII masking (post-scoring)
 │   ├── schema_index/         # retrievable schema-metadata store
+│   ├── profiling/            # data profiler + mechanical English + offline LLM summary cache (#140)
 │   ├── llm/                  # LiteLLM provider boundary (the LLMClient seam)
 │   └── obs/                  # Langfuse instrumentation helpers (thin seams)
 ├── eval/                     # CENTERPIECE — peer of src/, imports the pipeline
@@ -244,6 +246,7 @@ nl2sql-eval/
 │   ├── golden_compare/       # (gold, candidate, expected_verdict) triples — DELIVERABLE
 │   ├── redteam_guard/        # injected dangerous queries — DELIVERABLE
 │   └── soundness/            # bad-construction (soundness) checks: catch + false-positive rate — DELIVERABLE
+├── profiles/                 # version-controlled field-description cache (per db) — #140
 ├── prompts/                  # version-controlled Jinja-style templates (CI diffs these)
 ├── apps/demo/                # thin Streamlit UI revealing the wrapper (isolated dep group)
 │   ├── runner.py             #   testable core: run_demo → DemoView (no Streamlit)
@@ -279,6 +282,7 @@ uv run pytest tests/test_compare.py tests/test_guard.py
 - **Comparator:** validated against `fixtures/golden_compare/` — `(gold, candidate, expected_verdict)` triples. Add a fixture case for every new comparison edge case. The committed rule set and its **per-rule audit against the official BIRD evaluator** (including the deliberate divergences and the opt-in `BIRD_RULES` for leaderboard parity) live in [`docs/eval/comparator-rule-set.md`](docs/eval/comparator-rule-set.md).
 - **Guardrails:** unit-test green plus a reported catch rate against `fixtures/redteam_guard/`. Add a fixture case for every new dangerous-query pattern.
 - **Soundness checks (#139):** the deterministic bad-construction checks (`src/nl2sql/pipeline/soundness.py`) are measured against `fixtures/soundness/` — a reported **catch rate** and **false-positive rate** over positives + near-miss negatives. Unlike the guard these are *correction signals*, not hard rejects. Add a fixture case for every new soundness pattern.
+- **Profiling (#140):** the deterministic profiler + mechanical English renderer + cache round-trip + metadata-source selector are unit-tested offline (`tests/test_profiling.py`) on an in-memory fixture db and an injected fake LLM client — no key needed. The LLM-summarized descriptions are **prompt content only**; they are never read by the guard or comparator, so scoring stays deterministic.
 - **Payments gold set** (`eval/datasets/payments/questions.json`) carries two distinct, independent flags:
   - `machine_verified` — the agent's claim that `gold_sql` reproduces the stored `gold_result` against the seed. Reproduce it (needs a live, seeded db):
     ```bash

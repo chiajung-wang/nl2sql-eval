@@ -77,11 +77,19 @@ def _tokens(s: str) -> set[str]:
 
 @dataclass(frozen=True)
 class ColumnMeta:
-    """One column's name, declared type, and a few sample values."""
+    """One column's name, declared type, sample values, and optional description.
+
+    ``description`` is the metadata-source gloss (Step 12, #140): supplied,
+    profiling-derived, or fused, chosen when the index is built. It rides into the
+    rendered schema the generator sees — **prompt content only**, never read by the
+    guard or comparator (those stay data-independent). Empty by default (the
+    supplied-only current behaviour, when no metadata is selected).
+    """
 
     name: str
     type: str
     sample_values: tuple[str, ...] = ()
+    description: str = ""
 
 
 @dataclass(frozen=True)
@@ -121,7 +129,13 @@ class TableMeta:
         SQLite and Postgres, and so sample values — which the naive dump lacked —
         ride along with the schema the generator sees.
         """
-        col_lines = [f"  {c.name} {c.type}".rstrip() for c in self.columns]
+        col_lines = []
+        for c in self.columns:
+            # A field description (supplied/profiling/fused, #140) rides as a leading
+            # comment line above the column — prompt content the generator reads. A
+            # leading (not trailing) comment keeps the column commas intact.
+            gloss = f"  -- {c.description}\n" if c.description else ""
+            col_lines.append(gloss + f"  {c.name} {c.type}".rstrip())
         col_lines += [
             f"  FOREIGN KEY ({local}) REFERENCES {referred}"
             for local, referred in self.foreign_keys
@@ -305,17 +319,22 @@ def build_schema_index(
     *,
     sample_values: int = DEFAULT_SAMPLE_VALUES,
     descriptions: dict[str, str] | None = None,
+    column_descriptions: dict[str, str] | None = None,
 ) -> SchemaIndex:
     """Introspect ``engine`` into a :class:`SchemaIndex` (read-only).
 
     Tables and columns come from SQLAlchemy's ``Inspector`` (portable across the
     BIRD/SQLite and payments/Postgres paths); sample values from a bounded SELECT
     per column. ``descriptions`` optionally supplies a short per-table gloss.
+    ``column_descriptions`` is the Step-12 #140 metadata-source selection — per-column
+    glosses keyed ``"table.column"`` (casefolded), already merged for the chosen
+    source (supplied / profiling / fused) — that ride into the rendered schema.
     Tables are sorted by name so the index — and any prompt rendered from it — is
     stable across runs.
     """
     inspector = inspect(engine)
     descriptions = descriptions or {}
+    column_descriptions = column_descriptions or {}
     tables: list[TableMeta] = []
     with engine.connect() as conn:
         for name in sorted(inspector.get_table_names()):
@@ -324,6 +343,9 @@ def build_schema_index(
                     col["name"],
                     str(col.get("type", "")).strip(),
                     _sample_values(conn, name, col["name"], sample_values),
+                    column_descriptions.get(
+                        f"{name.casefold()}.{col['name'].casefold()}", ""
+                    ),
                 )
                 for col in inspector.get_columns(name)
             )
