@@ -178,6 +178,18 @@ def test_agreement_distribution_buckets():
     }
 
 
+def test_agreement_distribution_denominator_excludes_errored():
+    # 2 votable candidates agree, 1 errored: 2 of 2 votable is unanimous — the errored
+    # candidate must not push it toward no_majority (denominator is votable, not all).
+    outcome = majority_vote([_cand([(1,)]), _cand([(1,)]), _cand([], errored=True)])
+    assert outcome.n_votable == 2 and outcome.n_groups == 1
+    assert agreement_distribution([outcome]) == {
+        "unanimous": 1,
+        "majority": 0,
+        "no_majority": 0,
+    }
+
+
 # --- candidate diversity: schema-field-order randomization -------------------
 
 

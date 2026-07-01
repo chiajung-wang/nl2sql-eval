@@ -13,6 +13,12 @@ not change what or where the harness scores. The harness still scores the select
 candidate's **raw verified result** against gold, upstream of redaction — this
 module returns the chosen candidate/index, never a score.
 
+The selector here is a pure function both the harness and the demo can share
+(import-shared, no drift). The k-candidate *generation* loop that feeds it — run the
+pipeline against a :func:`~eval.candidate_diversity.shuffle_field_order` variant per
+candidate, plus a varied live seed — lands with the deferred live twin, since it
+needs live diverse generation.
+
 Determinism (§9 repeatability): candidates are grouped into result-set equivalence
 classes; the largest class wins; a tie (or no majority) is broken **deterministically
 by earliest candidate index**, not randomly (the paper picks randomly — we prefer a
@@ -35,7 +41,9 @@ class Candidate:
 
     ``result`` is the ``{"columns", "rows"}`` mapping the comparator consumes — the
     **raw verified result** (voting never sees redacted rows). ``errored`` marks a
-    candidate whose execution failed: it has no votable result and is excluded."""
+    candidate with no votable result (execution failed / never ran); it is excluded.
+    An **empty** result set is *not* errored — it is a valid, votable distinct result
+    (the comparator treats two empty sets as equivalent)."""
 
     result: ResultLike
     sql: str | None = None
@@ -47,16 +55,18 @@ class VoteOutcome:
     """The selection plus the diagnostics that explain the pass@1→pass@k gap.
 
     ``agreement`` is the size of the winning equivalence class (e.g. 2 of 3);
-    ``n_groups`` is how many distinct result-sets the k candidates produced (1 =
+    ``n_votable`` is how many candidates were votable (non-errored) — the majority
+    denominator; ``n_groups`` is how many distinct result-sets they produced (1 =
     unanimous, k = all different); ``tie`` is whether the deterministic earliest-index
     tiebreak decided it (two classes of equal, largest size). A strong generator whose
-    candidates agree shows ``agreement == k`` and ``n_groups == 1`` — the vote was a
-    no-op, exactly the honest null Step 5 taught to expect.
+    candidates agree shows ``agreement == n_votable`` and ``n_groups == 1`` — the vote
+    was a no-op, exactly the honest null Step 5 taught to expect.
     """
 
     selected_index: int
     agreement: int
     n_candidates: int
+    n_votable: int
     n_groups: int
     tie: bool
 
@@ -69,7 +79,14 @@ _NO_GOLD_SENTINEL = "SELECT 1"
 
 
 def _equivalent(a: ResultLike, b: ResultLike) -> bool:
-    """Whether two candidate result-sets are equivalent, via the comparator."""
+    """Whether two candidate result-sets are equivalent, via the comparator.
+
+    Grouping treats ``compare`` as a **symmetric** relation (candidate vs candidate,
+    neither is gold). That holds under the default canonicalization: the set / order-
+    insensitive / value-normalization rules make ``a≡b`` iff ``b≡a``. A future
+    *asymmetric* rule (one-sided tolerance) would need a symmetric wrapper here; the
+    reuse is intentionally read-only and doesn't touch the comparator's verdict logic.
+    """
     return compare(a, b, _NO_GOLD_SENTINEL).correct
 
 
@@ -91,6 +108,7 @@ def majority_vote(candidates: Sequence[Candidate]) -> VoteOutcome:
             selected_index=0,
             agreement=0,
             n_candidates=len(candidates),
+            n_votable=0,
             n_groups=0,
             tie=False,
         )
@@ -114,6 +132,7 @@ def majority_vote(candidates: Sequence[Candidate]) -> VoteOutcome:
         selected_index=winning[0],
         agreement=top,
         n_candidates=len(candidates),
+        n_votable=len(votable),
         n_groups=len(groups),
         tie=len(winners) > 1,
     )
@@ -124,7 +143,9 @@ def candidate_from_state(state: RunState) -> Candidate:
 
     Uses the **raw verified result** (``result_rows``/``result_columns``), never the
     redacted presented result — voting is upstream of redaction, like scoring. A run
-    that errored or produced no rows is marked ``errored`` (no votable result)."""
+    is marked ``errored`` only when it has **no result at all** (``error`` set or
+    ``result_rows is None``); a run that executed to an *empty* result stays votable
+    (empty is a valid distinct result the comparator can match)."""
     return Candidate(
         result={
             "columns": state.result_columns or [],
@@ -175,9 +196,11 @@ def agreement_distribution(outcomes: Sequence[VoteOutcome]) -> dict[str, int]:
     """
     buckets = {"unanimous": 0, "majority": 0, "no_majority": 0}
     for o in outcomes:
-        if o.n_groups <= 1:
+        # Denominator is the *votable* count, not n_candidates — an errored candidate
+        # is excluded from the vote, so counting it would understate a real majority.
+        if o.n_votable >= 1 and o.n_groups == 1:
             buckets["unanimous"] += 1
-        elif o.agreement * 2 > o.n_candidates:
+        elif o.agreement * 2 > o.n_votable:
             buckets["majority"] += 1
         else:
             buckets["no_majority"] += 1
