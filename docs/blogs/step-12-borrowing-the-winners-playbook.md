@@ -1,11 +1,11 @@
 ---
 title: "Step 12 — Borrowing the Winner's Playbook"
-subtitle: "Step 11 named the frontier — table selection on multi-table joins — and left the method open. The #1 BIRD submission supplies five specific ones. This step imports all five as deterministic machinery, and the striking part is that every one of them plugs into a piece of apparatus we had already built: the retrieval-recall metric, the guardrail shape, the comparator. The accuracy A/Bs are deferred on a key; the machinery and its offline proofs are the deliverable."
+subtitle: "Step 11 named the frontier — table selection on multi-table joins — and left the method open. The #1 BIRD submission supplies five specific ones. This step imports all five as deterministic machinery, and the striking part is that every one of them plugs into a piece of apparatus we had already built: the retrieval-recall metric, the guardrail shape, the comparator. Built as deterministic machinery, proven offline — then run live once a key was authorized, and the verdict came back the same table-selection frontier Step 11 named."
 series: "nl2sql-eval: a case study in evaluating an LLM system"
 part: 12
 date: 2026-07-01
 author: Chia-Jung Wang
-tags: [llm, nl2sql, evaluation, optimization, schema-linking, data-profiling, majority-voting, measurement, deferred-verification]
+tags: [llm, nl2sql, evaluation, optimization, schema-linking, data-profiling, majority-voting, measurement, negative-results, replication]
 ---
 
 # Step 12 — Borrowing the Winner's Playbook
@@ -31,15 +31,17 @@ concrete. It's not "we used a bigger model"; it's a pipeline of specific, mostly
 **deterministic** tricks. This step is a faithful import of that pipeline, one issue per
 lever, filed as Step-12 follow-ups (#138–#142).
 
-One honesty note up front, because it shapes everything below. This project's discipline
-is that **no number ships without a live run behind it**, and the live runs here need an
-API key and spend the project hasn't authorized yet. So Step 12 deliberately ships the
-**machinery and its offline, deterministic proofs** — and *defers* the accuracy A/Bs, each
-one recorded in `RESULTS.md` as pending, gated on a key. That is not a dodge: for four of
-these five levers the deterministic core *is* the hard part and *is* fully provable offline,
-and — per the lesson Steps 5 and 11 kept teaching — several of them may well be honest nulls
-on a strong generator anyway. The finding of this step is the machinery, built correctly and
-proven to do what it claims, ready for the A/B the moment a key exists.
+One process note up front, because it shaped the step. This project's discipline is that
+**no number ships without a live run behind it**. Step 12 was built and merged *before* an
+API key was authorized, so it first shipped as **machinery and offline, deterministic
+proofs**, with every accuracy A/B recorded in `RESULTS.md` as explicitly pending — never a
+fabricated lift. That sequencing was the point: for four of these five levers the
+deterministic core *is* the hard part and *is* fully provable offline, and — per the lesson
+Steps 5 and 11 kept teaching — several were likely honest nulls on a strong generator anyway.
+When the key arrived, the A/Bs ran (below), and the prediction held: the machinery does
+exactly what it claims, and the borrowed playbook moves this slice's strong-model accuracy by
+nothing that clears the noise floor. The deterministic proofs and the live nulls are *both*
+the finding.
 
 ---
 
@@ -61,7 +63,9 @@ trivially testable with a fake generator: 17 offline cases prove the harvest, th
 declaration-order union, that a hallucinated table is dropped, and that an all-empty harvest
 degrades to lexical RAG rather than starving the generator. The review caught one real thing
 — a typo'd strategy name silently ran the baseline, which would misattribute a measured A/B —
-now a hard error. The live linking run is deferred; the mechanism is proven.
+now a hard error. Live (below), the linker did harvest better recall (0.942 → 0.958) — but on a
+strong model with already-high recall, that bought no accuracy; the mechanism works, the headroom
+wasn't there.
 
 ---
 
@@ -125,7 +129,8 @@ embedded *raw values* into descriptions, harmless on public BIRD but a raw-PII l
 payments path — now the profiler is **PII-aware**: a redaction-policy column profiles
 shape-only, never its values. A `METADATA_SOURCE` axis (supplied / profiling / fused) selects
 the source, wired into the eval index-build so it's active in a real run. The three-way A/B is
-the deferred headline; the machinery that would run it is complete and proven.
+the headline A/B — which, run live (below), came back *against* the paper: profiling underperformed
+supplied on this slice.
 
 ---
 
@@ -147,9 +152,10 @@ model call, and it rides the same `correct.py` correction loop the soundness che
 fires **only when confident**: the constrained column was sampled and lacks the literal *while
 another column has it*, so a sampling miss can't spuriously steer. Twenty offline tests prove
 it recovers the paper's `CountyName`→`District` flip and its alias-qualified form, stays silent
-on on-column and unknown literals, and regenerates through the graph. The live trigger /
-recovery / **false-steer** rates are the deferred metric — value with its price, the Step-5
-twin pattern again.
+on on-column and unknown literals, and regenerates through the graph. Live (below), on this slice
+it **triggered zero times** — the strong model produced no off-column literal the sampled index
+caught — so its live contribution was a clean ±0. The mechanism is proven; the slice gave it
+nothing to catch.
 
 ---
 
@@ -175,24 +181,29 @@ exclusion, and — the reuse made explicit — that two results agree under the 
 
 And here the honest-null framing from Step 5 is not a hedge but the *expected* result: a strong
 generator's candidates mostly agree, so the vote is a no-op (+0.000). The `agreement_distribution`
-(unanimous / majority / no-majority) is the diagnostic that would explain the gap; the value, if
-any, lives on the weaker generators — exactly where the self-correction twin found its lift. The
-live strong-vs-weak twin is deferred; the selector is done.
+(unanimous / majority / no-majority) is the diagnostic that explains the gap. Live (below), the
+strong model was unanimous on 32 of 40 questions — the vote a no-op — and recovered exactly one
+(+0.025) from the uncertain remainder; the weak generator was *more* diverse (25 unanimous) yet
+netted +0.000, because its majority wasn't reliably the correct answer. The selector works; the
+disagreements just didn't resolve to accuracy on this slice.
 
 ---
 
-## The scoreboard: machinery shipped, numbers pending — on purpose
+## The scoreboard: machinery shipped, offline-proven — then run
 
-| # | Lever | Reuses | Offline proof | Live A/B |
+The A/Bs were deferred only until a key existed. It does now, so the levers ran live on the
+`accuracy` config (`gemini-3.5-flash`) over the frozen 40-question large-schema slice, and — the
+weak-generator arms — on `kimi-k2.7-code`. Total spend ≈ **$9–10**.
+
+| # | Lever | Reuses | Offline proof | Live result (strong model) |
 |---|---|---|---|---|
-| 138 | task-alignment schema linking | Step-6 recall metric | 17 tests; harvest/union/degrade | deferred |
-| 139 | bad-construction soundness checks | Step-4 guardrail shape | catch 1.000 / FP 0.000 (fixture) | deferred |
-| 140 | profiling-derived metadata | SQLAlchemy executor; PII boundary | 26 tests; recovers paper's examples | deferred |
-| 141 | literal→field steering | value index; `correct.py` loop | 20 tests; recovers County→District | deferred |
-| 142 | result-set majority voting | **Step-2 comparator** | 22 tests; comparator-rule reuse | deferred |
+| 138 | task-alignment schema linking | Step-6 recall metric | 17 tests; harvest/union/degrade | recall **+0.016**, pass@1 **−0.075** |
+| 139 | bad-construction soundness checks | Step-4 guardrail shape | catch 1.000 / FP 0.000 (fixture) | 4 flags / 2 retries, **±0** |
+| 140 | profiling-derived metadata | SQLAlchemy executor; PII boundary | 26 tests; recovers paper's examples | supplied 0.675 → **fused 0.625 → profiling 0.575** |
+| 141 | literal→field steering | value index; `correct.py` loop | 20 tests; recovers County→District | **0 triggers**, ±0 |
+| 142 | result-set majority voting | **Step-2 comparator** | 22 tests; comparator-rule reuse | 0.625 → **0.650** (+0.025); 32/7/1 agreement |
 
-Every "deferred" is a real `RESULTS.md` row that names what's pending and why (no key), not a
-blank. Reproduce any offline proof directly:
+Reproduce any offline proof directly:
 
 ```bash
 uv run pytest tests/test_schema_linking.py tests/test_soundness.py \
@@ -201,11 +212,59 @@ uv run pytest tests/test_schema_linking.py tests/test_soundness.py \
 
 ---
 
+## The verdict: the apparatus adjudicated the borrowed playbook — to nulls
+
+The baseline lexical RAG scored **pass@1 0.675** with retrieval recall 0.942. Against it, over the
+40-question large-schema slice with the strong generator, **not one of the five borrowed levers
+cleared the noise floor** (per-question SE ≈ 0.077):
+
+- **#138 linking** did exactly what the mechanism promised — it *harvested better table coverage*
+  (recall 0.942 → 0.958) — but that bought *nothing*, and cost 0.075 pass@1 and 3× the generations.
+  The strong model already had high recall, so there was no table-selection headroom to capture;
+  the recall-over-precision wider schema just added noise. The paper's lever pays where table
+  selection is the bottleneck, and on this model it isn't.
+- **#139 soundness / #141 literal-steer** fired at low rates and fixed nothing: soundness flagged 4
+  candidates and forced 2 regenerations for a net **±0**; literal-steering **never triggered** (the
+  model produced no off-column literal the sampled index caught). Self-correction fired **zero**
+  retries — no execution errors on the strong model, exactly the Step-5 result, replayed.
+- **#142 voting** is the one with a legible story. The vote-agreement distribution — **32 of 40
+  questions unanimous**, 7 with a majority, 1 with none — *is* the finding: a consistent strong
+  model mostly agrees with itself, so the vote is a no-op, and the small **+0.025** (one recovered)
+  came entirely from the handful of uncertain questions. The honest null Step 5 taught to expect,
+  now quantified by the diagnostic that explains it.
+- **#140 profiling** produced the most interesting result, because it *diverges from the paper*.
+  With all 613 columns of the slice's databases profiled and LLM-summarized live, the three-way
+  came out **supplied 0.675 → fused 0.625 → profiling-only 0.575** — a monotonic *decline* with
+  more injected profiling content, the opposite of the paper's *profiling > supplied* (61.2 > 59.6
+  on GPT-4o/MiniDev). The descriptions are correct and useful (`budget.category` summarized to its
+  exact five-value enum — the paper's enum-exposure thesis, live), but on a strong model the
+  verbose long descriptions *distract and dilute* rather than clarify — the same mechanism Step 11's
+  #112 found when sample-row enrichment hurt. Within ~1 SE, so suggestive not conclusive, but
+  directionally clean and mechanistically plausible.
+
+The weak generator (`kimi-k2.7-code`) didn't rescue any of them: voting stayed **+0.000** (more
+diverse — 25 unanimous vs the strong model's 32 — but its *majority wasn't reliably the correct
+answer*), and soundness went slightly negative (the retries regenerated as many right answers into
+wrong ones as the reverse). Even kimi wrote zero execution errors on this slice, so self-correction
+was inert here too — the malformed-SQL rate the correction loop feeds on is slice-dependent, and
+this large-schema slice doesn't produce it.
+
+The synthesis is the same one Step 11 reached, now stress-tested against a *#1 submission's*
+playbook: this slice's residual failures are a **table/join-selection model-capability frontier**,
+and neither our own deterministic levers nor the borrowed ones move it on a strong model. That is
+not a disappointing result — it is the apparatus doing its job. It adjudicated five imported
+techniques exactly as it adjudicated our own: honestly, mostly to nulls, with the one legible
+positive (voting's +0.025) explained by its own diagnostic rather than asserted.
+
+---
+
 ## What we refused to do
 
-- **Fabricate the accuracy numbers.** The whole series' credibility is that a number names a
-  live run, a slice, and a commit. With no authorized key, the honest move is to ship the
-  machinery and mark every A/B pending — not to invent a lift the apparatus didn't measure.
+- **Fabricate the accuracy numbers — or bury the divergence.** The whole series' credibility is
+  that a number names a live run, a slice, and a commit. Before the key we shipped the machinery
+  and marked every A/B pending; after it, we reported what the runs actually said — including that
+  **profiling *underperformed* supplied metadata on our slice, the opposite of the paper we borrowed
+  it from.** An independent replication that diverges is a result, not an embarrassment to smooth over.
 - **Rebuild the comparator for voting.** Result-set equivalence already exists, proven against
   its golden fixture; voting *reuses* it read-only. A second equivalence implementation would be
   a second source of truth and a place for drift.
@@ -220,16 +279,19 @@ uv run pytest tests/test_schema_linking.py tests/test_soundness.py \
 
 ## What's next
 
-Step 11 found the wall; Step 12 imported the demolition tools and proved they're built
-correctly, deterministically, and to the project's boundaries — then, true to the discipline,
-declined to report a lift it couldn't measure. The one thing standing between this machinery and
-a verdict is an authorized live run: point the profiler at the real BIRD databases, generate the
-cached summaries once, and run the five A/Bs — supplied vs profiling vs fused, linking vs RAG,
-attempt-1 vs majority vote, ± the soundness and steering checks — on both a strong and a weak
-generator, the strong/weak contrast where every lever in this series showed its true shape. The
-apparatus is ready to adjudicate all five the moment the key exists.
+Step 11 found the wall; Step 12 imported the demolition tools, proved they're built correctly and
+to the project's boundaries, and then — when the key arrived — ran them and reported that the wall
+held. Five techniques from a #1 submission, and on a strong model over this slice the best of them
+recovered a single question by luck of an uncertain vote; the paper's headline lever went the wrong
+way. The residual failures remain what Step 11 named them: table and join selection, a
+model-capability frontier that neither our levers nor the winners' move. The next real gain there
+comes from a stronger generator or a fundamentally different grounding approach — and the harness,
+now carrying five more measured levers and their nulls, is ready to adjudicate whatever comes next.
 
 That readiness is the whole point. The measurement was always the product — and this step is the
-cleanest demonstration of why: a paper full of borrowed techniques dropped onto it with almost no
-new scaffolding, because the recall metric, the guardrail, and the comparator were already there,
-waiting to be pointed at a new question.
+cleanest demonstration of why: a paper full of borrowed techniques dropped onto the apparatus with
+almost no new scaffolding, because the recall metric, the guardrail, and the comparator were
+already there; and when they ran, the same apparatus that could have flattered them instead told
+the truth — mostly nulls, one divergence, one small explained positive. A lever that doesn't move
+the number is worth knowing about, and worth saying plainly. That was the discipline the whole
+series was built to keep.

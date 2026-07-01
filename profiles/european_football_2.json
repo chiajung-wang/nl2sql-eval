@@ -1,0 +1,802 @@
+{
+  "db_id": "european_football_2",
+  "generated_by": "profile_summary/v1 · openrouter/google/gemini-3.5-flash",
+  "fields": {
+    "country.id": {
+      "short": "Unique primary key identifier for each country",
+      "long": "A unique integer primary key that identifies each country in the table. Across the 11 records, values are non-null and range non-consecutively from 1 to 24558, making them ideal for table joins."
+    },
+    "country.name": {
+      "short": "Name of the European country",
+      "long": "The unique text name of the European country represented in the database, ranging alphabetically from Belgium to Switzerland. This column contains no null values and consists of 11 distinct country names."
+    },
+    "league.country_id": {
+      "short": "Unique identifier linking the league to its country",
+      "long": "This column serves as a unique foreign key linking each league to its corresponding country. It contains non-null, unique integer values ranging from 1 to 24558, represented as digit strings up to 5 characters long."
+    },
+    "league.id": {
+      "short": "Unique identifier for each football league",
+      "long": "The primary key and unique integer identifier for each football league in the database. Individual IDs range from 1 to 24558 to uniquely represent each league for table joins."
+    },
+    "league.name": {
+      "short": "Name of the European national football league",
+      "long": "The unique, official name of the European football league, ranging from 13 to 24 characters. Examples include 'Belgium Jupiler League' and 'Switzerland Super League'."
+    },
+    "match.away_player_1": {
+      "short": "Unique player identifier for the first starting away player",
+      "long": "The unique integer identifier for the first starting player (typically the goalkeeper) of the away team. It contains player IDs ranging from 2796 to 698273, with approximately 5% of records containing NULLs due to missing lineup data."
+    },
+    "match.away_player_10": {
+      "short": "Player ID of the tenth starting away player",
+      "long": "The unique integer identifier of the tenth starting player in the away team's lineup. This field contains 4- to 6-digit player IDs ranging from 2770 to 722766, with about 6% of matches having missing (NULL) lineup data."
+    },
+    "match.away_player_11": {
+      "short": "Player ID for the away team's eleventh starting player",
+      "long": "Represents the unique player identifier for the eleventh member of the away team's starting lineup. Values are four- to six-digit integers that link to player records, with NULL values indicating missing lineup data."
+    },
+    "match.away_player_2": {
+      "short": "Unique identifier for the second away team player",
+      "long": "An integer identifier referencing the second player in the away team's starting lineup for the match. This column represents a foreign key to a player directory, with values ranging from 2790 to 748432, and is null for approximately 5% of records."
+    },
+    "match.away_player_3": {
+      "short": "Player ID for the away team's third starting lineup position",
+      "long": "An integer identifier referencing the player occupying the third starting position (typically a defender) for the away team in a match. Values are numeric IDs ranging from 2752 to 705484, with approximately 5% of records containing NULL values."
+    },
+    "match.away_player_4": {
+      "short": "Unique identifier for the fourth away team player",
+      "long": "This column stores the unique player ID (referencing the Player table) of the starting player positioned in the fourth slot for the away team. Values are numeric identifiers ranging from 2752 to 728414, with approximately 5% of records containing NULL values."
+    },
+    "match.away_player_5": {
+      "short": "unique identifier for the fifth away-team player",
+      "long": "This column stores the unique player ID (from 4 to 6 digits long) of the fifth player in the away team's starting lineup or match squad. Approximately 5% of the records are NULL, indicating missing lineup details for some matches."
+    },
+    "match.away_player_6": {
+      "short": "Unique player ID for the sixth away-team player",
+      "long": "This column contains the unique integer identifier for the player starting in the 6th position (typically a midfielder or defender) for the away team. Values range from 2625 to 722766, with approximately 5% of records being NULL."
+    },
+    "match.away_player_7": {
+      "short": "Unique player ID for the away team's seventh player",
+      "long": "This column contains the unique database identifier for the player designated is the seventh player in the away team's starting lineup or roster for the match. Values are integers (represented as 4-to-6-digit strings) that reference player profiles, with approximately 5% of rows containing NULL values."
+    },
+    "match.away_player_8": {
+      "short": "Player ID of the eighth starting away-team player",
+      "long": "This column contains the unique integer identifier for the eighth starting player in the away team's lineup. Values are 4-to-6-digit IDs ranging from 2625 to 717248, with approximately 5% of rows being NULL, and can be joined to a player table to retrieve biographical details."
+    },
+    "match.away_player_9": {
+      "short": "Unique player identifier for the ninth away-team starting player",
+      "long": "This column contains the unique integer identifier for the player starting in position 9 for the away team. It ranges from 2625 to 722766, is 4 to 6 digits long, and is NULL for approximately 5% of matches."
+    },
+    "match.away_player_x1": {
+      "short": "Horizontal screen coordinate for the first away team player",
+      "long": "Represents the horizontal grid or formation coordinate (X-axis, ranging from 1 to 6) of the first away team player on the pitch. It is used to plot player positions in tactical lineups, with '1' being the most common value (typically representing the goalkeeper)."
+    },
+    "match.away_player_x10": {
+      "short": "Tactical horizontal pitch coordinate for the tenth starting away player",
+      "long": "Represents the horizontal (X) coordinate of the tenth starting away player's tactical position on the pitch. Values represent lateral field alignments ranging from 1 to 9, with NULL values indicating missing lineup arrangement data."
+    },
+    "match.away_player_x11": {
+      "short": "Pitch X-coordinate of the eleventh away player",
+      "long": "Represents the tactical horizontal (X) coordinate on the pitch for the eleventh away team player in the lineup. Values are integers ranging from 3 to 8, indicating the player's lateral position on the field."
+    },
+    "match.away_player_x2": {
+      "short": "Horizontal coordinate on the tactical pitch for secondary away-team player",
+      "long": "Represents the horizontal (X) tactical grid coordinate, from 1 to 8, of the second listed away-team player on the pitch. This value is used to map player positions in physical or strategic lineups, where most players default to coordinate '2' (often representing a standard defensive line classification)."
+    },
+    "match.away_player_x3": {
+      "short": "Horizontal pitch coordinate of the third away player",
+      "long": "This column represents the tactical X-coordinate (horizontal position on the pitch) for the third away player, ranging from 2 to 9 to map the player's formation position. A value of 4 is highly dominant, and NULL values represent matches where tactical coordinate data is missing."
+    },
+    "match.away_player_x4": {
+      "short": "Horizontal pitch coordinate of the fourth away player",
+      "long": "Represents the horizontal tactical position (X-coordinate, from 1 to 8) on the playfield for the fourth away team player, indicating their lateral alignment in the team's formation."
+    },
+    "match.away_player_x5": {
+      "short": "Horizontal pitch coordinate for the fifth away team player",
+      "long": "The horizontal grid coordinate (X-position) on the pitch for the fifth away-team player, ranging from 1 to 9, representing their tactical position in the starting lineup."
+    },
+    "match.away_player_x6": {
+      "short": "Horizontal tactical coordinate for the sixth away-team player",
+      "long": "Represents the horizontal (X) coordinate on the pitch for the sixth away-team player, indicating their tactical positioning. Values are single-digit integers ranging from 1 to 9, where 4, 2, and 3 are the most common configurations."
+    },
+    "match.away_player_x7": {
+      "short": "Horizontal pitch coordinate for the seventh away team player",
+      "long": "The horizontal (X) tactical coordinate on the pitch for the away team's seventh starting player, ranging from 1 to 9. This value is used to reconstruct match formations and is null (7% of records) when lineup position details are unavailable."
+    },
+    "match.away_player_x8": {
+      "short": "Tactical X-axis coordinate for the eighth away player",
+      "long": "Represents the horizontal (X-axis) pitch coordinate for the eighth away team player, indicating their tactical lineup position on a grid scale from 1 to 9. Approximately 7% of matches have NULL values for this positioning data."
+    },
+    "match.away_player_x9": {
+      "short": "Horizontal pitch position of the ninth away-team player",
+      "long": "Represents the horizontal (X-axis) pitch coordinate for the ninth starting player of the away team, indicating their lateral positioning in the team formation. Values range from 1 to 9 (e.g., from left to right across the field) and may be NULL if tactical formation data is unavailable."
+    },
+    "match.away_player_y1": {
+      "short": "Y-coordinate position on the pitch for the first away-team player",
+      "long": "Represents the tactical vertical position (Y-coordinate axis, ranging from 1 to 3) on the pitch for the first away-team player, typically the goalkeeper. A value of '1' indicates the deepest position, with '3' occurring very rarely, and 7% of matches having missing data."
+    },
+    "match.away_player_y10": {
+      "short": "Tactical Y-coordinate for the tenth away team player",
+      "long": "Represents the vertical (Y) coordinate on a tactical grid for the tenth away team player, indicating their positional lineup depth. Values are integers ranging from 6 to 11, with 10 being the most common, representing a forward or advanced midfield position."
+    },
+    "match.away_player_y11": {
+      "short": "Tactical Y-coordinate for the eleventh away-team player",
+      "long": "Represents the vertical (Y) tactical coordinates on the pitch for the eleventh away-team player, used for plotting line-up formations. Values range from 7 to 11, with 10 and 11 being the most common, indicating forward positions."
+    },
+    "match.away_player_y2": {
+      "short": "y-coordinate grid position for the second away-team player",
+      "long": "Represents the vertical tactical grid position (Y-coordinate) of the second away-team player on the pitch. In this dataset, when populated, it invariably contains the value 3, signifying a fixed positional row."
+    },
+    "match.away_player_y3": {
+      "short": "Y-coordinate position for the third away-team player",
+      "long": "Represents the tactical Y-coordinate (pitch depth) for the away team's third player, ranging from 3 to 7. The value is highly skewed with 3 being the most common, indicating a standard defensive or midfield positioning."
+    },
+    "match.away_player_y4": {
+      "short": "Tactical Y-coordinate for the fourth away team player",
+      "long": "The vertical grid coordinate (Y-axis) representing the tactical pitch position of the fourth away team player in the lineup. Values range from 3 to 7, indicating the player's positioning from defense to midfield."
+    },
+    "match.away_player_y5": {
+      "short": "Y-coordinate position of the fifth away-team player",
+      "long": "Represents the tactical Y-coordinate (pitch depth) for the away team's fifth player, ranging from 3 to 9 with 3 being the most common. A null value indicates the player position was not recorded."
+    },
+    "match.away_player_y6": {
+      "short": "Tactical Y-coordinate grid position of the sixth away-team player",
+      "long": "Represents the tactical Y-coordinate (pitch depth position) of the sixth away-team player on a scale of 3 to 10, where 7 is the most common position. This integer value is used alongside corresponding X-coordinates to map player formations in matches, with approximately 7% of records containing NULL values."
+    },
+    "match.away_player_y7": {
+      "short": "Tactical Y-coordinate grid position of the seventh away player",
+      "long": "Represents the vertical (Y) coordinate on the pitch for the away team's seventh player, indicating their tactical position or line (e.g., midfield or attack). Values are integers ranging from 3 to 10, with 7 and 6 being the most common, and approximately 7% of records are NULL."
+    },
+    "match.away_player_y8": {
+      "short": "Y-coordinate position of the eighth away team player",
+      "long": "Represents the vertical (Y) tactical coordinates on the pitch for the eighth away team player, with values ranging from 3 to 10. The value 7 is by far the most common, indicating a typical tactical positioning, and about 7% of matches have NULL values for this player."
+    },
+    "match.away_player_y9": {
+      "short": "Tactical Y-coordinate on the pitch for away team player 9",
+      "long": "Represents the vertical (Y) coordinate on a tactical grid, ranging from 5 to 11, for the away team's ninth starting position. A value of '7' is the most common, indicating a typical midfield or wing positioning."
+    },
+    "match.away_team_api_id": {
+      "short": "Unique API identifier for the visiting away team",
+      "long": "A unique identifier representing the away football team for each match, formatted as a variable-length digit string ranging from 1601 to 274581. This column contains no null values across all 25,979 matches, featuring 299 distinct team IDs used for joining with team reference tables."
+    },
+    "match.away_team_goal": {
+      "short": "number of goals scored by the away team",
+      "long": "The number of goals scored by the visiting team in a match. This is a non-null integer ranging from 0 to 9, with 1 and 0 being the most common outcomes."
+    },
+    "match.b365a": {
+      "short": "Bet365 decimal betting odds for an away win",
+      "long": "This column contains the decimal betting odds offered by Bet365 for an away team victory (represented by 'A' in the column name), ranging from 1.08 to 51.0. Approximately 13% of the match records contain NULL values."
+    },
+    "match.b365d": {
+      "short": "Bet365 decimal betting odds for a draw outcome",
+      "long": "This column stores the decimal betting odds offered by Bet365 (B365) for a match ending in a draw (D). Values are stored as real numbers ranging from 1.4 to 17.0, with approximately 13% of the matches containing NULL values where odds were not recorded."
+    },
+    "match.b365h": {
+      "short": "Bet365 home win decimal odds",
+      "long": "Decimal odds offered by Bet365 for a home team victory (Home Win). This numeric column ranges from 1.04 to 26.0, with approximately 13% null values."
+    },
+    "match.bsa": {
+      "short": "Betclick home win betting odds",
+      "long": "Decimal betting odds for a home team win (BSA) offered by the bookmaker Betclick, ranging from 1.12 to 34.0. Roughly 45% of the matches in the dataset have NULL values for this column."
+    },
+    "match.bsd": {
+      "short": "",
+      "long": "Column \"BSD\" (declared type REAL). 11818 of 25979 rows are NULL (45%). 59 distinct values. Values are 3–4 characters long, mixed characters. Ranges from \"1.33\" to \"13.0\". Most common: \"3.25\" (1883), \"3.3\" (1761), \"3.4\" (1664), \"3.2\" (1459), \"3.1\" (1015)."
+    },
+    "match.bsh": {
+      "short": "Blue Square bookmaker decimal odds for a home win",
+      "long": "This column represents the decimal betting odds for a home team victory (H) as offered by the bookmaker Blue Square (BS). Values are real numbers ranging from 1.04 to 17.0, with approximately 45% of the matches containing NULL values."
+    },
+    "match.bwa": {
+      "short": "Bet&Win away win betting odds",
+      "long": "Represents the decimal betting odds offered by the bookmaker Bet&Win (Bwin) for an away team victory. Values are numeric decimals stored as REAL, ranging from 1.1 to 51.0, with approximately 13% of matches missing this data."
+    },
+    "match.bwd": {
+      "short": "Bet&Win bookmaker odds for a draw outcome",
+      "long": "Represents the decimal betting odds offered by the bookmaker Bet&Win (Bwin) for a draw (D) outcome in a match. Values range from 1.65 to 19.5, with approximately 13% of the rows containing NULL values."
+    },
+    "match.bwh": {
+      "short": "Bet&Win home win betting odds",
+      "long": "Decimal betting odds for a home team victory (Home Win) offered by the bookmaker Bet&Win (Bwin). Values in this column are decimal multipliers ranging from 1.03 to 34.0, representing the payout ratio for a successful wager."
+    },
+    "match.card": {
+      "short": "XML block containing detailed match booking and card event data",
+      "long": "This column contains structured XML data representing all card events (yellow, red, and second-yellow cards) issued during a football match. Each XML block contains individual '<value>' elements detailing the booking, including the elapsed minute, card type, player ID, team ID, and incident type. When no bookings occur, the column contains an empty tag '<card />' or NULL."
+    },
+    "match.corner": {
+      "short": "XML structured data documenting match corner kick events",
+      "long": "This column contains XML-formatted text detail of all corner kicks taken during a match, documenting event-level attributes such as the execution time (elapsed and injury-time minutes), coordinate locations, delivery subtype (e.g., cross, short, left/right), the player ID, and the taking team ID. Matches without recorded corner event details are represented as NULL or empty tags ('<corner />')."
+    },
+    "match.country_id": {
+      "short": "Foreign key identifying the country where the match occurred",
+      "long": "An integer identifier referencing the country associated with the match. It contains no null values across 25,979 records, spanning 11 unique ID values ranging from 1 to 24558."
+    },
+    "match.cross": {
+      "short": "XML log of cross-related events during a match",
+      "long": "An XML-formatted chronological record of cross-related events occurring during the match, such as open-play crosses, corners, and throw-ins. Each nested event details the elapsed minute (and any stoppage time), player and team IDs, event coordinates, and incident type keys; the value defaults to '<cross />' or NULL when no such events are recorded."
+    },
+    "match.date": {
+      "short": "Date and time of the match",
+      "long": "The date and time when the match was played, stored as a 19-character text string in 'YYYY-MM-DD HH:MM:SS' format. Values range from '2008-07-18 00:00:00' to '2016-05-25 00:00:00', with the time portion typically defaulted to midnight."
+    },
+    "match.foulcommit": {
+      "short": "",
+      "long": "Column \"foulcommit\" (declared type TEXT). 11762 of 25979 rows are NULL (45%). 8466 distinct values. Values are 3098–11874 characters long, mixed characters, always beginning with \"<foulcommit><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>\". Ranges from \"<foulcommit />\" to \"<foulcommit><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><elapsed>9</elapsed><player2>78324</player2><subtype>trip</subtype><player1>25075</player1><sortorder>2</sortorder><team>8472</team><n>232</n><type>foulcommit</type><id>2735581</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><elapsed>11</elapsed><player2>78324</player2><subtype>pushing</subtype><player1>111801</player1><sortorder>0</sortorder><team>8472</team><n>184</n><type>foulcommit</type><id>2735582</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><elapsed>13</elapsed><player2>23264</player2><subtype>pushing</subtype><player1>24150</player1><sortorder>0</sortorder><team>8472</team><n>226</n><type>foulcommit</type><id>2735584</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><elapsed>4</elapsed><player2>36786</player2><subtype>trip</subtype><player1>148315</player1><sortorder>1</sortorder><team>10252</team><n>227</n><type>foulcommit</type><id>2735593</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><elapsed>19</elapsed><player2>148315</player2><subtype>pushing</subtype><player1>111801</player1><sortorder>2</sortorder><team>8472</team><n>187</n><type>foulcommit</type><id>2735597</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><elapsed>20</elapsed><player2>35443</player2><subtype>pushing</subtype><player1>30602</player1><sortorder>1</sortorder><team>10252</team><n>252</n><type>foulcommit</type><id>2735599</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><elapsed>22</elapsed><player2>46353</player2><subtype>trip</subtype><player1>23264</player1><sortorder>0</sortorder><team>10252</team><n>210</n><type>foulcommit</type><id>2735603</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><elapsed>25</elapsed><player2>24159</player2><subtype>trip</subtype><player1>156007</player1><sortorder>0</sortorder><team>10252</team><n>188</n><type>foulcommit</type><id>2735610</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>19</event_incident_typefk><elapsed>29</elapsed><player2>33468</player2><subtype>from_behind</subtype><player1>30602</player1><sortorder>0</sortorder><team>10252</team><n>262</n><type>foulcommit</type><id>2735618</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>19</event_incident_typefk><elapsed>34</elapsed><player2>148315</player2><subtype>from_behind</subtype><player1>33863</player1><sortorder>0</sortorder><team>8472</team><n>238</n><type>foulcommit</type><id>2735626</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><elapsed>45</elapsed><player2>69650</player2><subtype>pushing</subtype><player1>38759</player1><sortorder>1</sortorder><team>8472</team><n>217</n><type>foulcommit</type><id>2735654</id></value><value><stats><foulscommitted>1</foulscommitted></stats><elapsed_plus>1</elapsed_plus><event_incident_typefk>730</event_incident_typefk><elapsed>45</elapsed><player2>24159</player2><subtype>trip</subtype><player1>139673</player1><sortorder>1</sortorder><team>10252</team><n>222</n><type>foulcommit</type><id>2735656</id></value><value><stats><foulscommitted>1</foulscommitted></stats><elapsed_plus>3</elapsed_plus><event_incident_typefk>730</event_incident_typefk><elapsed>45</elapsed><player2>182223</player2><subtype>trip</subtype><player1>111801</player1><sortorder>0</sortorder><team>8472</team><n>216</n><type>foulcommit</type><id>2735660</id></value><value><stats><foulscommitted>1</foulscommitted></stats><elapsed_plus>3</elapsed_plus><event_incident_typefk>728</event_incident_typefk><elapsed>45</elapsed><player2>24150</player2><subtype>pull</subtype><player1>139673</player1><sortorder>2</sortorder><team>10252</team><n>219</n><type>foulcommit</type><id>2735662</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><elapsed>50</elapsed><player2>183715</player2><subtype>trip</subtype><player1>111801</player1><sortorder>0</sortorder><team>8472</team><n>269</n><type>foulcommit</type><id>2735671</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>728</event_incident_typefk><elapsed>52</elapsed><player2>46353</player2><subtype>pull</subtype><player1>179793</player1><sortorder>0</sortorder><team>10252</team><n>224</n><type>foulcommit</type><id>2735678</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><elapsed>57</elapsed><player2>46353</player2><subtype>trip</subtype><player1>148315</player1><sortorder>0</sortorder><team>10252</team><n>218</n><type>foulcommit</type><id>2735682</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>19</event_incident_typefk><elapsed>67</elapsed><player2>184360</player2><subtype>from_behind</subtype><player1>46353</player1><sortorder>0</sortorder><team>8472</team><n>196</n><type>foulcommit</type><id>2735702</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>5</event_incident_typefk><elapsed>70</elapsed><player2>179793</player2><subtype>serious_foul</subtype><player1>33468</player1><sortorder>1</sortorder><team>8472</team><n>245</n><type>foulcommit</type><id>2735709</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><elapsed>74</elapsed><player2>148315</player2><subtype>trip</subtype><player1>36786</player1><sortorder>0</sortorder><team>8472</team><n>274</n><type>foulcommit</type><id>2735713</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>19</event_incident_typefk><elapsed>76</elapsed><player2>148315</player2><subtype>from_behind</subtype><player1>36786</player1><sortorder>0</sortorder><team>8472</team><n>267</n><type>foulcommit</type><id>2735719</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><elapsed>78</elapsed><player2>23264</player2><subtype>trip</subtype><player1>25075</player1><sortorder>0</sortorder><team>8472</team><n>195</n><type>foulcommit</type><id>2735724</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><elapsed>78</elapsed><player2>46353</player2><subtype>trip</subtype><player1>23264</player1><sortorder>1</sortorder><team>10252</team><n>276</n><type>foulcommit</type><id>2735725</id></value></foulcommit>\". Most common: \"<foulcommit />\" (5752), \"<foulcommit>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>3</event_incident_typefk>\n\t\t\t<elapsed>3</elapsed>\n\t\t\t<subtype>hands</subtype>\n\t\t\t<player1>75489</player1>\n\t\t\t<sortorder>0</sortorder>\n\t\t\t<team>9825</team>\n\t\t\t<n>217</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110051</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>646</event_incident_typefk>\n\t\t\t<elapsed>7</elapsed>\n\t\t\t<subtype>dangerous_play</subtype>\n\t\t\t<player1>40636</player1>\n\t\t\t<sortorder>0</sortorder>\n\t\t\t<team>8650</team>\n\t\t\t<n>223</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110094</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>320</event_incident_typefk>\n\t\t\t<elapsed>14</elapsed>\n\t\t\t<player2>40636</player2>\n\t\t\t<subtype>pushing</subtype>\n\t\t\t<player1>78513</player1>\n\t\t\t<sortorder>0</sortorder>\n\t\t\t<team>9825</team>\n\t\t\t<n>226</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110162</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>320</event_incident_typefk>\n\t\t\t<elapsed>16</elapsed>\n\t\t\t<player2>31435</player2>\n\t\t\t<subtype>pushing</subtype>\n\t\t\t<player1>30831</player1>\n\t\t\t<sortorder>1</sortorder>\n\t\t\t<team>8650</team>\n\t\t\t<n>230</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110187</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>37</event_incident_typefk>\n\t\t\t<elapsed>25</elapsed>\n\t\t\t<player2>46469</player2>\n\t\t\t<player1>95327</player1>\n\t\t\t<sortorder>0</sortorder>\n\t\t\t<team>8650</team>\n\t\t\t<n>241</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110259</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>728</event_incident_typefk>\n\t\t\t<elapsed>25</elapsed>\n\t\t\t<player2>40636</player2>\n\t\t\t<subtype>pull</subtype>\n\t\t\t<player1>26111</player1>\n\t\t\t<sortorder>4</sortorder>\n\t\t\t<team>9825</team>\n\t\t\t<n>240</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110265</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>647</event_incident_typefk>\n\t\t\t<elapsed>29</elapsed>\n\t\t\t<player2>26111</player2>\n\t\t\t<subtype>dangerous_play</subtype>\n\t\t\t<player1>93484</player1>\n\t\t\t<sortorder>0</sortorder>\n\t\t\t<team>8650</team>\n\t\t\t<n>244</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110275</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>646</event_incident_typefk>\n\t\t\t<elapsed>30</elapsed>\n\t\t\t<subtype>dangerous_play</subtype>\n\t\t\t<player1>46469</player1>\n\t\t\t<sortorder>0</sortorder>\n\t\t\t<team>9825</team>\n\t\t\t<n>249</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110284</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>728</event_incident_typefk>\n\t\t\t<elapsed>34</elapsed>\n\t\t\t<player2>93484</player2>\n\t\t\t<subtype>pull</subtype>\n\t\t\t<player1>36378</player1>\n\t\t\t<sortorder>2</sortorder>\n\t\t\t<team>9825</team>\n\t\t\t<n>252</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110308</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>728</event_incident_typefk>\n\t\t\t<elapsed>59</elapsed>\n\t\t\t<player2>26111</player2>\n\t\t\t<subtype>pull</subtype>\n\t\t\t<player1>184536</player1>\n\t\t\t<sortorder>0</sortorder>\n\t\t\t<team>8650</team>\n\t\t\t<n>267</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110492</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>37</event_incident_typefk>\n\t\t\t<elapsed>66</elapsed>\n\t\t\t<player2>156008</player2>\n\t\t\t<player1>31435</player1>\n\t\t\t<sortorder>0</sortorder>\n\t\t\t<team>9825</team>\n\t\t\t<n>283</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110528</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>43</event_incident_typefk>\n\t\t\t<elapsed>67</elapsed>\n\t\t\t<player1>95327</player1>\n\t\t\t<sortorder>1</sortorder>\n\t\t\t<team>8650</team>\n\t\t\t<n>273</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110547</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>320</event_incident_typefk>\n\t\t\t<elapsed>73</elapsed>\n\t\t\t<player2>106228</player2>\n\t\t\t<subtype>pushing</subtype>\n\t\t\t<player1>78513</player1>\n\t\t\t<sortorder>0</sortorder>\n\t\t\t<team>9825</team>\n\t\t\t<n>276</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110554</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<event_incident_typefk>725</event_incident_typefk>\n\t\t\t<elapsed>89</elapsed>\n\t\t\t<subtype>trip</subtype>\n\t\t\t<player1>36378</player1>\n\t\t\t<sortorder>0</sortorder>\n\t\t\t<team>9825</team>\n\t\t\t<n>299</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110620</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<elapsed_plus>1</elapsed_plus>\n\t\t\t<event_incident_typefk>728</event_incident_typefk>\n\t\t\t<elapsed>90</elapsed>\n\t\t\t<player2>106228</player2>\n\t\t\t<subtype>pull</subtype>\n\t\t\t<player1>214685</player1>\n\t\t\t<sortorder>4</sortorder>\n\t\t\t<team>9825</team>\n\t\t\t<n>304</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110625</id>\n\t\t</value>\n\t\t<value>\n\t\t\t<stats>\n\t\t\t\t<foulscommitted>1</foulscommitted>\n\t\t\t</stats>\n\t\t\t<elapsed_plus>3</elapsed_plus>\n\t\t\t<event_incident_typefk>43</event_incident_typefk>\n\t\t\t<elapsed>90</elapsed>\n\t\t\t<player1>30618</player1>\n\t\t\t<sortorder>7</sortorder>\n\t\t\t<team>8650</team>\n\t\t\t<n>303</n>\n\t\t\t<type>foulcommit</type>\n\t\t\t<id>3110630</id>\n\t\t</value>\n\t</foulcommit>\n\t\" (1), \"<foulcommit><value><event_incident_typefk>162</event_incident_typefk><coordinates><value>30</value><value>63</value></coordinates><elapsed>1</elapsed><subtype>diving</subtype><player1>215927</player1><sortorder>3</sortorder><team>9864</team><n>13</n><type>foulcommit</type><id>5136892</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>11</value><value>21</value></coordinates><elapsed>4</elapsed><player2>112758</player2><subtype>trip</subtype><player1>70949</player1><sortorder>1</sortorder><team>8581</team><n>22</n><type>foulcommit</type><id>5136903</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>17</value><value>17</value></coordinates><elapsed>8</elapsed><player2>238841</player2><subtype>trip</subtype><player1>513086</player1><sortorder>1</sortorder><team>8581</team><n>27</n><type>foulcommit</type><id>5136924</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>24</value><value>32</value></coordinates><elapsed>16</elapsed><player2>238841</player2><subtype>trip</subtype><player1>105351</player1><sortorder>0</sortorder><team>8581</team><n>62</n><type>foulcommit</type><id>5136963</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>30</value><value>23</value></coordinates><elapsed>17</elapsed><player2>683450</player2><subtype>trip</subtype><player1>303088</player1><sortorder>0</sortorder><team>8581</team><n>65</n><type>foulcommit</type><id>5136966</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>41</value><value>53</value></coordinates><elapsed>20</elapsed><player2>303088</player2><subtype>trip</subtype><player1>215927</player1><sortorder>2</sortorder><team>9864</team><n>84</n><type>foulcommit</type><id>5136989</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>13</value><value>37</value></coordinates><elapsed>21</elapsed><player2>238841</player2><subtype>trip</subtype><player1>105351</player1><sortorder>0</sortorder><team>8581</team><n>87</n><type>foulcommit</type><id>5136994</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>11</value><value>16</value></coordinates><elapsed>23</elapsed><player2>303088</player2><subtype>trip</subtype><player1>41707</player1><sortorder>0</sortorder><team>9864</team><n>94</n><type>foulcommit</type><id>5137004</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>728</event_incident_typefk><coordinates><value>14</value><value>32</value></coordinates><elapsed>25</elapsed><player2>105351</player2><subtype>pull</subtype><player1>112758</player1><sortorder>0</sortorder><team>9864</team><n>105</n><type>foulcommit</type><id>5137013</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>9</value><value>30</value></coordinates><elapsed>26</elapsed><player2>105351</player2><subtype>trip</subtype><player1>46120</player1><sortorder>0</sortorder><team>9864</team><n>106</n><type>foulcommit</type><id>5137016</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>9</value><value>26</value></coordinates><elapsed>27</elapsed><player2>37484</player2><subtype>pushing</subtype><player1>213653</player1><sortorder>0</sortorder><team>9864</team><n>110</n><type>foulcommit</type><id>5137024</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>37</value><value>60</value></coordinates><elapsed>28</elapsed><player2>37597</player2><subtype>pushing</subtype><player1>683450</player1><sortorder>0</sortorder><team>9864</team><n>113</n><type>foulcommit</type><id>5137029</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>34</value><value>13</value></coordinates><elapsed>33</elapsed><player2>215927</player2><subtype>trip</subtype><player1>303088</player1><sortorder>4</sortorder><team>8581</team><n>142</n><type>foulcommit</type><id>5137063</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>647</event_incident_typefk><coordinates><value>35</value><value>29</value></coordinates><elapsed>35</elapsed><player2>104382</player2><subtype>dangerous_play</subtype><player1>303088</player1><sortorder>0</sortorder><team>8581</team><n>151</n><type>foulcommit</type><id>5137074</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>32</value><value>22</value></coordinates><elapsed>39</elapsed><player2>683450</player2><subtype>pushing</subtype><player1>303088</player1><sortorder>2</sortorder><team>8581</team><n>174</n><type>foulcommit</type><id>5137096</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>38</value><value>32</value></coordinates><elapsed>41</elapsed><player2>46120</player2><subtype>trip</subtype><player1>37597</player1><sortorder>1</sortorder><team>8581</team><n>178</n><type>foulcommit</type><id>5137105</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>16</value><value>29</value></coordinates><elapsed>45</elapsed><player2>105351</player2><subtype>trip</subtype><player1>112758</player1><sortorder>0</sortorder><team>9864</team><n>205</n><type>foulcommit</type><id>5137123</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>9</value><value>24</value></coordinates><elapsed>50</elapsed><player2>46120</player2><subtype>pushing</subtype><player1>70949</player1><sortorder>1</sortorder><team>8581</team><n>231</n><type>foulcommit</type><id>5137159</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>647</event_incident_typefk><coordinates><value>28</value><value>3</value></coordinates><elapsed>53</elapsed><player2>25563</player2><subtype>dangerous_play</subtype><player1>301809</player1><sortorder>0</sortorder><team>8581</team><n>246</n><type>foulcommit</type><id>5137178</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>42</value><value>10</value></coordinates><elapsed>55</elapsed><player2>37597</player2><subtype>trip</subtype><player1>215927</player1><sortorder>0</sortorder><team>9864</team><n>260</n><type>foulcommit</type><id>5137193</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>26</value><value>34</value></coordinates><elapsed>58</elapsed><player2>105351</player2><subtype>trip</subtype><player1>238841</player1><sortorder>0</sortorder><team>9864</team><n>268</n><type>foulcommit</type><id>5137208</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>40</value><value>45</value></coordinates><elapsed>61</elapsed><player2>75445</player2><subtype>trip</subtype><player1>364244</player1><sortorder>0</sortorder><team>8581</team><n>273</n><type>foulcommit</type><id>5137215</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>44</value><value>19</value></coordinates><elapsed>69</elapsed><player2>573463</player2><subtype>trip</subtype><player1>37597</player1><sortorder>1</sortorder><team>8581</team><n>327</n><type>foulcommit</type><id>5137268</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>728</event_incident_typefk><coordinates><value>31</value><value>43</value></coordinates><elapsed>72</elapsed><player2>238841</player2><subtype>pull</subtype><player1>466672</player1><sortorder>1</sortorder><team>8581</team><n>349</n><type>foulcommit</type><id>5137291</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>728</event_incident_typefk><coordinates><value>20</value><value>57</value></coordinates><elapsed>77</elapsed><player2>46120</player2><subtype>pull</subtype><player1>30276</player1><sortorder>3</sortorder><team>8581</team><n>391</n><type>foulcommit</type><id>5137325</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>17</value><value>27</value></coordinates><elapsed>84</elapsed><player2>513086</player2><subtype>trip</subtype><player1>37450</player1><sortorder>0</sortorder><team>9864</team><n>407</n><type>foulcommit</type><id>5137348</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>9</value><value>20</value></coordinates><elapsed>85</elapsed><player2>46120</player2><subtype>pushing</subtype><player1>30276</player1><sortorder>2</sortorder><team>8581</team><n>417</n><type>foulcommit</type><id>5137352</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>19</event_incident_typefk><coordinates><value>39</value><value>26</value></coordinates><elapsed>87</elapsed><player2>46120</player2><subtype>from_behind</subtype><player1>37597</player1><sortorder>0</sortorder><team>8581</team><n>425</n><type>foulcommit</type><id>5137359</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>42</value><value>61</value></coordinates><elapsed>88</elapsed><player2>46120</player2><subtype>trip</subtype><player1>364244</player1><sortorder>0</sortorder><team>8581</team><n>428</n><type>foulcommit</type><id>5137362</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>24</value><value>27</value></coordinates><elapsed>89</elapsed><player2>37484</player2><subtype>pushing</subtype><player1>573463</player1><sortorder>4</sortorder><team>9864</team><n>442</n><type>foulcommit</type><id>5137373</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>2</value><value>20</value></coordinates><elapsed>90</elapsed><player2>46120</player2><subtype>pushing</subtype><player1>70949</player1><sortorder>0</sortorder><team>8581</team><n>444</n><type>foulcommit</type><id>5137375</id></value><value><stats><foulscommitted>1</foulscommitted></stats><elapsed_plus>2</elapsed_plus><event_incident_typefk>320</event_incident_typefk><coordinates><value>30</value><value>31</value></coordinates><elapsed>90</elapsed><player2>238841</player2><subtype>pushing</subtype><player1>476769</player1><sortorder>6</sortorder><team>8581</team><n>457</n><type>foulcommit</type><id>5137386</id></value><value><stats><foulscommitted>1</foulscommitted></stats><elapsed_plus>3</elapsed_plus><event_incident_typefk>320</event_incident_typefk><coordinates><value>5</value><value>55</value></coordinates><elapsed>90</elapsed><player2>213653</player2><subtype>pushing</subtype><player1>70949</player1><sortorder>7</sortorder><team>8581</team><n>454</n><type>foulcommit</type><id>5137390</id></value></foulcommit>\" (1), \"<foulcommit><value><event_incident_typefk>162</event_incident_typefk><coordinates><value>4</value><value>7</value></coordinates><elapsed>8</elapsed><subtype>diving</subtype><player1>30893</player1><sortorder>0</sortorder><team>8633</team><n>85</n><type>foulcommit</type><id>5281157</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>647</event_incident_typefk><coordinates><value>28</value><value>43</value></coordinates><elapsed>13</elapsed><player2>26166</player2><subtype>dangerous_play</subtype><player1>150323</player1><sortorder>4</sortorder><team>8315</team><n>158</n><type>foulcommit</type><id>5281315</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>5</event_incident_typefk><coordinates><value>6</value><value>10</value></coordinates><elapsed>15</elapsed><player2>30893</player2><subtype>serious_foul</subtype><player1>159881</player1><sortorder>0</sortorder><team>8315</team><n>169</n><type>foulcommit</type><id>5281351</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>647</event_incident_typefk><coordinates><value>25</value><value>44</value></coordinates><elapsed>16</elapsed><player2>33028</player2><subtype>dangerous_play</subtype><player1>230982</player1><sortorder>1</sortorder><team>8633</team><n>200</n><type>foulcommit</type><id>5281405</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>10</value><value>3</value></coordinates><elapsed>23</elapsed><player2>181297</player2><player1>282674</player1><sortorder>2</sortorder><team>8633</team><n>263</n><type>foulcommit</type><id>5281561</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>9</value><value>40</value></coordinates><elapsed>27</elapsed><player2>30893</player2><player1>181297</player1><sortorder>1</sortorder><team>8315</team><n>308</n><type>foulcommit</type><id>5281641</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>44</value><value>17</value></coordinates><elapsed>43</elapsed><player2>164684</player2><subtype>trip</subtype><player1>154938</player1><sortorder>0</sortorder><team>8315</team><n>482</n><type>foulcommit</type><id>5282128</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>18</value><value>43</value></coordinates><elapsed>47</elapsed><player2>45749</player2><player1>30962</player1><sortorder>0</sortorder><team>8633</team><n>501</n><type>foulcommit</type><id>5282553</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>12</value><value>12</value></coordinates><elapsed>52</elapsed><player2>26166</player2><subtype>trip</subtype><player1>181297</player1><sortorder>0</sortorder><team>8315</team><n>534</n><type>foulcommit</type><id>5282676</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>647</event_incident_typefk><coordinates><value>22</value><value>65</value></coordinates><elapsed>66</elapsed><player2>208077</player2><subtype>dangerous_play</subtype><player1>38540</player1><sortorder>1</sortorder><team>8315</team><n>600</n><type>foulcommit</type><id>5283081</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>43</event_incident_typefk><coordinates><value>21</value><value>44</value></coordinates><elapsed>71</elapsed><player1>31097</player1><sortorder>0</sortorder><team>8633</team><n>654</n><type>foulcommit</type><id>5283170</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>19</event_incident_typefk><coordinates><value>20</value><value>39</value></coordinates><elapsed>71</elapsed><player2>179772</player2><subtype>from_behind</subtype><player1>31097</player1><sortorder>4</sortorder><team>8633</team><n>687</n><type>foulcommit</type><id>5283182</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>647</event_incident_typefk><coordinates><value>27</value><value>44</value></coordinates><elapsed>83</elapsed><player2>33028</player2><subtype>dangerous_play</subtype><player1>230982</player1><sortorder>1</sortorder><team>8633</team><n>805</n><type>foulcommit</type><id>5283397</id></value><value><stats><foulscommitted>1</foulscommitted></stats><elapsed_plus>2</elapsed_plus><event_incident_typefk>19</event_incident_typefk><coordinates><value>35</value><value>68</value></coordinates><elapsed>90</elapsed><player2>213499</player2><subtype>from_behind</subtype><player1>102623</player1><sortorder>9</sortorder><team>8315</team><n>906</n><type>foulcommit</type><id>5283601</id></value></foulcommit>\" (1), \"<foulcommit><value><event_incident_typefk>162</event_incident_typefk><coordinates><value>7</value><value>61</value></coordinates><elapsed>4</elapsed><subtype>diving</subtype><player1>214426</player1><sortorder>0</sortorder><team>8191</team><n>6</n><type>foulcommit</type><id>3714739</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>7</value><value>8</value></coordinates><elapsed>25</elapsed><player2>23134</player2><subtype>pushing</subtype><player1>363340</player1><sortorder>0</sortorder><team>9826</team><n>201</n><type>foulcommit</type><id>3715166</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>3</value><value>28</value></coordinates><elapsed>32</elapsed><player2>146830</player2><player1>37240</player1><sortorder>0</sortorder><team>8191</team><n>211</n><type>foulcommit</type><id>3715298</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>647</event_incident_typefk><coordinates><value>16</value><value>3</value></coordinates><elapsed>33</elapsed><player2>191869</player2><subtype>dangerous_play</subtype><player1>363340</player1><sortorder>1</sortorder><team>9826</team><n>212</n><type>foulcommit</type><id>3715314</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>6</value><value>30</value></coordinates><elapsed>36</elapsed><player2>43252</player2><subtype>pushing</subtype><player1>24157</player1><sortorder>1</sortorder><team>9826</team><n>214</n><type>foulcommit</type><id>3715394</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>36</value><value>38</value></coordinates><elapsed>39</elapsed><player2>23837</player2><player1>32304</player1><sortorder>0</sortorder><team>8191</team><n>215</n><type>foulcommit</type><id>3715453</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>18</value><value>46</value></coordinates><elapsed>43</elapsed><player2>23837</player2><player1>181242</player1><sortorder>0</sortorder><team>8191</team><n>216</n><type>foulcommit</type><id>3715541</id></value><value><stats><foulscommitted>1</foulscommitted></stats><elapsed_plus>3</elapsed_plus><event_incident_typefk>37</event_incident_typefk><coordinates><value>5</value><value>14</value></coordinates><elapsed>45</elapsed><player2>23134</player2><player1>198510</player1><sortorder>4</sortorder><team>9826</team><n>219</n><type>foulcommit</type><id>3715660</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>15</value><value>18</value></coordinates><elapsed>39</elapsed><player2>37240</player2><player1>146830</player1><sortorder>0</sortorder><team>9826</team><n>220</n><type>foulcommit</type><id>3715676</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>19</value><value>9</value></coordinates><elapsed>8</elapsed><player2>34437</player2><subtype>pushing</subtype><player1>8985</player1><sortorder>4</sortorder><team>9826</team><n>221</n><type>foulcommit</type><id>3715718</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>647</event_incident_typefk><coordinates><value>36</value><value>27</value></coordinates><elapsed>50</elapsed><player2>35345</player2><subtype>dangerous_play</subtype><player1>240538</player1><sortorder>0</sortorder><team>8191</team><n>225</n><type>foulcommit</type><id>3716024</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>19</event_incident_typefk><coordinates><value>24</value><value>37</value></coordinates><elapsed>53</elapsed><player2>28901</player2><subtype>from_behind</subtype><player1>181242</player1><sortorder>0</sortorder><team>8191</team><n>230</n><type>foulcommit</type><id>3716108</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>37</value><value>42</value></coordinates><elapsed>56</elapsed><player2>35345</player2><player1>25415</player1><sortorder>1</sortorder><team>8191</team><n>233</n><type>foulcommit</type><id>3716189</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>41</value><value>43</value></coordinates><elapsed>58</elapsed><player2>23358</player2><player1>32304</player1><sortorder>1</sortorder><team>8191</team><n>236</n><type>foulcommit</type><id>3716257</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>728</event_incident_typefk><coordinates><value>3</value><value>60</value></coordinates><elapsed>59</elapsed><player2>146830</player2><subtype>pull</subtype><player1>37240</player1><sortorder>4</sortorder><team>8191</team><n>239</n><type>foulcommit</type><id>3716286</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><elapsed>62</elapsed><subtype>pushing</subtype><del>1</del><sortorder>0</sortorder><n>240</n><type>foulcommit</type><id>3716368</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>728</event_incident_typefk><coordinates><value>26</value><value>49</value></coordinates><elapsed>73</elapsed><player2>27568</player2><subtype>pull</subtype><player1>23837</player1><sortorder>0</sortorder><team>9826</team><n>250</n><type>foulcommit</type><id>3716580</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>730</event_incident_typefk><coordinates><value>30</value><value>45</value></coordinates><elapsed>75</elapsed><player2>240538</player2><subtype>trip</subtype><player1>35345</player1><sortorder>5</sortorder><team>9826</team><n>251</n><type>foulcommit</type><id>3716628</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>20</value><value>33</value></coordinates><elapsed>80</elapsed><player2>37240</player2><player1>8985</player1><sortorder>0</sortorder><team>9826</team><n>256</n><type>foulcommit</type><id>3716718</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><elapsed>81</elapsed><del>1</del><sortorder>1</sortorder><n>258</n><type>foulcommit</type><id>3716754</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>37</event_incident_typefk><coordinates><value>32</value><value>47</value></coordinates><elapsed>84</elapsed><player2>32304</player2><player1>8985</player1><sortorder>0</sortorder><team>9826</team><n>260</n><type>foulcommit</type><id>3716812</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>118</event_incident_typefk><coordinates><value>18</value><value>66</value></coordinates><elapsed>85</elapsed><player2>27568</player2><subtype>penalty</subtype><player1>8985</player1><sortorder>1</sortorder><team>9826</team><n>263</n><type>foulcommit</type><id>3716837</id></value><value><stats><foulscommitted>1</foulscommitted></stats><event_incident_typefk>320</event_incident_typefk><coordinates><value>12</value><value>51</value></coordinates><elapsed>89</elapsed><player2>27568</player2><subtype>pushing</subtype><player1>8985</player1><sortorder>0</sortorder><team>9826</team><n>266</n><type>foulcommit</type><id>3716910</id></value><value><stats><foulscommitted>1</foulscommitted></stats><elapsed_plus>2</elapsed_plus><event_incident_typefk>728</event_incident_typefk><coordinates><value>38</value><value>34</value></coordinates><elapsed>90</elapsed><player2>35345</player2><subtype>pull</subtype><player1>32304</player1><sortorder>3</sortorder><team>8191</team><n>269</n><type>foulcommit</type><id>3716979</id></value></foulcommit>\" (1)."
+    },
+    "match.gba": {
+      "short": "Gamebookers away win betting odds",
+      "long": "Decimal betting odds for an away team win (A) provided by Gamebookers (GB). Values are stored as real numbers ranging from 1.12 to 34.0, representing the payout ratio, with approximately 45% of the matches lacking this bookmaker's data."
+    },
+    "match.gbd": {
+      "short": "Draw betting odds from Gamebookers",
+      "long": "Decimal bookmaker odds for a draw outcome (X) in a match, sourced specifically from Gamebookers (GB). Values are stored as real numbers ranging from 1.45 to 11.0, with a high percentage of null values (45%)."
+    },
+    "match.gbh": {
+      "short": "Gamebookers betting odds for a home team win",
+      "long": "Decimal betting odds for a home team victory as provided by the bookmaker Gamebookers. Values are real numbers ranging from 1.05 to 21.0, with approximately 45% of records containing NULL values where booking data is unavailable."
+    },
+    "match.goal": {
+      "short": "XML-formatted event details for goals scored during the match",
+      "long": "Contains XML-formatted data detailing individual goal events during a match, including elements like elapsed minutes, scoring/assisting player IDs, team IDs, and goal types. Matches with no goals may contain NULL or an empty <goal /> tag, requiring XML-parsing functions to query specific event attributes."
+    },
+    "match.home_player_1": {
+      "short": "Unique numeric identifier for the starting home goalkeeper",
+      "long": "This column contains the unique numeric API identifier for the home team's starting player in position 1 (typically the goalkeeper). It consists of 5-to-6 digit integer codes, matches are occasionally missing this lineup data (5% nulls), and it acts as a foreign key that can be joined with a players lookup table."
+    },
+    "match.home_player_10": {
+      "short": "Unique player identifier for the tenth home-team starting player",
+      "long": "An integer identifier representing the tenth starting player for the home team in a match, which can be joined with player-related tables. The values are unique numeric IDs ranging from 2625 to 742405, containing some NULL values (approx. 6%) when team lineups are missing."
+    },
+    "match.home_player_11": {
+      "short": "Player ID for the eleventh starting home team player",
+      "long": "Stores the unique identifier (player ID) for the eleventh starting player of the home team. Values are 4- to 6-digit integers that typically join with a player lookup table, with about 6% of matches containing NULL values due to missing lineup data."
+    },
+    "match.home_player_2": {
+      "short": "Unique identifier for the second home team player",
+      "long": "This column contains the unique database identifier (API ID) for the player starting in the second position (typically a defender) for the home team. Values are numeric IDs ranging from 4 to 6 digits long, with approximately 5% of records containing NULL values."
+    },
+    "match.home_player_3": {
+      "short": "Unique identifier for the third starting home team player",
+      "long": "This column stores the unique player ID (referencing the Player table) for the third starting player of the home team in a match. Values are numeric identifiers ranging from 2752 to 705484, with approximately 5% of records containing NULL values."
+    },
+    "match.home_player_4": {
+      "short": "Player ID for the fourth starting home-team player",
+      "long": "Unique integer identifier for the home team's fourth starting player in the match lineup. This column contains 4- to 6-digit player IDs ranging from 2752 to 723037, with approximately 5% of records being NULL, likely indicating missing lineup data."
+    },
+    "match.home_player_5": {
+      "short": "Unique player identifier for the fifth home-team starting player",
+      "long": "This column contains the unique database identifier for the player starting in the fifth position for the home team. Values are numeric IDs ranging from 2752 to 733787, with approximately 5% of records containing NULL values when lineup data is unavailable."
+    },
+    "match.home_player_6": {
+      "short": "Player ID of the sixth home team starting player",
+      "long": "Represents the unique integer identifier for the sixth starting player of the home team in a match. Values range from 2625 to 750584, with approximately 5% of rows being NULL when lineup data is unavailable."
+    },
+    "match.home_player_7": {
+      "short": "Unique player ID for the home team's seventh starting position",
+      "long": "Contains the unique integer identifier representing the player in the seventh starting position for the home team. Values range from 2625 to 692984 and can be joined with player metadata tables, with approximately 5% of records containing NULL values."
+    },
+    "match.home_player_8": {
+      "short": "Player ID of the eighth home team starting player",
+      "long": "This column stores the unique identifier (ID) for the eighth starting player of the home team. Values are represented as four- to six-digit integers ranging from 2625 to 693171, with approximately 5% of matches containing NULL values when lineup information is unavailable."
+    },
+    "match.home_player_9": {
+      "short": "player ID for the ninth home-team starting player",
+      "long": "Unique numeric identifier for the player starting in the ninth position for the home team. This column contains integers ranging from 2625 to 730065, represented as 4-to-6 digit strings, with approximately 5% of the matches containing NULL values."
+    },
+    "match.home_player_x1": {
+      "short": "Horizontal coordinate of the first home team player's pitch position",
+      "long": "Represents the X-coordinate (horizontal position) of the first home team player (typically the goalkeeper) on the pitch, ranging from 0 to 2. It functions as a spatial coordinate rather than a standard team lineup number, with '1' being the overwhelming default value."
+    },
+    "match.home_player_x10": {
+      "short": "Tactical horizontal pitch coordinate for the tenth home player",
+      "long": "Represents the horizontal (X) tactical coordinate on a 1–9 grid for the tenth home team player, commonly used to visualize starting formations. Values are integers ranging from 1 to 9, representing the player's lateral position from left to right."
+    },
+    "match.home_player_x11": {
+      "short": "",
+      "long": "Column \"home_player_X11\" (declared type INTEGER). 1832 of 25979 rows are NULL (7%). 6 distinct values. Values are exactly 1 characters long, all digits. Ranges from \"1\" to \"7\". Most common: \"6\" (9796), \"5\" (9571), \"7\" (4654), \"4\" (65), \"3\" (59)."
+    },
+    "match.home_player_x2": {
+      "short": "Horizontal pitch coordinate for the second home team player",
+      "long": "The tactical horizontal (X) coordinate on the pitch for the second starting home team player. Values range from 0 to 8, representing the player's lateral lineup position on the field map."
+    },
+    "match.home_player_x3": {
+      "short": "Horizontal tactical pitch coordinate for the third home player",
+      "long": "Defines the horizontal tactical grid coordinate (X-position) on the pitch for the third home player, ranging from 1 to 8. This value represents the player's lateral lineup position, with a small percentage of missing (NULL) values."
+    },
+    "match.home_player_x4": {
+      "short": "Horizontal coordinate of the fourth home team player on the pitch",
+      "long": "Represents the tactical horizontal coordinate (X-axis position) of the fourth home team player, ranging from 2 to 8, where 6 is the most common position. This coordinate is used alongside a Y-coordinate to map the player's position on the pitch, with NULL values indicating missing lineup data."
+    },
+    "match.home_player_x5": {
+      "short": "Horizontal coordinate of the fifth home team player on the pitch",
+      "long": "Represents the tactical horizontal coordinate (X-axis) of the fifth home team player on the pitch, ranging from 1 to 9. A value of 1 typically indicates a left-sided position while 9 indicates a right-sided position, with 8 being the most common."
+    },
+    "match.home_player_x6": {
+      "short": "Horizontal tactical grid coordinate for the sixth home team player",
+      "long": "Represents the horizontal (X) coordinate of the sixth home-team player on the pitch, mapping their relative tactical position. Values are single-digit integers ranging from 1 to 9, where 1832 records are NULL, indicating missing lineup or coordinate data."
+    },
+    "match.home_player_x7": {
+      "short": "Horizontal coordinate of the seventh home team player on the pitch",
+      "long": "Represents the tactical horizontal (X) coordinate of the seventh home team player on the pitch, ranging from 1 to 9. This integer coordinate is typically used alongside a Y coordinate to plot player positions in a lineup formation."
+    },
+    "match.home_player_x8": {
+      "short": "Pitch X-coordinate for home team player 8",
+      "long": "Represents the tactical horizontal (X) coordinate on the pitch for the eighth home-team player, indicating their position in the team's formation. Values are integers ranging from 1 to 9, with NULL indicating missing coordinate data."
+    },
+    "match.home_player_x9": {
+      "short": "Horizontal pitch coordinate for the ninth home-team player",
+      "long": "Represents the horizontal (X) coordinate on the tactical pitch layout for the ninth home-team player, used for visualizing lineups and formations. Values range from 1 to 9, with NULLs indicating missing tactical position data."
+    },
+    "match.home_player_y1": {
+      "short": "Tactical vertical pitch coordinate for home player 1",
+      "long": "Specifies the tactical vertical (Y) coordinate on the pitch for the home team's first starting player, who is typically the goalkeeper. This integer value ranges from 0 to 3, with 1 being the dominant default position."
+    },
+    "match.home_player_y10": {
+      "short": "Tactical Y-coordinate grid position of home team player 10",
+      "long": "Represents the vertical (Y-coordinate) tactical position of home team player 10 on the pitch, typically used to map formations. Values are integers ranging from 3 to 11, with 10 and 8 being the most common positions."
+    },
+    "match.home_player_y11": {
+      "short": "Tactical Y-coordinate for the eleventh home team player",
+      "long": "Represents the vertical (Y) coordinate on the pitch for the eleventh home team player, used to plot tactical formations. This integer column ranges from 1 to 11, with 10 and 11 being the most common values, indicating an advanced attacking or forward position."
+    },
+    "match.home_player_y2": {
+      "short": "Vertical pitch coordinate for the second home team player",
+      "long": "The tactical Y-coordinate on the pitch representing the vertical lineup position of the second home team player. It contains integer values representing pitch depth, predominantly 3 (defensive line) and occasionally 0."
+    },
+    "match.home_player_y3": {
+      "short": "Pitch Y-coordinate for the third home team player",
+      "long": "Represents the vertical tactical coordinate (Y-coordinate) on the pitch for the home team's third player, indicating their formation lineup position. Values are integers ranging from 3 to 5 (predominantly 3), with approximately 7% NULL values."
+    },
+    "match.home_player_y4": {
+      "short": "Tactical Y-coordinate of the fourth home team player",
+      "long": "Coordinates representing the tactical pitch position (Y-axis) of the fourth home team player, with values ranging from 3 to 5 (most commonly 3)."
+    },
+    "match.home_player_y5": {
+      "short": "Tactical Y-coordinate of the fifth home team player",
+      "long": "Represents the tactical vertical (Y-coordinate) position of the fifth home team player on the pitch, ranging from 3 to 8 (where 3 is the most common, likely representing a defensive midfield position). This column is stored as an integer, contains approximately 7% null values, and functions as a coordinate enum for pitch-position visualization."
+    },
+    "match.home_player_y6": {
+      "short": "Tactical Y-coordinate of the sixth home team player",
+      "long": "Represents the vertical tactical pitch coordinate (Y-coordinate) for the sixth starting player of the home team, with values ranging from 3 to 9 (most commonly 7) depicting their positional depth on the field. Approximately 7% of records are NULL."
+    },
+    "match.home_player_y7": {
+      "short": "Tactical vertical pitch coordinate for the seventh home player",
+      "long": "Represents the nominal tactical Y-coordinate of the seventh home team player in the match lineup, with integer values ranging from 3 to 9 indicating their relative vertical position on the pitch from defense to attack."
+    },
+    "match.home_player_y8": {
+      "short": "Tactical Y-coordinate for home team player 8",
+      "long": "Represents the vertical tactical pitch coordinate (Y-coordinate) for the eighth home team player, used to define their formation alignment. Values are integers ranging from 3 to 10, with 7 and 8 being the most common, typically representing midfield positioning."
+    },
+    "match.home_player_y9": {
+      "short": "",
+      "long": "Column \"home_player_Y9\" (declared type INTEGER). 1832 of 25979 rows are NULL (7%). 6 distinct values. Values are 1–2 characters long, all digits. Ranges from \"1\" to \"10\". Most common: \"7\" (10024), \"8\" (8041), \"10\" (4772), \"9\" (1247), \"6\" (62)."
+    },
+    "match.home_team_api_id": {
+      "short": "API identifier for the home team",
+      "long": "An integer identifier referencing the home team in the match, ranging from 1601 to 274581. This column contains no nulls and is typically used to join with the team Lookup table to retrieve team names and attributes."
+    },
+    "match.home_team_goal": {
+      "short": "Number of goals scored by the home team",
+      "long": "The total number of goals scored by the home team in the match. This integer column has no missing values and ranges from 0 to 10 goals."
+    },
+    "match.id": {
+      "short": "Unique sequential integer identifier for each football match",
+      "long": "A unique, non-null sequential identifier for each football match, ranging from 1 to 25979 and formatted as a 4-digit zero-padded or character-represented integer string."
+    },
+    "match.iwa": {
+      "short": "Interwetten away win betting odds",
+      "long": "Decimal betting odds offered by Interwetten (IW) for an away win (A). Values in this column are decimal numbers represented as REAL types, ranging from 1.1 to 25.0, with approximately 13% of the matches containing NULL values."
+    },
+    "match.iwd": {
+      "short": "Interwetten bookmaker draw betting odds",
+      "long": "This column stores the betting odds offered by the bookmaker Interwetten for a match resulting in a draw (IWD). The values are stored as decimal numbers representing decimal odds, ranging from 1.5 to 11.0, with approximately 13% of the matches containing missing (NULL) odds data."
+    },
+    "match.iwh": {
+      "short": "Interwetten home win betting odds",
+      "long": "Decimal odds offered by bookmaker Interwetten (IW) for a home team win (H). This numeric column ranges from 1.03 to 20.0, with approximately 13% of values being NULL."
+    },
+    "match.lba": {
+      "short": "Ladbrokes away win betting odds",
+      "long": "Represents the decimal betting odds for an away team win (LBA) offered by the bookmaker Ladbrokes. Values are decimal numbers stored as REAL, ranging from 1.1 to 51.0, with approximately 13% of matches containing missing entries."
+    },
+    "match.lbd": {
+      "short": "Ladbrokes betting odds for a draw",
+      "long": "This column contains decimal betting odds offered by Ladbrokes (LB) for a draw (D) outcome in a football match. Values are stored as real numbers ranging from 1.4 to 19.0, with a notable density of entries around typical draw odds such as 3.2, 3.3, and 3.4."
+    },
+    "match.lbh": {
+      "short": "Ladbrokes home win betting odds",
+      "long": "Decimal odds for a home team win offered by the bookmaker Ladbrokes (LBH). This is a real number ranging from 1.04 to 26.0, with approximately 13% of matches missing this betting data."
+    },
+    "match.league_id": {
+      "short": "Unique identifier for the football league",
+      "long": "An integer identifier referencing the specific football league in which the match was played. This column contains no null values and features 11 distinct league IDs ranging from 1 to 24558."
+    },
+    "match.match_api_id": {
+      "short": "",
+      "long": "Column \"match_api_id\" (declared type INTEGER). No NULLs across 25979 rows. All 25979 non-NULL values are distinct (unique). Values are exactly 6 characters long, all digits, always beginning with \"483\". Ranges from \"483129\" to \"2216672\"."
+    },
+    "match.possession": {
+      "short": "XML-formatted match possession timelines",
+      "long": "An XML block tracking ball possession percentages for the home and away teams key-framed at specific minutes throughout the match. Each record includes elapsed match time, home/away possession rates, and metadata representing real-time event updates."
+    },
+    "match.psa": {
+      "short": "Pinnacle Sports away win betting odds",
+      "long": "This column contains decimal betting odds for an away team victory, provided by the bookmaker Pinnacle Sports (indicated by the 'PSA' prefix representing Pinnacle Sports Away). It holds real numbers ranging from 1.09 to 47.5, with about 57% of the records containing NULL values."
+    },
+    "match.psd": {
+      "short": "Pinnacle Sports draw odds",
+      "long": "Decimal betting odds for a draw outcome in a football match, as opening or closing market prices from the bookmaker Pinnacle Sports (PS). Values are real numbers ranging from 2.2 to 29.0, with a high percentage of missing data (57%)."
+    },
+    "match.psh": {
+      "short": "Pinnacle Sports home win betting odds",
+      "long": "This column contains decimal betting odds for a home team victory, offered by the bookmaker Pinnacle Sports (PSH stands for Pinnacle Sports Home). The values are real numbers ranging from 1.04 to 36.0, represented as decimal strings, with roughly 57% of the records being NULL."
+    },
+    "match.season": {
+      "short": "Football season of the match in YYYY/YYYY format",
+      "long": "Identifies the European football season during which the match was played, formatted as a nine-character 'YYYY/YYYY' string. It contains eight distinct seasonal values ranging from '2008/2009' to '2015/2016' with no NULLs."
+    },
+    "match.shotoff": {
+      "short": "XML data containing match events for shots off target",
+      "long": "An XML-formatted log representing all occurrences of shots off target (shotoffs) during a match. Each record details multiple incidents with structured elements including the elapsed time, subtype of shot (e.g., header, distance, big chance post), player ID, team ID, and unique incident IDs."
+    },
+    "match.shoton": {
+      "short": "XML detailing shots on target and blocked shots",
+      "long": "An XML-structured column documenting each shot on target or blocked shot event in a match. Individual event records within the XML root `<shoton>` contain details such as game minutes (`<elapsed>`, `<elapsed_plus>`), the executing player (`<player1>`), the team ID (`<team>`), the coordinates, shot sub-type, and result statistics."
+    },
+    "match.sja": {
+      "short": "Stan James bookmaker betting odds for an away win",
+      "long": "Decimal betting odds offered by bookmaker Stan James (SJ) for an away team victory (A). The values are real numbers ranging from 1.1 to 41.0, with approximately 34% of the matches containing NULL values."
+    },
+    "match.sjd": {
+      "short": "Stan James betting odds for a draw",
+      "long": "Represents the decimal betting odds for a draw match outcome, offered by the bookmaker Stan James (SJ). Values are real numbers ranging from 1.4 to 15.0, with roughly 34% of the rows containing NULL values."
+    },
+    "match.sjh": {
+      "short": "Stan James bookmaker betting odds for a home win",
+      "long": "Represents the decimal betting odds for a home team victory as published by the Stan James bookmaker. Values in this column range from 1.04 to 23.0, with approximately 34% of the match records containing NULL values."
+    },
+    "match.stage": {
+      "short": "Round or matchday number of the football season",
+      "long": "Represents the specific round or matchday of the league season, ranging from 1 to 38. There are no missing values, and each of the 38 distinct stages contains an equal distribution of exactly 740 match records."
+    },
+    "match.vca": {
+      "short": "BetVictor betting odds for an away team win",
+      "long": "Decimal betting odds for an away team victory (A) offered by the bookmaker BetVictor (formerly Victor Chandler). Values are real numbers ranging from 1.08 to 67.0, with approximately 13% of rows containing missing (NULL) values."
+    },
+    "match.vcd": {
+      "short": "VC Bet decimal odds for a draw",
+      "long": "Represents the decimal betting odds offered by VC Bet (Victor Chandler) for a draw result in a football match, ranging from 1.62 to 26.0."
+    },
+    "match.vch": {
+      "short": "VC Bet away win betting odds",
+      "long": "Decimal odds for an away win (H) offered by the bookmaker VC Bet (Victor Chandler). Values are stored as real numbers ranging from 1.03 to 36.0, with approximately 13% of records containing null values where odds were not recorded."
+    },
+    "match.wha": {
+      "short": "William Hill away win betting odds",
+      "long": "Decimal betting odds offered by William Hill (WH) for an away team win (A). Values are decimal numbers stored as floats, ranging from 1.08 to 51.0, with roughly 13% of matches missing this bookmaker data."
+    },
+    "match.whd": {
+      "short": "William hill draw betting odds",
+      "long": "Decimal betting odds for a draw, offered by the bookmaker William Hill (WH). Values range from 1.02 to 17.0, with common draw odds clustered around 3.1 to 3.5."
+    },
+    "match.whh": {
+      "short": "William Hill decimal betting odds for a home team win",
+      "long": "This column contains the decimal betting odds published by bookmaker William Hill (WH) for a home team victory (H). Numeric values range from 1.02 to 26.0, with approximately 13% of matches containing NULL values."
+    },
+    "player.birthday": {
+      "short": "Player's date of birth in datetime format",
+      "long": "This column records the player's date of birth, stored as a 19-character text string in the format 'YYYY-MM-DD HH:MM:SS' with the time portion defaulted to '00:00:00'. Values are populated for all records, ranging from January 23, 1967 to April 24, 1999."
+    },
+    "player.height": {
+      "short": "Player height in centimeters",
+      "long": "The height of the player in centimeters, ranging from 157.48 to 208.28. Although declared as an INTEGER, the column contains decimal values that correspond to standard conversions from feet and inches."
+    },
+    "player.id": {
+      "short": "Unique identifier for a football player",
+      "long": "The unique primary key for each player in the database, containing non-null sequential integer values ranging from 1 to 11075. This column is ideal for joining player records with performance attributes or match statistics."
+    },
+    "player.player_api_id": {
+      "short": "Unique numeric identifier for players in the database",
+      "long": "A unique, non-null 4-to-5-digit integer serving as the primary identifier for each football player in the database. It is used to join player records with match and performance statistics tables."
+    },
+    "player.player_fifa_api_id": {
+      "short": "Unique FIFA API identifier for the player",
+      "long": "The unique integer identifier of the player within the EA Sports FIFA video game API, ranging from 2 to 234141 with no null values."
+    },
+    "player.player_name": {
+      "short": "Full name of the football player",
+      "long": "This column contains the full name of the professional football player, with text values ranging from 4 to 25 characters. There are no NULL values, and while most names are unique, some common football names like 'Danilo' or 'Paulinho' appear multiple times."
+    },
+    "player.weight": {
+      "short": "player weight in pounds",
+      "long": "The weight of the player in pounds, recorded as a three-digit integer ranging from 117 to 243 without any missing values."
+    },
+    "player_attributes.acceleration": {
+      "short": "player acceleration rating on a scale from 10 to 97",
+      "long": "An integer rating representing a football player's acceleration attribute, ranging from 10 to 97. The values are stored as two-digit strings, with approximately 0.5% of rows containing NULL values."
+    },
+    "player_attributes.aggression": {
+      "short": "Player aggression rating on a 1-to-100 scale",
+      "long": "An integer rating representing a football player's level of aggression, ranging from 6 to 97. It is typically scaled from 1 to 100, is null for 836 rows, and is commonly used to assess a player's play style and defensive physical presence."
+    },
+    "player_attributes.agility": {
+      "short": "Player agility rating on a scale from 11 to 96",
+      "long": "An integer rating representing a football player's agility, ranging from 11 to 96. Approximately 1% of the records have NULL values for this attribute."
+    },
+    "player_attributes.attacking_work_rate": {
+      "short": "Player's offensive work rate category",
+      "long": "A categorical rating of a football player's offensive effort level, predominantly consisting of 'medium', 'high', and 'low' values, with some minor variations such as 'norm' and 'None'."
+    },
+    "player_attributes.balance": {
+      "short": "Player physical balance rating",
+      "long": "An integer rating representing the player's stability and physical balance, ranging from 12 to 96, where higher values indicate better equilibrium under pressure."
+    },
+    "player_attributes.ball_control": {
+      "short": "player ball control skill rating",
+      "long": "An integer rating from 5 to 97 representing a player's ball control ability as observed in European football matches. This column contains null values for roughly 0.5% of rows, with the remaining values distributed as 1- to 2-digit numerical scores."
+    },
+    "player_attributes.crossing": {
+      "short": "Player crossing skill rating from 1 to 95",
+      "long": "An integer attribute rating a soccer player's crossing ability on a scale from 1 to 95. Values are represented as one- or two-digit integers, with approximately 0.5% of rows containing NULL values."
+    },
+    "player_attributes.curve": {
+      "short": "Player ball-curving skill rating",
+      "long": "An integer rating between 2 and 94 representing a player's ability to curve the ball, sourced from FIFA video game attributes. This column contains NULL values for approximately 1% of the records."
+    },
+    "player_attributes.date": {
+      "short": "Date and time when player attributes were recorded",
+      "long": "The timestamp indicating when the player's attributes were updated or evaluated, formatted as 'YYYY-MM-DD HH:MM:SS'. It includes 197 distinct dates spanning from '2007-02-22 00:00:00' to '2016-07-07 00:00:00', with no null values."
+    },
+    "player_attributes.defensive_work_rate": {
+      "short": "",
+      "long": "Column \"defensive_work_rate\" (declared type TEXT). 836 of 183978 rows are NULL (0%). 19 distinct values. Values are 1–6 characters long, mixed characters. Ranges from \"0\" to \"tocky\". Most common: \"medium\" (130846), \"high\" (27041), \"low\" (18432), \"_0\" (2394), \"o\" (1550)."
+    },
+    "player_attributes.dribbling": {
+      "short": "Player dribbling skill rating",
+      "long": "An integer rating from 1 to 97 representing a player's technical dribbling ability, where higher values indicate superior ball control. This metric is typically sourced from sports video game attributes such as FIFA."
+    },
+    "player_attributes.finishing": {
+      "short": "Player finishing rating on a 1-97 scale",
+      "long": "An integer attribute rating a player's finishing ability, generally stored on a 1 to 100 scale (with an observed range of 1 to 97 in this dataset). This column contains approximately 0.5% null values (836 rows) and is commonly used numerically to evaluate a player's goal-scoring clinicalness."
+    },
+    "player_attributes.free_kick_accuracy": {
+      "short": "Player free kick accuracy rating",
+      "long": "An integer rating ranging from 1 to 97 that indicates a player's skill and accuracy when taking free kicks, with higher values representing greater ability."
+    },
+    "player_attributes.gk_diving": {
+      "short": "Player goalkeeper diving ability rating",
+      "long": "An integer rating from 1 to 94 representing the player's goalkeeper diving ability. Non-goalkeepers typically score very low (commonly between 6 and 11), whereas specialized goalkeepers have much higher ratings."
+    },
+    "player_attributes.gk_handling": {
+      "short": "player goalkeeper handling rating",
+      "long": "An integer rating from 1 to 93 representing a player's goalkeeper handling ability. Values are typically concentrated at the lower end (e.g., 7 to 14) for non-goalkeepers, with approximately 0.5% of rows containing NULL values."
+    },
+    "player_attributes.gk_kicking": {
+      "short": "Goalkeeper kicking skill rating",
+      "long": "This column stores the goalkeeper kicking player attribute, with integer values ranging from 1 to 97 where higher numbers indicate better kicking ability. A small fraction of records (0.45%) contain NULL values."
+    },
+    "player_attributes.gk_positioning": {
+      "short": "Goalkeeper positioning skill rating for players",
+      "long": "An integer rating between 1 and 96 representing a player's goalkeeper positioning ability, typically sourced from EA Sports FIFA video game statistics. Outfield players populate the most common low values (7 to 14), while actual goalkeepers possess much higher ratings."
+    },
+    "player_attributes.gk_reflexes": {
+      "short": "Goalkeeper reflexes rating of the player",
+      "long": "An integer attribute representing the player's goalkeeper reflexes skill, typically rated on a scale from 1 to 99. The observed range of 1 to 96 features a bi-modal distribution, where non-goalkeeper players cluster heavily at very low values (7 to 14) and active goalkeepers score much higher."
+    },
+    "player_attributes.heading_accuracy": {
+      "short": "player heading accuracy rating out of 100",
+      "long": "An integer rating from 1 to 98 representing a player's heading accuracy in the football simulation. Approximately 0.5% of rows contain NULL values, and values typically cluster in the high 50s to high 60s."
+    },
+    "player_attributes.id": {
+      "short": "Unique primary key for each player attribute snapshot record",
+      "long": "A unique, sequential integer surrogate key that uniquely identifies each record of player attributes. It contains non-null, distinct values ranging sequentially from 1 to 183,978."
+    },
+    "player_attributes.interceptions": {
+      "short": "Player interception rating",
+      "long": "An integer rating ranging from 1 to 96 representing a player's ability to intercept the ball, with approximately 0.5% of rows containing NULL values."
+    },
+    "player_attributes.jumping": {
+      "short": "Player jumping ability rating on a 1-99 scale",
+      "long": "An integer rating representing a football player's jumping ability, ranging from 14 to 96. This value is likely based on the FIFA video game statistics scale of 1 to 99, with 1% of rows containing NULL values."
+    },
+    "player_attributes.long_passing": {
+      "short": "Player's numerical long passing skill rating",
+      "long": "This column represents a player's long passing ability rating, ranging from 3 to 97. The value is stored as an integer, where higher values indicate better passing accuracy and skill over long distances."
+    },
+    "player_attributes.long_shots": {
+      "short": "Player rating for long-range shooting accuracy and power",
+      "long": "An integer rating from 1 to 96 reflecting a player's skill in taking long-distance shots. This attribute appears to follow a typical football simulation scale (such as FIFA) where higher values indicate greater proficiency."
+    },
+    "player_attributes.marking": {
+      "short": "Player defensive marking attribute rating",
+      "long": "An integer rating from 1 to 96 representing a player's tactical ability to mark and track opposing players, commonly found in football video games. Values are represented as one- or two-digit integers, with 25 being the most common score."
+    },
+    "player_attributes.overall_rating": {
+      "short": "Player overall performance rating",
+      "long": "The overall skill rating of a player, ranging from 33 to 94 based on a scale of 100. This column is stored as an integer, allows NULL values, and acts as a general index of the player's overall quality in the database."
+    },
+    "player_attributes.penalties": {
+      "short": "Player penalty-taking skill rating on a 1-99 scale",
+      "long": "Represents the player's numerical skill rating for taking penalty kicks, ranging from 2 to 96. This integer column contains 836 null values and operates as an attribute score (typically on a standard 1-99 football gaming scale)."
+    },
+    "player_attributes.player_api_id": {
+      "short": "Unique API identifier for football players",
+      "long": "A numeric identifier linking attributes to a specific football player. Because this table tracks historical stats, players have multiple records (sharing the same ID) ranging from 2,625 to 750,584."
+    },
+    "player_attributes.player_fifa_api_id": {
+      "short": "EA Sports FIFA video game API player identifier",
+      "long": "A foreign key containing the unique integer identifier assigned to players in the EA Sports FIFA video game series API. Values range from 2 to 234141, with multiple entries per player representing attribute updates across different game releases."
+    },
+    "player_attributes.positioning": {
+      "short": "Player positioning attribute score ranging from 2 to 96",
+      "long": "An integer rating from 2 to 96 representing a football player's positional awareness and ability to find space. This attribute contains a small number of null values (less than 1%) and is typically sourced from FIFA video game player statistics."
+    },
+    "player_attributes.potential": {
+      "short": "Player potential rating on a scale of 39 to 97",
+      "long": "An integer rating ranging from 39 to 97 representing a football player's estimated future potential. This rating is typically assessed on a 1-100 scale, contains approximately 0.5% null values, and most frequently clusters in the mid-70s."
+    },
+    "player_attributes.preferred_foot": {
+      "short": "player's preferred kicking foot",
+      "long": "Indicates the player's preferred kicking foot, stored as a text enum with two possible lowercase values: 'right' (the majority at approximately 75%) or 'left'. This column contains some NULL values (under 1%)."
+    },
+    "player_attributes.reactions": {
+      "short": "Player reaction speed rating",
+      "long": "An integer rating from 17 to 96 representing a football player's reaction speed attributes, where higher values indicate quicker reflexes and cognitive responses on the pitch."
+    },
+    "player_attributes.short_passing": {
+      "short": "Player short passing skill rating on a 100-point scale",
+      "long": "This column represents a player's numerical rating for short passing ability, typically scored on a scale from 1 to 100. Actual values range from 3 to 97, with a small percentage (less than 1%) of null entries."
+    },
+    "player_attributes.shot_power": {
+      "short": "player shot power rating on a 1-100 scale",
+      "long": "An integer rating from 2 to 97 representing a player's shot power, typically scored on a 1-100 scale. This column contains 836 NULL values out of 183,978 rows."
+    },
+    "player_attributes.sliding_tackle": {
+      "short": "Player sliding tackle skill rating",
+      "long": "An integer rating ranging from 2 to 95 that measures a player's ability to perform sliding tackles, where higher values represent greater skill. Approximately 1% of the rows contain NULL values."
+    },
+    "player_attributes.sprint_speed": {
+      "short": "Player sprint speed rating on a 100-point scale",
+      "long": "This column stores a player's numerical sprint speed rating, ranging from 12 to 97, where higher values indicate greater speed. It is stored as an integer with approximately 0.5% of the records containing NULL values."
+    },
+    "player_attributes.stamina": {
+      "short": "Player stamina rating on a 10-96 scale",
+      "long": "This column contains the player's physical stamina rating, represented as a two-digit integer ranging from 10 to 96. Approximately 0.5% of the 183,978 rows are NULL, with values most commonly clustered around the high 60s and low 70s."
+    },
+    "player_attributes.standing_tackle": {
+      "short": "Player standing tackle attribute score",
+      "long": "An integer rating from 1 to 95 representing a player's standing tackle ability. Approximately 0.5% of rows are null."
+    },
+    "player_attributes.strength": {
+      "short": "Player physical strength rating",
+      "long": "An integer rating from 10 to 96 representing a player's physical strength, where higher values indicate greater strength. It contains 82 distinct two-digit values and is null for about 0.5% of rows."
+    },
+    "player_attributes.vision": {
+      "short": "Player vision rating on a 1-to-97 scale",
+      "long": "An integer rating representing a football player's pitch vision, ranging from 1 to 97. Approximately 1% of the records contain NULL values for this attribute."
+    },
+    "player_attributes.volleys": {
+      "short": "Player skill rating for volleys",
+      "long": "An integer rating from 1 to 93 representing a football player's technical ability to execute volleys. Approximately 1% of the records contain NULL values, with higher scores indicating superior skill."
+    },
+    "team.id": {
+      "short": "Unique integer identifier for each football team",
+      "long": "Unique integer serving as the primary key for the soccer database's teams. Values range from 1 to 51606 with gaps, representing 299 distinct teams."
+    },
+    "team.team_api_id": {
+      "short": "Unique numeric identifier for a football team",
+      "long": "A unique, non-null 4-digit identifier code (ranging from 1601 to 274581) used to represent each football team in the database registry."
+    },
+    "team.team_fifa_api_id": {
+      "short": "FIFA API unique identifier for the football team",
+      "long": "An integer identifier referencing the team's ID in the external FIFA video game database. Values range from 1 to 112513, with some duplicate values and approximately 4% of records containing NULLs."
+    },
+    "team.team_long_name": {
+      "short": "Full official names of European football clubs",
+      "long": "This column contains the full, official names of European football clubs, ranging from 2 to 26 characters in length. While the values are almost entirely unique, some duplicates exist (e.g., due to club relocations or identity changes over time), so it should be used for display rather than as a primary key."
+    },
+    "team.team_short_name": {
+      "short": "Abbreviated two- or three-letter code representing the football team",
+      "long": "This column contains short, often three-letter mnemonic codes or abbreviations (ranging from 'AAR' to 'ZWO') used to represent football teams. It contains no NULL values across its 299 rows, with some non-unique values owing to different teams sharing the same short abbreviation."
+    },
+    "team_attributes.buildupplaydribbling": {
+      "short": "Team build-up play dribbling attribute rating",
+      "long": "An integer rating between 24 and 77 that measures a team's tendency to dribble during the build-up play phase. Approximately 66% of the records in this column are NULL, which should be accounted for in queries."
+    },
+    "team_attributes.buildupplaydribblingclass": {
+      "short": "Team build-up play dribbling frequency classification",
+      "long": "An categorical attribute indicating how much a team relies on dribbling during their build-up play. It functions as an enum with three possible text values: 'Little' (most common), 'Normal', and 'Lots'."
+    },
+    "team_attributes.buildupplaypassing": {
+      "short": "Team buildup play passing capability rating",
+      "long": "An integer rating ranging from 20 to 80 that represents a team's passing style during buildup play, where lower values typically indicate short-passing preference and higher values indicate long-passing tendencies."
+    },
+    "team_attributes.buildupplaypassingclass": {
+      "short": "Tactical passing style classification for team build-up play",
+      "long": "An categorical attribute indicating a team's preferred design and distance of passing during their build-up play. It contains one of three text values representing team tactics: 'Mixed' (predominant with 1,236 occurrences), 'Short', or 'Long'."
+    },
+    "team_attributes.buildupplaypositioningclass": {
+      "short": "Tactical build-up play positioning classification",
+      "long": "An organizational classification of a team's positioning during build-up play, representing whether players maintain their positions or move dynamically. This column is a two-value enum with no NULL values, consisting of either 'Organised' (highly dominant, with 1,386 rows) or 'Free Form' (72 rows)."
+    },
+    "team_attributes.buildupplayspeed": {
+      "short": "Team build-up play speed rating",
+      "long": "A numeric rating representing the speed of a team's build-up play tactics. Values are two-digit integers ranging from 20 to 80, where higher numbers indicate a faster overall transition speed."
+    },
+    "team_attributes.buildupplayspeedclass": {
+      "short": "Categorical speed of team buildup play",
+      "long": "A classification of the speed at which a team transitions from defense to attack. This is a text-based enum with three possible values: 'Balanced', 'Fast', and 'Slow'."
+    },
+    "team_attributes.chancecreationcrossing": {
+      "short": "Team chance creation crossing rating scale",
+      "long": "An integer rating ranging from 20 to 80 that represents a team's tendency or effectiveness in crossing the ball to create goal-scoring opportunities, typically derived from FIFA video game attributes."
+    },
+    "team_attributes.chancecreationcrossingclass": {
+      "short": "Categorical rating of a team's crossing frequency during chance creation",
+      "long": "This column classifies the frequency or emphasis a team places on crossing the ball to create goal-scoring opportunities. It behaves as an ordered categorical text scale (enum) with three possible values: 'Little', 'Normal', and 'Lots'."
+    },
+    "team_attributes.chancecreationpassing": {
+      "short": "Team rating for chance creation passing effectiveness",
+      "long": "A numeric rating representing a team's passing style and tendency when creating goal-scoring opportunities. Values are integers ranging from 21 to 80, with higher values typically indicating more aggressive or creative passing strategies."
+    },
+    "team_attributes.chancecreationpassingclass": {
+      "short": "Team chance creation passing risk classification",
+      "long": "An categorical classification of a team's passing risk style when creating chances, represented as a text enum. It contains no NULL values and is restricted to three distinct values: 'Normal', 'Risky', and 'Safe', with 'Normal' being the most common."
+    },
+    "team_attributes.chancecreationpositioningclass": {
+      "short": "tactical class for team chance-creation positioning",
+      "long": "An enum-style tactical setting indicating how players position themselves during chance-creation. Features exactly two distinct values: 'Organised' (most common, 1,309 rows) and 'Free Form' (149 rows), with no NULL values."
+    },
+    "team_attributes.chancecreationshooting": {
+      "short": "Team chance creation shooting attribute rating",
+      "long": "An integer rating representing a football team's shooting tendency during chance creation, ranging from 22 to 80. This attribute, likely sourced from FIFA team tactics data, reflects how often a team attempts shots when establishing offensive plays."
+    },
+    "team_attributes.chancecreationshootingclass": {
+      "short": "Team chance creation shooting style classification",
+      "long": "An categorical attribute indicating a team's shooting frequency during chance creation. It is represented as a text enum with three possible values: 'Normal' (most common), 'Lots', and 'Little'."
+    },
+    "team_attributes.date": {
+      "short": "Date and time of team attribute assessment",
+      "long": "The date and time when the team's attributes were recorded, formatted as a 19-character YYYY-MM-DD HH:MM:SS timestamp string. It contains 6 distinct snapshot dates spanning from February 2010 to September 2015, with no missing values."
+    },
+    "team_attributes.defenceaggression": {
+      "short": "Numerical rating of a team's defensive aggression level",
+      "long": "An integer metric representing the team's level of aggression on defense, ranging from 24 to 72. This rating is sourced from FIFA video game attributes and is fully populated across all 1458 rows with no NULL values."
+    },
+    "team_attributes.defenceaggressionclass": {
+      "short": "Classification of team defensive aggression style",
+      "long": "An categorical classification of a team's defensive aggression style, representing how aggressively they pressure the opposition. This column contains no NULL values and acts as an enumeration with three possible text values: 'Press', 'Double', and 'Contain'."
+    },
+    "team_attributes.defencedefenderlineclass": {
+      "short": "Team tactical defense alignment classification",
+      "long": "A categorical column indicating the team's defensive line tactic, acting as a two-value enum with the possible options 'Cover' (more common, 1,362 rows) and 'Offside Trap' (96 rows)."
+    },
+    "team_attributes.defencepressure": {
+      "short": "Team defensive pressure rating from 23 to 72",
+      "long": "An integer fitness rating representing the team's defensive pressure level, ranging from 23 to 72. This value represents tactical attributes likely sourced from EA Sports FIFA video game data, with no null values across all 1,458 team records."
+    },
+    "team_attributes.defencepressureclass": {
+      "short": "Categorical defensive line pressure level classification",
+      "long": "This column classifies the team's defensive pressure level into one of three ordered categories: 'Deep', 'Medium', or 'High'. It contains no NULL values across its 1,458 records, with 'Medium' being the most common modern tactical setting."
+    },
+    "team_attributes.defenceteamwidth": {
+      "short": "Tactical defense width rating of the team",
+      "long": "An integer value between 29 and 73 representing the team's tactical defensive width setting. Higher values indicate a wider defensive setup, while lower values indicate a more narrow, compact defensive structure."
+    },
+    "team_attributes.defenceteamwidthclass": {
+      "short": "Tactical defense width classification of the team",
+      "long": "A categorical classification indicating how wide a team's defensive line spreads across the pitch. It acts as an enum with three possible text values: 'Normal' (the most common), 'Wide', and 'Narrow'."
+    },
+    "team_attributes.id": {
+      "short": "Unique surrogate primary key identifier for each team attribute record",
+      "long": "The unique primary key for each row in the Team_Attributes table. It contains sequential, non-null integer values ranging from 1 to 1458, serving as a surrogate identifier for each recorded set of team attributes."
+    },
+    "team_attributes.team_api_id": {
+      "short": "Unique API identifier for European football teams",
+      "long": "A unique identifier representing a football team, used to link matching records across the database. This column contains 4-to-6 digit numeric IDs containing no null values, ranging from 1601 to 274581."
+    },
+    "team_attributes.team_fifa_api_id": {
+      "short": "FIFA division API identifier for the team",
+      "long": "An integer identifier referencing the team's record in the official FIFA video game database. Values range from 1 to 112513, contain up to 6 digits, and associate team attributes with specific FIFA game editions."
+    }
+  }
+}

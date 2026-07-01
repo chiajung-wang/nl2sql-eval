@@ -1,0 +1,226 @@
+{
+  "db_id": "financial",
+  "generated_by": "profile_summary/v1 · openrouter/google/gemini-3.5-flash",
+  "fields": {
+    "account.account_id": {
+      "short": "Unique identifier for each financial account",
+      "long": "The primary key of the table containing unique, non-null integer identifiers for each account, with values ranging from 1 to 11382. This column is used to uniquely identify accounts and perform joins with related financial tables."
+    },
+    "account.date": {
+      "short": "Account creation date",
+      "long": "The date the account was opened, formatted as an ISO 8601 string (YYYY-MM-DD). The dataset contains historical records spanning from January 1, 1993, to December 29, 1997, with no missing values."
+    },
+    "account.district_id": {
+      "short": "Unique identifier for the account's branch district",
+      "long": "This column contains sequential integer identifiers ranging from 1 to 77, representing the specific geographic or administrative district where each of the 4,500 accounts is located. It serves as a foreign key to a district lookup table and contains no missing values."
+    },
+    "account.frequency": {
+      "short": "Account maintenance transaction frequency classification code",
+      "long": "This column indicates the frequency at means of which bank service fees ('poplatek' in Czech) are charged to the account. It acts as a three-value enumeration consisting of 'POPLATEK MESICNE' (monthly, the default), 'POPLATEK TYDNE' (weekly), and 'POPLATEK PO OBRATU' (after transaction/issuance)."
+    },
+    "card.card_id": {
+      "short": "Unique identifier for a payment card",
+      "long": "A unique, non-null integer identifier representing an individual payment card, ranging from 1 to 1247. This column serves as the primary key or a unique surrogate key for the card table."
+    },
+    "card.disp_id": {
+      "short": "Unique disposition identifier linking the credit card to an account",
+      "long": "Unique integer identifier that associates each credit card with a specific customer disposition (client-account association). Values range from 9 to 13660 with no missing data, serving as a foreign key to the disposition table."
+    },
+    "card.issued": {
+      "short": "Credit card issue date",
+      "long": "The date the credit card was issued, formatted as a YYYY-MM-DD string. Based on active data, it is a mandatory field with values ranging from November 7, 1993, to December 29, 1998."
+    },
+    "card.type": {
+      "short": "Credit or debit card tier classification",
+      "long": "Represents the tier or product level of the card, stored as a text enum with exactly three distinct values: 'classic', 'junior', and 'gold'. 'Classic' is the most common classification, and there are no missing or NULL values."
+    },
+    "client.birth_date": {
+      "short": "Birth date of the client",
+      "long": "Represents the client's date of birth, formatted as a standard 'YYYY-MM-DD' date string. There are no missing values, with birth dates ranging from August 20, 1911, to September 27, 1987."
+    },
+    "client.client_id": {
+      "short": "Unique numeric identifier for each client",
+      "long": "A unique, non-null integer serving as the primary key for the client table, with values ranging from 1 to 13,998."
+    },
+    "client.district_id": {
+      "short": "Geographic district identifier associated with the client",
+      "long": "This column contains the unique integer identifier for the administrative or geographic district where the client is located. Values range from 1 to 77 with no NULLs, serving as a foreign key to link clients with district-level demographic data."
+    },
+    "client.gender": {
+      "short": "Client gender indicator",
+      "long": "Indicates the client's gender using a single-character code. Valid values are 'M' (Male) and 'F' (Female), with no null values present in the column."
+    },
+    "disp.account_id": {
+      "short": "Unique identifier of the associated bank account",
+      "long": "A foreign key linking to the account table that represents the bank account associated with each disposition. It contains non-null integer values ranging from 1 to 11,382."
+    },
+    "disp.client_id": {
+      "short": "Unique client identifier for the account disposition",
+      "long": "A unique integer identifier linking each disposition record to a specific client, ranging from 1 to 13998 with no null values."
+    },
+    "disp.disp_id": {
+      "short": "Unique identifier for each disposition record",
+      "long": "A unique, non-null integer identifier ranging from 1 to 13,690 that uniquely identifies each disposition (account-to-client assignment) in the table."
+    },
+    "disp.type": {
+      "short": "Account disposition or ownership relationship type",
+      "long": "This column specifies the client's authorization role for the account, stored as a non-null text value. It acts as an enum with two possible values: 'OWNER' (the primary account holder) and 'DISPONENT' (an authorized secondary user)."
+    },
+    "district.a10": {
+      "short": "Percentage of urban inhabitants in the district",
+      "long": "The percentage of the district's population living in urban areas, represented as a decimal value ranging from 33.9% to 100.0%."
+    },
+    "district.a11": {
+      "short": "Average salary of the district's inhabitants",
+      "long": "Represents the average salary of inhabitants in the district, ranging from 8,110 to 12,541. This column has no null values across all 77 recorded districts."
+    },
+    "district.a12": {
+      "short": "District unemployment rate in 1995",
+      "long": "The average unemployment rate of the district in the year 1995, expressed as a percentage. Values range from 0.2 to 7.3, with approximately 1% of rows being NULL."
+    },
+    "district.a13": {
+      "short": "District unemployment rate in 1996",
+      "long": "The district's unemployment rate in 1996, represented as a percentage. Values are stored as real numbers ranging from 0.43 to 9.4."
+    },
+    "district.a14": {
+      "short": "Number of entrepreneurs per 1,000 inhabitants",
+      "long": "This column represents the rate of entrepreneurship in the district, measured as the number of entrepreneurs per 1,000 inhabitants. Values are formatted as integers ranging from 81 to 167, with no missing data."
+    },
+    "district.a15": {
+      "short": "",
+      "long": "Column \"A15\" (declared type INTEGER). 1 of 77 rows are NULL (1%). 75 distinct values. Values are 3–5 characters long, all digits. Ranges from \"818\" to \"85677\". Most common: \"2854\" (2), \"818\" (1), \"999\" (1), \"1003\" (1), \"1029\" (1)."
+    },
+    "district.a16": {
+      "short": "district identifier or code",
+      "long": "Unique numeric census or regional identification code representing the district. Values range from 888 to 99107, stored as integers with no missing data, and are used to uniquely identify or class each district."
+    },
+    "district.a2": {
+      "short": "Name of the district",
+      "long": "The unique, mixed-case text name of the district (e.g., ranging alphabetically from 'Benesov' to 'Znojmo'). It serves as a text identifier for geographic regions, containing no null values across all 77 records."
+    },
+    "district.a3": {
+      "short": "Czech Republic geographic region name",
+      "long": "This column contains the name of the geographic region or province within the Czech Republic where the district is located. It acts as an 8-value category (including 'Prague', 'south Moravia', and 'west Bohemia') with no missing values."
+    },
+    "district.a4": {
+      "short": "Unique five-to-seven-digit district identification code",
+      "long": "A unique identifier for each district, represented as a numeric string between 5 and 7 characters in length ranging from '102609' to '95907'. It contains no null values and is stored as text."
+    },
+    "district.a5": {
+      "short": "",
+      "long": "Column \"A5\" (declared type TEXT). No NULLs across 77 rows. 53 distinct values. Values are 1–3 characters long, all digits. Ranges from \"0\" to \"99\". Most common: \"0\" (5), \"38\" (3), \"60\" (3), \"15\" (2), \"17\" (2)."
+    },
+    "district.a6": {
+      "short": "",
+      "long": "Column \"A6\" (declared type TEXT). No NULLs across 77 rows. 36 distinct values. Values are 1–2 characters long, all digits. Ranges from \"0\" to \"8\". Most common: \"26\" (6), \"41\" (6), \"16\" (5), \"19\" (5), \"0\" (4)."
+    },
+    "district.a7": {
+      "short": "District geographic, administrative, or category region code",
+      "long": "An administrative or regional classification code for the district. Values are numeric strings ranging from '0' to '10' (representing 17 distinct classifications), with '4', '6', and '7' being the most frequently occurring codes."
+    },
+    "district.a8": {
+      "short": "Regional municipality or urban classification tier code",
+      "long": "An integer-coded categorical value ranging from 0 to 5 representing a regional, administrative, or municipal category for the district. The column has no missing values across all 77 districts, with category '1' being the most frequent."
+    },
+    "district.a9": {
+      "short": "",
+      "long": "Column \"A9\" (declared type INTEGER). No NULLs across 77 rows. 11 distinct values. Values are 1–2 characters long, all digits. Ranges from \"1\" to \"11\". Most common: \"6\" (14), \"4\" (12), \"7\" (11), \"5\" (10), \"8\" (7)."
+    },
+    "district.district_id": {
+      "short": "Unique sequential identifier for each financial district",
+      "long": "A unique primary key identifying a financial district, ranging sequentially from 1 to 77 as 1-to-2 digit integers with no missing values."
+    },
+    "loan.account_id": {
+      "short": "Unique account identifier associated with the loan",
+      "long": "A unique, non-null integer identifier linking each loan to its corresponding bank account. Values are variable-length digit strings (1 to 5 digits long) ranging from 2 to 11362, serving as a foreign key to the account table."
+    },
+    "loan.amount": {
+      "short": "Total principal amount of the loan",
+      "long": "This column represents the total principal amount granted for each loan. It contains non-null integer values ranging from 4,980 to 590,820."
+    },
+    "loan.date": {
+      "short": "Loan origination or agreement date",
+      "long": "The date when the loan was granted or signed, formatted as 'YYYY-MM-DD'. This column contains no null values, with historical dates ranging from July 5, 1993, to December 8, 1998."
+    },
+    "loan.duration": {
+      "short": "Loan term duration in months",
+      "long": "This column represents the duration of the loan in months. It contains no null values across 682 rows, with five distinct integer values representing standard loan terms: 12, 24, 36, 48, and 60 months."
+    },
+    "loan.loan_id": {
+      "short": "Unique 4-digit loan identifier",
+      "long": "A unique four-digit integer identifier acting as the primary key for each loan record. Values are fully populated and range from 4959 to 7308."
+    },
+    "loan.payments": {
+      "short": "Monthly loan payment amount",
+      "long": "The monthly payment amount associated with the loan, stored as a real number ranging from 304.0 to 9910.0. The values are stored as decimal strings with zero fractional parts (e.g., '.0'), containing no null values across the dataset."
+    },
+    "loan.status": {
+      "short": "Single-character loan status and contract state code",
+      "long": "A single-letter categorical code ('A', 'B', 'C', or 'D') indicating the current repayment and contract status of the loan. This non-nullable column typically represents active or completed loans and their standing, with 'C' and 'A' being the most frequent values."
+    },
+    "order.account_id": {
+      "short": "Identifier for the account associated with the order",
+      "long": "A foreign key referencing the unique identifier of the financial account associated with each order. It contains non-null integer values ranging from 1 to 11,362."
+    },
+    "order.account_to": {
+      "short": "",
+      "long": "Column \"account_to\" (declared type INTEGER). No NULLs across 6471 rows. 6446 distinct values. Values are 6–8 characters long, all digits. Ranges from \"399\" to \"99994199\". Most common: \"1301700\" (2), \"1838881\" (2), \"2692229\" (2), \"4896235\" (2), \"5287313\" (2)."
+    },
+    "order.amount": {
+      "short": "Monetary value of the order",
+      "long": "This column represents the total monetary value of each order, stored as a floating-point real number. It contains no NULL values, with actual amounts ranging from 1.0 to 14882.0."
+    },
+    "order.bank_to": {
+      "short": "Two-character recipient bank identifier code",
+      "long": "A mandatory two-letter alphabetic code representing the destination or recipient bank for the financial order. The column contains exactly 13 distinct uppercase two-character values ranging from 'AB' to 'YZ'."
+    },
+    "order.k_symbol": {
+      "short": "Categorical payment transaction code characterize the order",
+      "long": "An internal transaction categorization code mapping to specific payment types, such as 'SIPO' for household utility payments, 'POJISTNE' for insurance, and 'LEASING' for lease payments, with empty strings indicating uncategorized orders."
+    },
+    "order.order_id": {
+      "short": "",
+      "long": "Column \"order_id\" (declared type INTEGER). No NULLs across 6471 rows. All 6471 non-NULL values are distinct (unique). Values are exactly 5 characters long, all digits, always beginning with \"29\". Ranges from \"29401\" to \"46338\"."
+    },
+    "trans.account": {
+      "short": "Bank account identifier associated with the transaction",
+      "long": "Identifies the counterparty or target bank account involved in the transaction, represented as a 1- to 8-digit numeric code. The column is 72% NULL, and the highly frequent value '0' likely serves as a placeholder or indicates standard internal or cash transactions."
+    },
+    "trans.account_id": {
+      "short": "Unique bank account identifier linked to the transaction",
+      "long": "A non-nullable integer identifier linking each transaction to its corresponding bank account. It contains 4,500 distinct values ranging from 1 to 11,382 across more than one million transaction records."
+    },
+    "trans.amount": {
+      "short": "Transaction amount in whole currency units",
+      "long": "Represents the value of a financial transaction. The data contains no nulls and is stored as an integer, ranging from 0 to 87400 with '15' being the most frequent transaction amount."
+    },
+    "trans.balance": {
+      "short": "Account balance after transaction in minor currency units",
+      "long": "The ending account balance after the transaction is processed, stored as an integer value ranging from -41,126 to 209,637 (likely representing cents or a similar minor currency unit). This column is fully populated with no missing values across more than one million transaction records."
+    },
+    "trans.bank": {
+      "short": "Two-letter partner bank identifier code",
+      "long": "An optional, two-letter alphabetic code (ranging from 'AB' to 'YZ') identifying the external bank involved in the transaction. It is populated for approximately 26% of transactions, with 'QR' and 'AB' being the most frequent of its 13 distinct values."
+    },
+    "trans.date": {
+      "short": "Date on which the financial transaction occurred",
+      "long": "This column records the transaction date in YYYY-MM-DD format, with active data coverage ranging from 1993-01-01 to 1998-12-31. It contains no missing values across all records, and high-frequency dates correspond to end-of-month periods."
+    },
+    "trans.k_symbol": {
+      "short": "Transaction characterization code indicating the payment or transfer type",
+      "long": "A transaction category or classification key (k_symbol/konstantní symbol) represented as an alphanumeric code. It contains Czech financial transaction types such as 'UROK' (interest), 'SLUZBY' (services), 'SIPO' (household payments), or 'DUCHOD' (pension), with approximately 46% of records being NULL and some records containing a single space string ' '."
+    },
+    "trans.operation": {
+      "short": "Czech transaction type or operation category",
+      "long": "This column contains the transaction type or operation method for each financial transaction, recorded as a Czech-language text enum. It features five distinct non-null values representing standard banking actions: 'VYBER' (withdrawal), 'PREVOD NA UCET' (remittance to another account), 'VKLAD' (deposit), 'PREVOD Z UCTU' (remittance from another account), and 'VYBER KARTOU' (credit card withdrawal)."
+    },
+    "trans.trans_id": {
+      "short": "Unique integer identifier for each transaction",
+      "long": "The primary key of the table, containing unique, non-null integer identifiers ranging from 1 to 3,682,987 representing individual financial transactions."
+    },
+    "trans.type": {
+      "short": "Transaction type category representing credit, debit, or withdrawal",
+      "long": "This column acts as an enumeration representing the transaction type, containing three Czech-derived categories: 'VYDAJ' (expense/debit, 60.1%), 'PRIJEM' (income/credit, 38.3%), and 'VYBER' (withdrawal, 1.6%). It is fully populated with no NULL values across all records."
+    }
+  }
+}

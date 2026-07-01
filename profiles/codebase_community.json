@@ -1,0 +1,290 @@
+{
+  "db_id": "codebase_community",
+  "generated_by": "profile_summary/v1 · openrouter/google/gemini-3.5-flash",
+  "fields": {
+    "badges.date": {
+      "short": "Timestamp indicating when the badge was awarded",
+      "long": "The date and time when the community badge was earned by a user, recorded in 'YYYY-MM-DD HH:MM:SS.0' format. This column contains no null values, with data ranging from July 2010 to September 2014."
+    },
+    "badges.id": {
+      "short": "Unique identifier for each badge",
+      "long": "The primary key of the table, containing a unique, non-null integer identifier for each badge. Values range from 1 to 92240, represented as digit strings of 1 to 5 characters in length."
+    },
+    "badges.name": {
+      "short": "Name of a community badge award",
+      "long": "This column contains the name of a gamification or community badge awarded to users, such as 'Student', 'Supporter', or 'Editor'. It is a non-nullable text field holding one of 153 distinct, mixed-case values ranging from 1 to 24 characters in length."
+    },
+    "badges.userid": {
+      "short": "Unique identifier of the user who received the badge",
+      "long": "This column acts as a foreign key referencing the unique identifier of a user in the community platform. It contains non-null integer values ranging from 2 to 55746, indicating the specific user account to which a given badge was awarded."
+    },
+    "comments.creationdate": {
+      "short": "Creation timestamp of the database comment",
+      "long": "The date and time when each comment was created, stored as a 21-character DATETIME string formatted as 'YYYY-MM-DD HH:MM:SS.0'. Values in this column range from February 2009 to September 2014, with no missing or null entries."
+    },
+    "comments.id": {
+      "short": "Unique identifier for each comment",
+      "long": "The primary key of the table, containing a unique, non-null integer identifier for every comment. Values are sequential numeric identifiers ranging from 1 to 221292."
+    },
+    "comments.postid": {
+      "short": "Foreign key linking the comment to its parent post",
+      "long": "The unique identifier of the post that this comment belongs to, acting as a foreign key. It contains non-null integer values ranging from 1 to 115376."
+    },
+    "comments.score": {
+      "short": "the net upvote score of a code comment",
+      "long": "Represents the popularity or quality score of a comment, calculated as upvotes minus downvotes. The value is a non-negative integer ranging from 0 to 90, with 0 being the most common score (occurring in approximately 77% of rows)."
+    },
+    "comments.text": {
+      "short": "Text contents of user-posted comments or feedback",
+      "long": "This column contains the actual text content of user comments, with lengths ranging from 16 to 592 characters. The data consists of free-form, mixed-character strings, including common helpful responses, welcoming remarks, and standard moderation boilerplate messages."
+    },
+    "comments.userdisplayname": {
+      "short": "Display name of anonymous or unregistered commenting users",
+      "long": "The display name provided by commenters, typically populated when a user is unregistered or posting anonymously (rendering it 98% NULL). Values are mixed-character strings ranging from 3 to 23 characters, frequently following placeholder patterns like 'user[ID]' (such as 'user10525') as well as custom text nicknames."
+    },
+    "comments.userid": {
+      "short": "unique identifier of the user who posted the comment",
+      "long": "An integer identifier referencing the user who authored the comment, linking to the users table. It contains values ranging between 3 and 55746, is null-allowed for about 2% of the records (representing anonymous or deleted users), and can be used to join comments with user profiles."
+    },
+    "posthistory.comment": {
+      "short": "Change summary or edit description for a post history entry",
+      "long": "This column contains user-provided or system-generated edit summaries and change logs for a post's history. While often blank (indicated by an empty string for over half the records), it otherwise contains standard system actions like 'edited title' or 'edited body', as well as custom user comments up to 247 characters long."
+    },
+    "posthistory.creationdate": {
+      "short": "Creation date and time of post history records",
+      "long": "The precise date and time when each post history event was recorded, formatted as a 21-character DATETIME string with sub-second precision ('YYYY-MM-DD HH:MM:SS.F'). Values range from February 2, 2009, to September 14, 2014, with zero null values across the dataset."
+    },
+    "posthistory.id": {
+      "short": "Unique auto-incrementing identifier for each post history record",
+      "long": "The primary key of the table, functioning as a unique identifier for each post history entry. Values are stored as integers ranging from 1 to 386848, with no missing values."
+    },
+    "posthistory.posthistorytypeid": {
+      "short": "Stack Overflow post history event type identifier code",
+      "long": "An integer identifier (ranging from 1 to 38) representing the type of event in a post's lifecycle, such as initial post creation (1-3), edits (4-6), or master/close events. This column acts as a foreign key or code lookup for Stack Overflow-like schema post history types, with '2' (Initial Body) and '5' (Edit Body) being the most common values."
+    },
+    "posthistory.postid": {
+      "short": "Foreign key referencing the associated community post identifier",
+      "long": "This column contains the unique identifier of the post associated with each history record, acting as a foreign key to the posts table. It contains non-null, variable-length numeric strings ranging from 1 to 115378, where multiple history entries can share the same post identifier."
+    },
+    "posthistory.revisionguid": {
+      "short": "Globally unique identifier for a historical post revision",
+      "long": "A 36-character hexadecimal UUID string serving as a globally unique identifier for a specific post revision. While the column contains no NULL values, a default or placeholder value of '00000000-0000-0000-0000-000000000000' is present in some rows."
+    },
+    "posthistory.text": {
+      "short": "Markdown content, tags, or metadata payload of a forum post history record",
+      "long": "This column stores the textual content associated with a post's history, which, depending on the edit type, can contain the raw body text of the post, JSON-formatted metadata (such as close voter details), or XML-style tags like '<regression>' and '<r>'."
+    },
+    "posthistory.userdisplayname": {
+      "short": "Display name of the user who performed the history action",
+      "long": "The free-form display name of the user associated with the post history event. Over 98% of rows contain an empty string (representing anonymous or system actions, or cases where the UserID is used instead), while the remaining records contain custom display names up to 21 characters long."
+    },
+    "posthistory.userid": {
+      "short": "Identifier of the user who performed the post history action",
+      "long": "The unique identifier of the user responsible for a post history event. This column contains integers ranging up to 55746, stores the special value '-1' (often denoting system actions or anonymous users), and can be NULL for actions by deleted or unauthenticated users."
+    },
+    "postlinks.creationdate": {
+      "short": "Creation timestamp for post link records in UTC",
+      "long": "The precise date and time when the link between posts was created, formatted as a 21-character string (YYYY-MM-DD HH:MM:SS.f). Values in this dataset span from July 21, 2010, to September 13, 2014, with no missing or null entries."
+    },
+    "postlinks.id": {
+      "short": "Unique numeric identifier for each post link record",
+      "long": "The primary key identifying each unique link record in the postLinks table. It contains non-null, unique integer values ranging from 108 to 3356789, represented as 3- to 6-digit IDs."
+    },
+    "postlinks.linktypeid": {
+      "short": "Type identifier code for the database post link",
+      "long": "An integer-based status or type code indicating the relationship between linked posts (such as '1' or '3'). It serves as a foreign key or enum discriminator across all 11,102 records with no null values."
+    },
+    "postlinks.postid": {
+      "short": "Unique identifier of the source post linking to another",
+      "long": "An integer identifier referencing the source post in a post-to-post relationship. It contains non-null numeric values ranging from 4 to 115360, representing the unique ID of the post where the link originates."
+    },
+    "postlinks.relatedpostid": {
+      "short": "Foreign key identifying the related forum or community post",
+      "long": "This column acts as a foreign key referencing the unique identifier of a related post (likely in a 'posts' table). It contains non-null integer values representing post IDs ranging from 1 to 115,163, with some highly referenced posts appearing up to 96 times."
+    },
+    "posts.acceptedanswerid": {
+      "short": "Foreign key identifying the accepted answer post for a question",
+      "long": "This column acts as a foreign key referencing the unique ID of the post accepted as the correct answer. It is NULL for 84% of rows—representing questions with no accepted answer or posts that are not questions—and contains unique integer identifiers ranging from 5 to 115345 for the remaining rows."
+    },
+    "posts.answercount": {
+      "short": "Total number of answers received for a post",
+      "long": "This column records the total count of answers submitted for each post, ranging from 0 to 136. It is NULL for 53% of rows (likely representing posts that do not accept answers, such as the answers themselves) and contains integer values as small digit strings."
+    },
+    "posts.body": {
+      "short": "HTML-formatted body content of forum posts",
+      "long": "The main content body of each post, stored as HTML-formatted text. This column contains the primary written text for questions and answers, including embedded code blocks, hyperlinks, images, and LaTeX/MathJax formulas for mathematical notation."
+    },
+    "posts.closeddate": {
+      "short": "",
+      "long": "Column \"ClosedDate\" (declared type DATETIME). 90356 of 91966 rows are NULL (98%). All 1610 non-NULL values are distinct (unique). Values are exactly 21 characters long, mixed characters, always beginning with \"201\". Ranges from \"2010-07-19 20:19:46.0\" to \"2014-09-13 19:29:33.0\"."
+    },
+    "posts.commentcount": {
+      "short": "Total number of comments on the post",
+      "long": "This column stores the count of comments associated with each post. It contains non-null integer values ranging from 0 to 45, where a value of 0 is the most common."
+    },
+    "posts.communityowneddate": {
+      "short": "Timestamp when a post became community-owned",
+      "long": "The date and time when a post was transitioned to community-wiki status, or NULL if it remains user-owned. Timestamp values are formatted as 'YYYY-MM-DD HH:MM:SS.0' ranging from July 2010 to September 2014, with approximately 97% of the records being NULL."
+    },
+    "posts.creaiondate": {
+      "short": "Creation timestamp for community platform posts",
+      "long": "The date and time when a post was created, formatted as a 21-character string 'YYYY-MM-DD HH:MM:SS.f'. While containing records spanning from February 2009 to September 2014, there is a data anomaly or loading bias where all values in this column are reported to begin with the string '2010-07-'."
+    },
+    "posts.favoritecount": {
+      "short": "Number of times a post was favorited by users",
+      "long": "Represents the total count of users who have bookmarked or favorited a post. Values are integers ranging from 0 to 233, though approximately 86% of the rows are NULL (which likely indicates a count of zero or that the post has never been favorited)."
+    },
+    "posts.id": {
+      "short": "Unique auto-incrementing integer identifier for each community post",
+      "long": "This column serves as the primary key for the 'posts' table, containing unique, non-null, sequential integer identifiers. While the underlying values range from 1 to 115378, they are stored as digit strings of up to three characters in length in this profile, uniquely identifying each individual post."
+    },
+    "posts.lasactivitydate": {
+      "short": "Timestamp of the most recent activity on the post",
+      "long": "Represents the date and time of the last activity on a post, formatted as a 21-character string ('YYYY-MM-DD HH:MM:SS.f') ranging from February 2009 to September 2014. This column contains no null values, making it highly reliable for filtering, sorting, or auditing recent updates."
+    },
+    "posts.lasteditdate": {
+      "short": "Timestamp of the most recent modification to the post",
+      "long": "Represents the date and time when the post was last edited, formatted as a 21-character string ('YYYY-MM-DD HH:MM:SS.f') spanning from July 2010 to September 2014. It is NULL for approximately 51% of rows, indicating posts that have never been edited."
+    },
+    "posts.lasteditordisplayname": {
+      "short": "Display name of the post's last editor",
+      "long": "The display name of the user who last edited the post, which is almost entirely NULL (99%) and typically holds auto-generated username formats (e.g., 'user10525') or custom display names ranging from 3 to 13 characters."
+    },
+    "posts.lasteditoruserid": {
+      "short": "",
+      "long": "Column \"LastEditorUserId\" (declared type INTEGER). 47361 of 91966 rows are NULL (51%). 6578 distinct values. Values are 1–5 characters long, mixed characters. Ranges from \"-1\" to \"55733\". Most common: \"7290\" (2806), \"88\" (2663), \"805\" (2303), \"930\" (2121), \"919\" (1915)."
+    },
+    "posts.ownerdisplayname": {
+      "short": "Display name of the post owner without a registered account",
+      "long": "The display name of the user who authored the post, primarily used when the author does not have a registered profile on the platform. It is highly sparse (97% NULL) and contains free-form text strings ranging from 3 to 21 characters, including placeholder names like 'user28' and custom text."
+    },
+    "posts.owneruserid": {
+      "short": "unique identifier of the user who authored the post",
+      "long": "The unique identifier of the user who created the post, linking to a users table. Values range from -1 up to 55746, with approximately 2% of rows containing NULLs (likely representing posts by deleted accounts), and -1 typically representing system-generated or community-owned posts."
+    },
+    "posts.parentid": {
+      "short": "the ID of the parent post for replies or comments",
+      "long": "Relational foreign key referencing the unique ID of a parent post in the same table, used to construct nested threads, comments, or answers. Values are numeric identifiers ranging from 1 to 115375, and are NULL for top-level original posts, which represent approximately 48% of the data."
+    },
+    "posts.posttypeid": {
+      "short": "Type identifier code for the forum post",
+      "long": "An integer-based enumeration code representing the type of post, ranging from 1 to 7 with no missing values. The most common types are 2 (likely answers) and 1 (likely questions), followed by administrative or metadata types like 4, 5, and 6."
+    },
+    "posts.score": {
+      "short": "Community voting score of the forum post",
+      "long": "The net community voting score of the post, calculated as upvotes minus downvotes. The integer values range from -19 to 192 (with no NULLs), where 1, 0, and 2 are the most common ratings."
+    },
+    "posts.tags": {
+      "short": "",
+      "long": "Column \"Tags\" (declared type TEXT). 49054 of 91966 rows are NULL (53%). 28528 distinct values. Values are 3–98 characters long, mixed characters, always beginning with \"<\". Ranges from \"<ab-test>\" to \"<zipf>\". Most common: \"<regression>\" (422), \"<r>\" (301), \"<probability>\" (251), \"<hypothesis-testing>\" (215), \"<time-series>\" (204)."
+    },
+    "posts.title": {
+      "short": "The title or headline of the community post",
+      "long": "This nullable column stores the text titles or subject lines for community posts, which are often formulated as technical questions or topic discussions. Roughly 53% of the rows are NULL, and non-null values are mixed-character strings ranging from 18 to 144 characters in length."
+    },
+    "posts.viewcount": {
+      "short": "Total number of views for the post",
+      "long": "Represents the total number of times a post has been viewed, ranging from 1 to 175,495. This is a nullable integer column where approximately 53% of the rows are NULL, likely representing posts with untracked or zero views."
+    },
+    "tags.count": {
+      "short": "Usage frequency count of the tag",
+      "long": "Represents the total number of times a tag has been applied to items or posts in the community. It contains non-null positive integers ranging from 1 to 7244, with lower counts being highly common."
+    },
+    "tags.excerptpostid": {
+      "short": "Unique identifier for the associated tag excerpt post",
+      "long": "An integer identifier referencing the unique post that contains the wiki excerpt for the tag; null values (about 42%) indicate tags that do not have an excerpt."
+    },
+    "tags.id": {
+      "short": "Unique identifier and primary key for each community tag",
+      "long": "A unique, non-null integer identifying each tag in the database. Values range from 1 to 1869 and serve as the primary key, ideal for joining with post-tag association tables."
+    },
+    "tags.tagname": {
+      "short": "Unique name identifying a discussion tag",
+      "long": "This column contains the unique, non-null lowercase text name used to categorize posts in the codebase community. Values range from 1 to 24 characters and consist of lowercase alphanumeric terms (such as '2sls' and 'zipf')."
+    },
+    "tags.wikipostid": {
+      "short": "Unique identifier of the wiki post explaining the tag",
+      "long": "An optional, unique integer ID ranging from 2254 to 114057 that references the wiki post description for each tag. It contains 4- to 6-digit values and is NULL for approximately 42% of tags that do not have an associated wiki post."
+    },
+    "users.aboutme": {
+      "short": "User-provided profile descriptions and biographical text in HTML format",
+      "long": "This column contains optional biographical details and descriptions ('About Me' profiles) submitted by community members. The data is stored as HTML fragments of varying lengths (up to 2,318 characters), is highly sparse (~77% NULL), and occasionally contains placeholders, internal moderation notes like '<p>please delete me</p>', or empty HTML tags."
+    },
+    "users.accountid": {
+      "short": "Unique identifier linking local community users to global accounts",
+      "long": "A unique, non-null user identifier ranging from -1 (typically reserved for system or anonymous accounts) to 5027354. Despite its INTEGER declared type, the raw values are represented as 1 to 6 character strings and serve as a foreign key to map local users to their global community platform accounts."
+    },
+    "users.age": {
+      "short": "User age in years",
+      "long": "The age of the community user in years, ranging from 13 to 94. It is stored as a 2-digit integer and is highly sparse, with approximately 79% of the records being NULL."
+    },
+    "users.creationdate": {
+      "short": "User account creation timestamp",
+      "long": "The date and time when the user safety or community account was created, stored in a 21-character string format ranging from '2010-07-19 06:55:26.0' to '2014-09-14 01:01:44.0'. This column contains no null values, is highly unique, and tracks user registration chronologically with millisecond precision."
+    },
+    "users.displayname": {
+      "short": "User-configured display name or nickname",
+      "long": "This column stores the non-unique display name or nickname for users, ranging from 3 to 25 characters in length. It contains no null values, supports mixed characters (including leading spaces and non-ASCII characters), and commonly features popular first names such as Chris, John, and Alex."
+    },
+    "users.downvotes": {
+      "short": "Total number of downvotes cast by the user",
+      "long": "Represents the cumulative count of downvotes a user has cast on the platform. The data is stored as non-nullable integers ranging from 0 to 1920, where the vast majority of users (nearly 98%) have cast zero downvotes."
+    },
+    "users.id": {
+      "short": "Unique identifier for community users",
+      "long": "The primary key identifying each user in the community. Values are unique, non-null integers stored as mixed-character strings ranging from '-1' (typically representing a system or anonymous user) to '55747'."
+    },
+    "users.lastaccessdate": {
+      "short": "Timestamp of the user's most recent system access",
+      "long": "Represents the date and time of the user's last login or activity, formatted as 'YYYY-MM-DD HH:MM:SS.S'. The dataset contains no NULL values and spans from July 19, 2010, to September 14, 2014."
+    },
+    "users.location": {
+      "short": "User-provided geographic location or residence",
+      "long": "This column contains self-reported geographic locations or residences provided by users, with over 71% of the records being NULL. The data is stored as free-form text ranging from 5 to 35 characters, frequently containing countries, cities, or regions (e.g., 'United States', 'London, United Kingdom', or 'Germany')."
+    },
+    "users.profileimageurl": {
+      "short": "URL of the user's external profile avatar image",
+      "long": "This column contains absolute URLs pointing to user profile images hosted on external services like Gravatar, Google, and Facebook. It is nullable (59% NULL) and primarily uses HTTPS formats, with fallback or default icons such as a generic Gravatar identicon being common."
+    },
+    "users.reputation": {
+      "short": "User community reputation score",
+      "long": "This column stores the reputation score of each user on the platform, ranging from 1 to 87,393. Common values include 1 (likely the default starting reputation) and 101 (likely an association bonus), with no NULL values present."
+    },
+    "users.upvotes": {
+      "short": "Total number of upvotes cast by the user",
+      "long": "This column records the cumulative number of upvotes a user has cast on the platform. It contains non-negative integer values ranging from 0 up to 11,442, where a value of 0 is the most common, representing inactive voters."
+    },
+    "users.views": {
+      "short": "Total profile views for the user",
+      "long": "Represents the cumulative number of times a user's profile has been viewed. This non-nullable integer column ranges from 0 to 20,932, with approximately half of the users having 0 views."
+    },
+    "users.websiteurl": {
+      "short": "URL of the user's personal or professional website",
+      "long": "This column contains the website URLs provided by community members, with approximately 80% of the rows being NULL. While all non-null values begin with 'http' or 'https', some entries contain placeholder values representing no website, such as 'http://none', 'http://None', 'http://N/A', and 'http://-'."
+    },
+    "votes.bountyamount": {
+      "short": "Point value of a bounty associated with a vote",
+      "long": "Represents the point amount awarded or offered for a bounty-related vote, ranging from 0 to 200. It is highly sparse (over 99% NULL), with common non-NULL values including standard increments like 25, 50, 100, and 150."
+    },
+    "votes.creationdate": {
+      "short": "Date when a vote was cast",
+      "long": "The date on which a vote was registered, formatted as an ISO-8601 date string (YYYY-MM-DD). There are no missing values, and the data spans from July 19, 2010, to May 1, 2011."
+    },
+    "votes.id": {
+      "short": "Unique identifier for each vote record",
+      "long": "The primary key of the votes table, uniquely identifying each vote. It contains numeric ID values ranging from 1 to 43538, with no NULLs across all 38,930 records."
+    },
+    "votes.postid": {
+      "short": "foreign key identifying the voted-upon post",
+      "long": "An integer foreign key referencing the unique identifier of a post (such as a question or answer) in the platform. Values are non-null digit strings ranging from 1 to 16921, indicating which post received the corresponding vote."
+    },
+    "votes.userid": {
+      "short": "Optional identifier of the user who cast the vote",
+      "long": "This column contains the unique integer identifier of the user who cast the vote. It is highly sparse (91% NULL), indicating that the vast majority of votes are cast anonymously or by unauthenticated users, while populated values range from 5 to 11954."
+    },
+    "votes.votetypeid": {
+      "short": "Vote type classification identifier code",
+      "long": "An integer identifier representing the specific category of vote cast (such as upvote, downvote, or favorite). It acts as an enum containing 10 distinct values ranging from 1 to 16, with '2' (typically upvotes) being the most common."
+    }
+  }
+}

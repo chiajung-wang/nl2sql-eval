@@ -1,0 +1,382 @@
+{
+  "db_id": "formula_1",
+  "generated_by": "profile_summary/v1 · openrouter/google/gemini-3.5-flash",
+  "fields": {
+    "circuits.alt": {
+      "short": "geographic altitude coordinates of the racing circuits",
+      "long": "This column is intended to store the altitude or elevation of the circuits in meters above sea level, represented as integer values. However, in the current dataset, all 72 records are entirely NULL, meaning no elevation data is currently populated."
+    },
+    "circuits.circuitid": {
+      "short": "Unique identifier for each Formula 1 racing circuit",
+      "long": "A unique primary key identifying each racetrack or circuit in the database. The values are sequential integers ranging from 2 to 73, stored as 1- to 2-digit strings with no missing values."
+    },
+    "circuits.circuitref": {
+      "short": "Unique alphanumeric reference code for each Formula 1 circuit",
+      "long": "A unique, case-sensitive alphanumeric identifier (ranging from 3 to 14 characters) used as an internal reference code for each race circuit. Examples include 'BAK' and 'zolder', making it highly useful for quick joins and filtering."
+    },
+    "circuits.country": {
+      "short": "The country where each Formula 1 circuit is located",
+      "long": "This column contains the name of the country where each racing circuit is situated. It is a non-null text field containing 32 distinct country names (ranging in length from 2 to 12 characters, such as 'Argentina' to 'USA'), with 'USA', 'France', and 'Spain' being the most frequently occurring locations."
+    },
+    "circuits.lat": {
+      "short": "geographic latitude of the Formula 1 circuit",
+      "long": "The geographic latitude coordinate of the circuit, stored as a real number. Values in this active dataset of 72 circuits coordinates range from -34.9272 to 57.2653, with up to four decimal places of precision."
+    },
+    "circuits.lng": {
+      "short": "Geographic longitude of the Formula 1 circuit",
+      "long": "This column stores the geographic longitude coordinates for Formula 1 circuits as real numbers, ranging from -118.189 to 138.927. The values are stored with up to four decimal places of precision, with no missing data across the 72 recorded tracks."
+    },
+    "circuits.location": {
+      "short": "City or region where each Formula 1 circuit is located",
+      "long": "This column contains the city, municipality, or region name where the Formula 1 circuit is located, such as 'Abu Dhabi' or 'Zandvoort'. Key values range from 3 to 21 characters in length with no missing data, and although most locations are unique, some host multiple circuits (e.g., 'Barcelona' or 'Spielburg')."
+    },
+    "circuits.name": {
+      "short": "Unique name of the Formula 1 circuit",
+      "long": "The official or common name of the Formula 1 racetrack, such as 'A1-Ring' or 'Zolder'. This column contains unique, non-null text values ranging from 4 to 37 characters in length."
+    },
+    "circuits.url": {
+      "short": "Wikipedia URL for the Formula 1 circuit",
+      "long": "This column contains the unique URL of the Wikipedia article for each Formula 1 circuit. Every value begins with the prefix 'http://en.wikipedia.org/wiki/', is fully populated with no NULLs, and ranges from 33 to 71 characters in length."
+    },
+    "constructorresults.constructorid": {
+      "short": "Unique internal identifier for the constructor",
+      "long": "A mandatory, foreign key-style integer identifier representing a constructor (F1 team). Values range from 1 to 210, with popular teams like Ferrari (6) and McLaren (1) appearing most frequently across the 11,082 records."
+    },
+    "constructorresults.constructorresultsid": {
+      "short": "Unique identifier for each constructor race result record",
+      "long": "An internal, sequentially assigned integer primary key identifying each unique constructor result record. Values range from 1 to 15579 with no missing or duplicate entries, making it ideal for joining with other tables in the formula_1 database."
+    },
+    "constructorresults.points": {
+      "short": "Championship points awarded to a constructor in a race",
+      "long": "The total number of championship points earned by a constructor in a single Formula 1 race. Values are stored as real numbers ranging from 0.0 to 66.0 to accommodate fractional points sometimes awarded in shortened races."
+    },
+    "constructorresults.raceid": {
+      "short": "Internal identifier linking constructor results to specific Formula 1 races",
+      "long": "An integer identifier referencing the unique race (matching 'raceId' in the races table) for which these constructor results were recorded. It contains sequential numeric values ranging from 1 to 982, with no missing values."
+    },
+    "constructorresults.status": {
+      "short": "Constructor disqualification status flag",
+      "long": "An optional status indicator representing a constructor's disqualification from a race. It is almost entirely NULL, with the single non-null value 'D' indicating a disqualification."
+    },
+    "constructors.constructorid": {
+      "short": "Unique identifier for each Formula 1 constructor",
+      "long": "A unique, non-null integer identifier for each Formula One constructor, serialized as a 1-to-3 digit string ranging from '1' to '210'. It serves as the primary key used to join constructor data with other tables in the schema."
+    },
+    "constructors.constructorref": {
+      "short": "Unique text identifier for the constructor",
+      "long": "A unique, lowercase text identifier representing the Formula 1 constructor, typically derived from the constructor's name. It acts as a natural key ranging from 'adams' to 'zakspeed', containing no NULL values across all 208 rows."
+    },
+    "constructors.name": {
+      "short": "Unique name of the Formula 1 constructor",
+      "long": "The unique, official name of the Formula 1 constructor or team, ranging from 2 to 25 characters in length (e.g., 'AFM' to 'Zakspeed'). This column contains no null values across all 208 recorded constructors."
+    },
+    "constructors.nationality": {
+      "short": "Nationality of the Formula 1 constructor",
+      "long": "This column records the national origin of the Formula 1 constructor as a text string. It contains 24 distinct, non-null values ranging from 'American' to 'Swiss', with 'British' being the most common representation."
+    },
+    "constructors.url": {
+      "short": "Wikipedia URL for the Formula One constructor",
+      "long": "This column contains the unique Wikipedia article URL for each Formula One constructor. Every record is populated with a non-null URL string ranging from 32 to 73 characters in length, always beginning with the 'http://en.wikipedia.org/wiki/' prefix."
+    },
+    "constructorstandings.constructorid": {
+      "short": "Unique identifier for F1 constructors in the standings table",
+      "long": "A mandatory foreign key referencing a specific Formula 1 constructor. Values are stored as variable-length integers ranging from 1 to 210, with 156 distinct constructors represented across the dataset."
+    },
+    "constructorstandings.constructorstandingsid": {
+      "short": "Unique primary key for constructor standings records",
+      "long": "The unique primary key identifying each constructor standing record. This column contains non-null, sequential integer values ranging from 1 to 26872."
+    },
+    "constructorstandings.points": {
+      "short": "F1 constructor championship points",
+      "long": "The cumulative championship points accumulated by a constructor team up to a specific round in the season. Values are represented as real numbers ranging from 0.0 to 765.0, which accommodates historical occurrences of half-point awards."
+    },
+    "constructorstandings.position": {
+      "short": "the final or current constructor standing position",
+      "long": "Represents the numerical classification or rank of a constructor in the standings, ranging from 1 to 22. This integer column contains no missing values and indicates the constructor's leaderboard position for a given race or season."
+    },
+    "constructorstandings.positiontext": {
+      "short": "Constructor championship standings position as a string",
+      "long": "Represents the constructor's standing position in the championship. While typically a numeric rank (e.g., '1' through '23'), it is stored as text to accommodate non-numeric status codes such as 'E' (likely representing excluded or eliminated)."
+    },
+    "constructorstandings.raceid": {
+      "short": "Foreign key identifying the Formula 1 race",
+      "long": "This column serves as a foreign key linking to the race table, representing the specific Grand Prix event. It contains unique integer identifiers ranging from 1 to 982 with no missing values."
+    },
+    "constructorstandings.wins": {
+      "short": "Number of Grand Prix wins by a constructor",
+      "long": "The total number of race victories achieved by a constructor up to a given point in the Formula 1 standings. Values are non-null integers ranging from 0 to 19, with 0 being the most common state."
+    },
+    "drivers.code": {
+      "short": "Three-letter driver abbreviation code",
+      "long": "A three-letter uppercase abbreviation (e.g., 'VER' or 'ALB') used to identify Formula 1 drivers on timing screens and TV broadcasts. Due to historical data gaps, approximately 90% of the rows in this table are NULL."
+    },
+    "drivers.dob": {
+      "short": "Date of birth of the Formula 1 driver",
+      "long": "The date of birth for the driver, formatted as an ISO 8601 date string (YYYY-MM-DD). Date values range from '1896-12-28' to '1998-10-29', with approximately 1 row representing a missing or unknown date."
+    },
+    "drivers.driverid": {
+      "short": "Unique identifier for each Formula 1 driver",
+      "long": "The primary key identifying each driver in the database. Every row contains a unique, non-null integer value ranging from 1 to 841, stored as a numeric ID."
+    },
+    "drivers.driverref": {
+      "short": "Unique URL-friendly driver identifier slug",
+      "long": "A unique, lowercase alphanumeric string (3 to 18 characters) used as an identifier slug for each driver, typically matching their surname or a variation of it. This column contains no null values across all 840 records and is ideal for constructing URLs or performing stable table joins."
+    },
+    "drivers.forename": {
+      "short": "First name of the Formula 1 driver",
+      "long": "This column contains the first name or forename of the driver, ranging from 2 to 15 characters. There are no missing values across the 840 records, with common historical names like 'John' and 'Mike' appearing most frequently."
+    },
+    "drivers.nationality": {
+      "short": "Nationality of the Formula 1 driver",
+      "long": "This column records the nationality of each driver as a text string, such as 'British' or 'American'. It contains no null values across 840 records, with 41 distinct nationalities represented, ranging from 4 to 17 characters in length."
+    },
+    "drivers.number": {
+      "short": "Permanent racing number of the driver",
+      "long": "The driver's unique permanent racing number, ranging from 2 to 99. This column is highly sparse (96% NULL) as permanent numbers were only introduced to Formula 1 in recent seasons."
+    },
+    "drivers.surname": {
+      "short": "The surname of the Formula 1 driver",
+      "long": "This column contains the surname or last name of the Formula 1 driver. It consists of mixed-case text values ranging from 3 to 14 characters, including support for accented letters, and contains no NULL values."
+    },
+    "drivers.url": {
+      "short": "Wikipedia biography URL of the Formula 1 driver",
+      "long": "Unique URLs pointing to each driver's Wikipedia biography page. Some records contain an empty string instead of a standard NULL value when a link is unavailable."
+    },
+    "driverstandings.driverid": {
+      "short": "Unique identifier for drivers in the standings table",
+      "long": "A foreign key containing unique integer IDs representing Formula 1 drivers, ranging from 1 to 841. This column contains no missing values and can be used to join the standings table with the master driver directory."
+    },
+    "driverstandings.driverstandingsid": {
+      "short": "Unique identifier for each driver standings record",
+      "long": "The primary key identifying a specific driver standings entry. It contains unique, non-null integer values ranging from 1 to 68460."
+    },
+    "driverstandings.points": {
+      "short": "Total points accumulated by a driver in the championship",
+      "long": "This column represents the total points accumulated by a driver at a specific point in the Formula 1 championship standings. The values are stored as REAL numbers ranging from '0.0' to '397.0', with '0.0' being the most common value, reflecting drivers who have not yet scored points."
+    },
+    "driverstandings.position": {
+      "short": "Final standings position of a driver in the championship",
+      "long": "This column represents the driver's placement in the championship standings, ranging from 1 to 108. It is stored as an integer with no missing values across all historical records."
+    },
+    "driverstandings.positiontext": {
+      "short": "Driver championship standing position or status code",
+      "long": "The official standing position of a driver in the championship, represented either as a numeric rank (e.g., '1', '2') or an alphanumeric status code such as 'D' (likely meaning Disqualified) or 'R' (Retired) for non-standard classifications."
+    },
+    "driverstandings.raceid": {
+      "short": "Unique identifier for each Formula 1 race",
+      "long": "Foreign key linking to the races table, containing unique integer identifiers ranging from 1 to 982 representing individual Grand Prix events."
+    },
+    "driverstandings.wins": {
+      "short": "Cumulative number of race wins in the season",
+      "long": "Represents the total number of race wins achieved by a driver in a given season up to that specific standing. It contains non-negative integer values ranging from 0 to 13, where 0 is by far the most frequent value."
+    },
+    "laptimes.driverid": {
+      "short": "Unique identifier for the driver completing the lap",
+      "long": "A mandatory foreign key identifying the driver who recorded the lap time, referencing the drivers dimension table. It contains non-null integer values ranging from 1 to 841, representing 121 distinct drivers."
+    },
+    "laptimes.lap": {
+      "short": "Sequential lap number of the race",
+      "long": "This column represents the chronological lap number within a Grand Prix, ranging from 1 to 78, indicating the specific lap for which the duration was recorded."
+    },
+    "laptimes.milliseconds": {
+      "short": "lap completion time in milliseconds",
+      "long": "The duration of each recorded lap in milliseconds, stored as an integer. Values represent elapsed times ranging from approximately 67.4 seconds (67,411 ms) to over two hours (7,507,547 ms), with most lap times concentrated around the 80-second range."
+    },
+    "laptimes.position": {
+      "short": "the racing position of a driver during a lap",
+      "long": "The driver's running rank or position on a specific lap of the race, ranging sequentially from 1 to 24 with no missing values."
+    },
+    "laptimes.raceid": {
+      "short": "foreign key identifying the Formula 1 race",
+      "long": "A foreign key linking to the races table, identifying the specific Formula 1 race for each lap time record. Values are non-null integers ranging from 1 to 982, representing 389 unique races in the dataset."
+    },
+    "laptimes.time": {
+      "short": "",
+      "long": "Column \"time\" (declared type TEXT). No NULLs across 420369 rows. 67578 distinct values. Values are exactly 8 characters long, mixed characters. Ranges from \"10:32.179\" to \"9:45.712\". Most common: \"1:23.794\" (31), \"1:19.613\" (29), \"1:20.329\" (29), \"1:20.450\" (29), \"1:21.571\" (29)."
+    },
+    "pitstops.driverid": {
+      "short": "Unique identifier linking each pit stop to a specific driver",
+      "long": "This column contains the unique integer identifier for the driver who made the pit stop, acting as a foreign key that references the drivers table. Across 6,070 records, there are 54 distinct driver IDs ranging from 1 to 841, with no missing values."
+    },
+    "pitstops.duration": {
+      "short": "Pit stop duration in seconds",
+      "long": "The duration of the pit stop in seconds, stored as a six-character text string formatted to three decimal places (e.g., '12.897' to '59.555'). Although declared as TEXT, this column contains numeric data representing elapsed time."
+    },
+    "pitstops.lap": {
+      "short": "the lap number during which the pit stop occurred",
+      "long": "This column records the specific lap of the Grand Prix during which a driver entered the pit lane for a pit stop. Values are integers ranging from 1 to 74, representing the sequence of the race lap."
+    },
+    "pitstops.milliseconds": {
+      "short": "duration of the pit stop in milliseconds",
+      "long": "The total duration of the pit stop recorded in milliseconds. This five-digit integer column contains no null values, with times ranging from 12,897 milliseconds (approximately 13 seconds) to over 2,011,266 milliseconds (approximately 33.5 minutes)."
+    },
+    "pitstops.raceid": {
+      "short": "Unique identifier of the F1 race for each pit stop",
+      "long": "This column serves as a foreign key linking each pit stop to its corresponding Formula 1 race. It contains non-null, three-digit integer identifiers ranging from 841 to 982 across 131 distinct races."
+    },
+    "pitstops.stop": {
+      "short": "sequential number of the pit stop within a race",
+      "long": "The sequential number of the pit stop during a race, represented as an integer ranging from 1 to 6. This indicates whether it was a driver's first, second, or subsequent stop in that specific Grand Prix."
+    },
+    "pitstops.time": {
+      "short": "Wall-clock time of the pit stop",
+      "long": "The local wall-clock time when the pit stop occurred, formatted as a 24-hour 'HH:MM:SS' string. Values in this dataset range from '13:04:51' to '21:53:08', representing afternoon and evening race times."
+    },
+    "qualifying.constructorid": {
+      "short": "Foreign key identifying the constructor or team",
+      "long": "An integer identifier (foreign key) linking to the team or constructor table. It contains no null values, ranging from 1 to 210, with 41 distinct constructor IDs present across all qualifying records."
+    },
+    "qualifying.driverid": {
+      "short": "Unique identifier linking qualifying sessions to specific Formula 1 drivers",
+      "long": "An integer foreign key representing the driver participating in the qualifying session, mapping to driverId in the drivers table. Across 7,397 records, there are 151 distinct driver identifiers ranging from 1 to 841, with no missing values."
+    },
+    "qualifying.number": {
+      "short": "Formula 1 driver racing number",
+      "long": "The driver's unique racing or car number in the qualifying session, represented as an integer ranging from 0 to 99 with no missing values."
+    },
+    "qualifying.position": {
+      "short": "Final grid position achieved by the driver in qualifying",
+      "long": "This column represents the final classification rank or grid position achieved by a driver during a qualifying session. It contains sequential, non-null integer values ranging from 1 (indicating pole position) up to 28, which dictates the starting order for the race."
+    },
+    "qualifying.q1": {
+      "short": "",
+      "long": "Column \"q1\" (declared type TEXT). 117 of 7397 rows are NULL (2%). 6635 distinct values. Values are exactly 8 characters long, mixed characters, always beginning with \"1:\". Ranges from \"16:42.640\" to \"2:33.885\". Most common: \"1:20.888\" (4), \"1:12.409\" (3), \"1:14.412\" (3), \"1:15.644\" (3), \"1:15.746\" (3)."
+    },
+    "qualifying.q2": {
+      "short": "",
+      "long": "Column \"q2\" (declared type TEXT). 3807 of 7397 rows are NULL (51%). 3403 distinct values. Values are exactly 8 characters long, mixed characters, always beginning with \"1:\". Ranges from \"\" to \"2:12.470\". Most common: \"\" (23), \"1:15.150\" (3), \"1:15.974\" (3), \"1:26.161\" (3), \"1:26.319\" (3)."
+    },
+    "qualifying.q3": {
+      "short": "Lap time achieved by the driver in the third qualifying session (Q3)",
+      "long": "Represents the fastest lap time recorded by a driver during the third and final round of qualifying (Q3), formatted as an 8-character string in 'M:SS.sss' format (e.g., '1:35.766'). It is NULL for the approximately 71% of entries where the driver did not advance to or participate in the Q3 session."
+    },
+    "qualifying.qualifyid": {
+      "short": "Unique identifier for each Formula 1 qualifying session record",
+      "long": "A unique, non-null integer identifier serving as the primary key for each qualifying record. Values range from 1 to 7419, indicating a sequential identifier for sessions across different Grand Prix events."
+    },
+    "qualifying.raceid": {
+      "short": "foreign key identifying the Formula 1 race",
+      "long": "This column is a foreign key that references the unique identifier of a Formula 1 race (typically linking to a races table). It contains non-null integer values ranging from 1 to 982, representing the specific grand prix event associated with each qualifying session record."
+    },
+    "races.circuitid": {
+      "short": "Foreign key identifying the circuit where the race was held",
+      "long": "This column serves as a foreign key linking each race to its corresponding venue in the circuits table. It contains non-null integer identifiers ranging from 1 to 73, representing 72 distinct racing circuits."
+    },
+    "races.date": {
+      "short": "The scheduled calendar date of the Formula 1 race",
+      "long": "The specific calendar date of the Formula 1 Grand Prix in YYYY-MM-DD format. Across the dataset, this column contains unique dates representing each race event, ranging from the inaugural championship race on May 13, 1950, to November 26, 2017."
+    },
+    "races.name": {
+      "short": "Name of the Formula 1 Grand Prix event",
+      "long": "The official name of the Grand Prix race event, such as 'British Grand Prix' or 'Monaco Grand_Prix'. This text column contains 42 distinct values representing active and historical F1 races, with character lengths ranging from 16 to 29."
+    },
+    "races.raceid": {
+      "short": "Unique primary key identifying each Formula 1 race",
+      "long": "This column serves as the unique primary key for the races table, containing three-digit identifier codes ranging from 1 to 988 with no null values."
+    },
+    "races.round": {
+      "short": "the round number of a Formula 1 race within its season",
+      "long": "Represents the chronological round number of the race within a given Formula 1 championship season. It contains integer values ranging from 1 to 21, mapped with no missing data across all recorded races."
+    },
+    "races.time": {
+      "short": "Scheduled local start time of the race",
+      "long": "The scheduled local start time of the Formula 1 Grand Prix, formatted as an 8-character 'HH:MM:SS' 24-hour time string. It ranges from '03:00:00' to '20:00:00', with common start times including '12:00:00' and '14:00:00', though it is NULL for approximately 75% of historical races."
+    },
+    "races.url": {
+      "short": "Wikipedia URL for each Formula 1 race",
+      "long": "This column contains the unique Wikipedia article URL for each race. The values are encoded as text strings of 50 to 58 characters, beginning with 'http://en.wikipedia.org/wiki/19' or 'https://en.wikipedia.org/wiki/20', and ranging chronologically from the 1950 Belgian Grand Prix to the 2017 United States Grand Prix."
+    },
+    "races.year": {
+      "short": "Calendar year in which the race occurred",
+      "long": "The calendar year of the Formula 1 race, represented as a four-digit integer. Values range from 1950 to 2017 with no missing data, indicating the season of the race."
+    },
+    "results.constructorid": {
+      "short": "Unique identifier for the Formula 1 constructor team",
+      "long": "A foreign key identifier representing the Formula 1 constructor associated with the race result. Values are non-null integers ranging from 1 to 210, which can be linked to a constructors table for team details."
+    },
+    "results.driverid": {
+      "short": "Unique identifier for the driver in race results",
+      "long": "A foreign key identifier representing the driver participating in the race. This column contains no null values and ranges from 1 to 841, mapping directly to the driver's unique record in the driver dimension table."
+    },
+    "results.fastestlap": {
+      "short": "the lap number in which the driver set their fastest lap time",
+      "long": "Identifies the specific lap number (ranging from 2 to 78) during the Grand Prix in which the driver recorded their fastest lap time. It is stored as an integer, though it is highly sparse with approximately 78% of rows being NULL, typically because detailed lap-by-lap data was not officially recorded for older historic races."
+    },
+    "results.fastestlapspeed": {
+      "short": "Average speed of the driver's fastest lap in km/h",
+      "long": "The average speed of the driver's fastest lap during the race, recorded as a decimal string in kilometers per hour (km/h). Values are exactly 7 characters long, ranging from '100.615' to '257.320' (with the alphabetical range boundaries reflecting lexicographical ordering of numeric strings), and approximately 78% of rows are NULL."
+    },
+    "results.fastestlaptime": {
+      "short": "Fastest lap time achieved by a driver in mm:ss.sss format",
+      "long": "The fastest lap time recorded by a driver during a Formula 1 race, formatted as a string of 'm:ss.sss'. Values in this column range from '1:07.411' to '3:22.300', with approximately 78% of the rows containing NULL values, indicating races or entries where a fastest lap was not recorded or available."
+    },
+    "results.grid": {
+      "short": "Starting grid position of the car for the race",
+      "long": "The starting grid position of the driver, ranging from 1 to 34, where 1 represents pole position. A value of 0 indicates the driver started from the pit lane or was excluded from the grid."
+    },
+    "results.laps": {
+      "short": "number of laps completed by a driver in a race",
+      "long": "The total number of laps completed by a driver during a Grand Prix, ranging from 0 (indicating an immediate retirement or failure to start) up to 200. This is an integer value with 0 being the most frequent entry, representing DNFs or non-starts."
+    },
+    "results.milliseconds": {
+      "short": "race completion time in milliseconds",
+      "long": "The total duration in milliseconds taken by a driver to complete the race. It is recorded as a numeric string ranging from 1,474,899 (approximately 24.6 minutes) to 15,090,540 (approximately 4.2 hours), with 75% of rows containing NULL values, typically representing drivers who did not finish the race or whose exact times were not captured."
+    },
+    "results.number": {
+      "short": "Formula 1 driver car number for the race",
+      "long": "The racing number displayed on the driver's car for the grand prix. Values are stored as integers ranging from 0 to 208, with a small number of missing (null) values."
+    },
+    "results.points": {
+      "short": "Championship points awarded to a driver for a race finish",
+      "long": "The number of championship points awarded to a driver for their finishing position in a race. Values are stored as real numbers, ranging from 0.0 to 50.0, with 0.0 being the most common outcome."
+    },
+    "results.position": {
+      "short": "Numerical finishing position of the driver in the race",
+      "long": "This column records the final finishing position of the driver in the race, ranging from 1 to 33. A NULL value (representing 45% of rows) indicates that the driver did not classify, typically due to retirement (DNF), disqualification (DSQ), or failing to start (DNS)."
+    },
+    "results.positionorder": {
+      "short": "Final finishing position of the driver in the race",
+      "long": "The final classification order or finishing position of the driver in the race, ranging from 1 to 39. This column contains no null values and represents a continuous ranking of all participants, including those who did not finish."
+    },
+    "results.positiontext": {
+      "short": "Finishing position or classification status code",
+      "long": "This column stores the driver's final classification in the race as either a numeric finishing position or an alphanumeric status code. Common non-numeric codes include 'R' for retired, 'D' for disqualified, and 'W' for withdrawn."
+    },
+    "results.raceid": {
+      "short": "Foreign key linking the result to a specific race",
+      "long": "This column acts as a foreign key linking each race result to its corresponding event in the races table. It contains non-null integer identifiers ranging from 1 to 982, spanning 970 distinct Formula 1 races."
+    },
+    "results.rank": {
+      "short": "the ranking of the driver's fastest lap in the race",
+      "long": "The numerical rank of the driver's fastest lap time during the race relative to other drivers, ranging from 0 to 24. Since fastest lap ranking data was not historically tracked for all older Grand Prix races, approximately 77% of the rows in this column contain NULL values."
+    },
+    "results.resultid": {
+      "short": "Unique identifier for each Formula 1 race result record",
+      "long": "The primary key of the results table, uniquely identifying each individual race result record. It contains sequential, non-null integer values ranging from 1 to 23661, stored as digits mapping to unique result entries."
+    },
+    "results.statusid": {
+      "short": "Foreign key identifying the race finish or retirement status",
+      "long": "A foreign key referencing the status table, representing the outcome of a driver's race (e.g., 'Finished', 'Collision', or mechanical failure). Values are integers ranging from 1 to 136, with '1' (typically representing a completed race or 'Finished' status) being the most common."
+    },
+    "results.time": {
+      "short": "",
+      "long": "Column \"time\" (declared type TEXT). 17696 of 23657 rows are NULL (75%). 5755 distinct values. Values are 6–11 characters long, mixed characters. Ranges from \"+ 1:06.7\" to \"4:04:39.537\". Most common: \"+8:22.19\" (5), \"+0.7\" (4), \"+1:29.6\" (4), \"+46.2\" (4), \"+5.7\" (4)."
+    },
+    "seasons.url": {
+      "short": "Wikipedia URL for the Formula One season",
+      "long": "This column contains the unique Wikipedia article URL for each Formula One racing season. The values are unique, non-null, and range from the 1950 season to the 2017 season, formatted as secure or standard HTTP links."
+    },
+    "seasons.year": {
+      "short": "four-digit calendar year of the Formula 1 season",
+      "long": "The four-digit calendar year (YYYY format) representing the specific Formula 1 season, serving as a unique identifier for each of the 68 recorded seasons ranging from 1950 to 2017."
+    },
+    "status.status": {
+      "short": "Formula 1 race finish status or retirement reason",
+      "long": "This column contains the unique text descriptions of race statuses or outcomes, ranging from active finishes (e.g., '+1 Lap') to specific retirement reasons (such as mechanical failures or 'Withdrew'). It serves as a master lookup list of all possible ways a driver can complete or exit a Grand Prix."
+    },
+    "status.statusid": {
+      "short": "Unique identifier for each race completion or retirement status",
+      "long": "A unique primary key ranging from 1 to 136 that identifies a specific finishing status or retirement reason (such as 'Finished', 'Collision', or 'Engine'). It contains no null values and is used to join the status table with race results."
+    }
+  }
+}

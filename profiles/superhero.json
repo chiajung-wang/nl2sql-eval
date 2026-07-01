@@ -1,0 +1,130 @@
+{
+  "db_id": "superhero",
+  "generated_by": "profile_summary/v1 · openrouter/google/gemini-3.5-flash",
+  "fields": {
+    "alignment.alignment": {
+      "short": "Moral alignment category for superhero characters",
+      "long": "This column contains the unique moral alignment classifications (such as 'Bad' and 'Neutral') for characters. It consists of exactly four distinct, non-NULL text values ranging from 3 to 7 characters."
+    },
+    "alignment.id": {
+      "short": "Unique identifier for superhero alignment categories",
+      "long": "A unique primary key identifying different superhero alignment categories, containing sequential integer values ranging from 1 to 4."
+    },
+    "attribute.attribute_name": {
+      "short": "Unique names of superhero character attributes",
+      "long": "This column contains the unique names of superhero attributes or stats, such as 'Combat' and 'Strength'. It consists of 6 distinct, non-null alphabetic text values ranging from 5 to 12 characters in length."
+    },
+    "attribute.id": {
+      "short": "Unique identifier for each superhero attribute",
+      "long": "The primary key identifying each attribute in the database, containing unique sequential integers ranging from 1 to 6."
+    },
+    "colour.colour": {
+      "short": "Unique name of a character or costume color",
+      "long": "This column contains the unique name of a color associated with a superhero, such as their costume, eyes, or hair. Values are mixed-case text strings ranging from 3 to 16 characters (e.g., 'Amber' to 'Yellow/Red'), with no duplicate or missing entries across the 35 recorded colors."
+    },
+    "colour.id": {
+      "short": "Unique sequential identifier for each superhero color",
+      "long": "The primary key of the colour table, containing unique sequential integers ranging from 1 to 35. This column acts as a unique identifier for each color record in the database."
+    },
+    "gender.gender": {
+      "short": "Superhero gender category",
+      "long": "Stores the gender classification of superheroes as text. It contains exactly three distinct values: 'Female', 'Male', and 'N/A'."
+    },
+    "gender.id": {
+      "short": "Primary key uniquely identifying each gender category",
+      "long": "A unique integer identifier ranging from 1 to 3 that serves as the primary key for the gender lookup table. This column is used to join gender categories with superhero records."
+    },
+    "hero_attribute.attribute_id": {
+      "short": "Foreign key identifier for superhero attributes",
+      "long": "An integer identifier referencing a specific superhero attribute, acting as a foreign key. The column contains no null values and holds exactly six distinct ID values ranging sequentially from 1 to 6, with an even distribution of 623 records per ID across the dataset."
+    },
+    "hero_attribute.attribute_value": {
+      "short": "Numeric rating score for a superhero attribute",
+      "long": "This column stores the numeric evaluation score for a superhero's attribute, ranging from 5 to 100. It contains 20 distinct integer values representing standardized rating increments with no missing data, where 100 signifies the maximum level."
+    },
+    "hero_attribute.hero_id": {
+      "short": "Unique identifier linking the attribute to a specific superhero",
+      "long": "This column acts as a foreign key referencing the superhero affiliated with each attribute, with integer values ranging from 1 to 756. Multiple rows can share the same hero ID because a single superhero can possess several distinct attributes."
+    },
+    "hero_power.hero_id": {
+      "short": "Foreign key referencing the unique identifier of a superhero",
+      "long": "This column acts as a foreign key linking to a superhero's unique identifier, containing integer values ranging from 1 to 756. It is a mandatory field with no null values across 5,825 rows, representing 652 distinct heroes and mapping them to their various powers."
+    },
+    "hero_power.power_id": {
+      "short": "Foreign key identifier for a specific superpower",
+      "long": "This column serves as a foreign key linking heroes to their respective abilities, pointing to a master list of superpowers. It contains non-null integer values ranging sequentially from 1 to 167, representing 167 distinct power profiles."
+    },
+    "publisher.id": {
+      "short": "Unique primary key identifier for each superhero publisher",
+      "long": "A unique, sequential integer primary key identifying each publisher, with values currently ranging from 1 to 25."
+    },
+    "publisher.publisher_name": {
+      "short": "Unique name of the comic book publisher",
+      "long": "This column stores the unique name of each comic book publisher, ranging in length from 0 to 17 characters. There are 25 distinct non-NULL values, including one empty string as a valid entry."
+    },
+    "race.id": {
+      "short": "Unique identifier for each superhero race",
+      "long": "The primary key of the race table, containing unique sequential integers from 1 to 61 to identify specific superhero races or species."
+    },
+    "race.race": {
+      "short": "Unique name of the superhero race or species",
+      "long": "This column contains the unique name of the superhero's race or species, ranging from standard categories like 'Zombie' to a placeholder hyphen '-' representing unknown or unclassified races. All 61 entries are unique, non-null, and vary in length up to 18 characters."
+    },
+    "superhero.alignment_id": {
+      "short": "Foreign key ID indicating the superhero's alignment",
+      "long": "An integer identifier referencing the alignment of the superhero (e.g., Good, Bad, Neutral). It contains values from 1 to 3, with approximately 1% of the records being NULL."
+    },
+    "superhero.eye_colour_id": {
+      "short": "Foreign key identifier for the superhero's eye color",
+      "long": "This integer column acts as a foreign key referencing an eye color lookup table, containing 21 distinct ID values ranging from 1 to 35. It is fully populated with no NULL values across all 750 records, with '7' being the most common eye color ID."
+    },
+    "superhero.full_name": {
+      "short": "Full real name of the superhero",
+      "long": "This column contains the official real or birth name of the superhero, ranging up to 49 characters. Note that approximately 16% of rows are NULL, and an additional 125 rows use a hyphen ('-') as a placeholder when the true identity is unknown or not applicable."
+    },
+    "superhero.gender_id": {
+      "short": "Foreign key identifier for the superhero's gender",
+      "long": "An integer-based categorical identifier mapping to the superhero's gender. The column contains no null values across all 750 rows and is limited to three distinct single-digit code values ranging from 1 to 3, with 1 being the most common."
+    },
+    "superhero.hair_colour_id": {
+      "short": "Foreign key identifier for superhero hair colors",
+      "long": "An integer foreign key referencing a master list of superhero hair colors. It contains 26 distinct category IDs ranging from 1 to 33, with no null values across all 750 records."
+    },
+    "superhero.height_cm": {
+      "short": "height in centimeters of the superhero",
+      "long": "This column records the superhero's height in centimeters, ranging up to 30480. Note that '0' is the most common non-null value (155 occurrences), which likely represents missing or unknown data alongside the actual NULL values."
+    },
+    "superhero.id": {
+      "short": "Unique identifier for each superhero",
+      "long": "This column serves as the unique primary key identifier for each superhero, containing sequential integer values ranging from 1 to 756."
+    },
+    "superhero.publisher_id": {
+      "short": "foreign key identifying the superhero publisher",
+      "long": "An integer identifier referencing the publisher of the superhero, ranging from 1 to 25. It contains 25 distinct values, with '13' and '4' being the most common, and allows NULL values."
+    },
+    "superhero.race_id": {
+      "short": "Foreign key ID referencing the superhero's race or species",
+      "long": "An integer foreign key referencing the unique identifier of the superhero's race or species. Values range from 1 to 61, with a small percentage (1%) of NULL values where the race is unknown."
+    },
+    "superhero.skin_colour_id": {
+      "short": "Foreign key identifier for the superhero's skin color",
+      "long": "A foreign key identifier referencing a skin color lookup table, containing 16 distinct integer values ranging from 1 to 33. The column is fully populated across all 750 records without any NULL values, with the ID '1' being the most common classification."
+    },
+    "superhero.superhero_name": {
+      "short": "The name or alias of the superhero",
+      "long": "This column contains the primary names or aliases of superheroes, ranging from 3 to 17 characters in length. While it represents mostly unique names across 750 entities, there are a few minor duplicates (such as 'Atlas' and 'Angel'), meaning this column is not a unique primary key."
+    },
+    "superhero.weight_kg": {
+      "short": "Approximate weight of the superhero in kilograms",
+      "long": "This column records the superhero's weight in kilograms (represented as integer values). It contains placeholder values of '0' for missing or unknown data in approximately 23% of the records, and ranges up to '90000000' for exceptionally heavy characters."
+    },
+    "superpower.id": {
+      "short": "unique primary key identifier for each superpower",
+      "long": "The unique primary key identifier for each superpower, containing sequential integer values ranging from 1 to 167 with no missing data."
+    },
+    "superpower.power_name": {
+      "short": "Unique name of a superhero superpower",
+      "long": "This column contains the unique name of a superpower, such as 'Accelerated Healing' or 'Wind Control'. It acts as a text identifier with no null values, ranging from 4 to 28 characters in length."
+    }
+  }
+}
