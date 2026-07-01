@@ -42,14 +42,25 @@ from eval.model_select import model_id
 from nl2sql import obs
 from nl2sql.pipeline.graph import run_pipeline
 from nl2sql.pipeline.state import RunState
+from nl2sql.profiling import resolve_column_descriptions
 from nl2sql.prompts import PROMPT_VERSION
 from nl2sql.schema_index import build_schema_index
 
 
 @cache
 def _index(db_id: str):
-    """The db's schema index (cached) — built once, reused across its questions."""
-    return build_schema_index(_engine(db_id))
+    """The db's schema index (cached) — built once, reused across its questions.
+
+    The field-description source is the ``METADATA_SOURCE`` axis (#140): with the
+    default ``supplied`` (or no ``profiles/<db>.json`` artifact) this resolves to an
+    empty map, so the index is byte-identical to before; ``profiling``/``fused``
+    ride the cached data-derived descriptions into the rendered schema the generator
+    sees. This is the one call site that makes the selector active in a real run.
+    """
+    return build_schema_index(
+        _engine(db_id),
+        column_descriptions=resolve_column_descriptions(db_id),
+    )
 
 
 def slice6_id() -> str:

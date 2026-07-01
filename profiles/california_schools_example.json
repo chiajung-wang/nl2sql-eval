@@ -1,0 +1,18 @@
+{
+  "db_id": "california_schools_example",
+  "generated_by": "deterministic-english fallback (no LLM) — illustrative format example, #140",
+  "fields": {
+    "satscores.avgscrmath": {
+      "short": "",
+      "long": "Column \"AvgScrMath\" (declared type INTEGER). 1 of 3 rows are NULL (33%). All 2 non-NULL values are distinct (unique). Values are exactly 3 characters long, all digits. Ranges from \"418\" to \"503\"."
+    },
+    "satscores.cds": {
+      "short": "",
+      "long": "Column \"cds\" (declared type TEXT). No NULLs across 3 rows. All 3 non-NULL values are distinct (unique). Values are exactly 14 characters long, all digits, always beginning with \"0110017000000\". Ranges from \"01100170000001\" to \"01100170000003\"."
+    },
+    "satscores.numtsttakr": {
+      "short": "",
+      "long": "Column \"NumTstTakr\" (declared type INTEGER). No NULLs across 3 rows. All 3 non-NULL values are distinct (unique). Values are 1–2 characters long, all digits. Ranges from \"0\" to \"88\"."
+    }
+  }
+}

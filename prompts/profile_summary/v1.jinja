@@ -1,0 +1,28 @@
+{# profile_summary/v1 — Step 12, #140.
+   Offline, cached field-description summarization (never a request-time call).
+   Given a column's table/column names and its DETERMINISTIC data profile rendered
+   as English, produce a SHORT gloss (for schema linking) and a LONG description
+   (for SQL generation). The model interprets the mechanical facts into meaning —
+   e.g. "14 characters, all digits" → "a County-District-School identifier".
+   Variables: db_id, table_name, column_name, declared_type, profile_english. #}
+You are a data documentation expert. Below is one database column: its table and
+column name, its declared type, and a deterministic PROFILE of its actual data.
+
+Database: {{ db_id }}
+Table: {{ table_name }}
+Column: {{ column_name }}
+Declared type: {{ declared_type }}
+
+Data profile (facts read directly from the data):
+{{ profile_english }}
+
+Write two descriptions of what this column holds, inferring format and meaning from
+the profile (e.g. a fixed-length digit string is likely an identifier or code; a
+'YYYY-YYYY' value is an academic/fiscal year; a small distinct set is an enum):
+
+- "short": one terse noun phrase for a schema index (max ~10 words), no trailing period.
+- "long": one or two sentences describing the meaning, format, and any enum/range,
+  useful to someone writing SQL against this column.
+
+Return ONLY a single JSON object with exactly the keys "short" and "long" — no prose,
+no markdown fences.

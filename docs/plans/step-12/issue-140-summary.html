@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issue 140 — Profiling-derived field metadata (offline machinery)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel-2:#243047; --ink:#e2e8f0; --muted:#94a3b8;
+    --line:#334155; --accent:#38bdf8; --accent-2:#818cf8;
+    --add:#34d399; --mod:#fbbf24; --del:#f87171;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#0b1120,#0f172a);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 1.25rem}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:2.5rem 0 2rem;margin-bottom:2rem}
+  .badge{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);
+         border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:.8rem 0 .3rem;line-height:1.2}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.92rem;margin-top:.75rem}
+  .meta b{color:var(--ink)} .meta code,code.k{background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-2);font-size:.85em}
+  section{margin:2.5rem 0}
+  h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.6rem}
+  h2 .num{font-size:.8rem;color:var(--bg);background:var(--accent);width:1.6rem;height:1.6rem;border-radius:50%;
+          display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .group{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:1rem 1.1rem}
+  .group.good{border-left-color:var(--add)}
+  .group h3{margin:.1rem 0 .6rem;font-size:.95rem;color:var(--ink)}
+  .group ul{margin:0;padding-left:1.1rem} .group li{margin:.3rem 0;font-size:.92rem}
+  .group code{color:var(--accent);background:var(--panel-2);padding:0 .3rem;border-radius:4px;font-size:.85em}
+  .note{color:var(--muted)}
+  .lede{font-size:1.02rem}
+  .stats{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+  .stats div{font-size:.85rem;color:var(--muted)} .stats b{display:block;font-size:1.4rem;color:var(--ink)}
+  pre.code{background:#0b1120;border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;overflow-x:auto;
+           font-size:.82rem;color:var(--ink);line-height:1.5;margin:0}
+  pre.code .c{color:var(--muted)} pre.code .a{color:var(--add)} pre.code .k{color:var(--accent-2)} pre.code .x{color:var(--del)}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{text-align:left;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em;
+           padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+  tbody td{padding:.55rem .75rem;border-bottom:1px solid rgba(51,65,85,.5);vertical-align:top}
+  td.f code{color:var(--accent);background:var(--panel-2);padding:.1rem .4rem;border-radius:5px;font-size:.88em}
+  .st{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .5rem;border-radius:5px;text-transform:uppercase}
+  .st.A{color:var(--add);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35)}
+  .st.M{color:var(--mod);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)}
+  .done{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:1rem 1.2rem;color:var(--ink)}
+  .done b{color:var(--add)} .good-txt{color:var(--add)} .num-txt{color:var(--accent-2);font-weight:700}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;font-size:.82rem;margin:.4rem 0}
+  .flow .box{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:.4rem .7rem}
+  .flow .box.hi{border-color:var(--accent);color:var(--accent)}
+  .flow .box.det{border-color:var(--add);color:var(--add)}
+  .flow .box.llm{border-color:var(--accent-2);color:var(--accent-2)}
+  .flow .arr{color:var(--muted)}
+  footer{color:var(--muted);font-size:.82rem;text-align:center;margin:3rem 0 2rem;border-top:1px solid var(--line);padding-top:1.5rem}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="badge">PR #147 · Step 12 · Issue #140</span>
+    <h1>Profiling-derived field metadata — let the data describe itself</h1>
+    <div class="meta">
+      <span><b>Author:</b> Chia-Jung Wang (@chiajung-wang)</span>
+      <span><b>Issue:</b> #140</span>
+      <span><b>Branch:</b> <code>step-12/issue-140-profiling-metadata</code> → <code>main</code></span>
+      <span><b>Source:</b> Shkapenyuk et&nbsp;al., arXiv:2505.19988v2 §2.1 (AT&amp;T #1 BIRD)</span>
+    </div>
+  </div></header>
+  <div class="wrap">
+
+    <section><h2><span class="num">1</span> Overview</h2><div class="card">
+      <p class="lede"><b>The paper's most surprising result: profiling the data beats human-supplied metadata.</b>
+      (MiniDev, no hints: profiling 61.2 vs supplied 59.6; fused best 63.2.) Cryptic schemas hide format the
+      data exposes — that <code>CDSCode</code> is a 14-char id, that <code>Academic Year</code> is
+      <code>'YYYY-YYYY'</code>. Step 11 ruled out the cheaper metadata moves (FK enrichment #112 was a null —
+      the FKs were already in the DDL) but never tried <b>data-derived</b> field descriptions. This is the
+      biggest build in the set; it lands the whole <b>offline machinery</b>, with the accuracy A/B deferred.</p>
+      <div class="stats">
+        <div><b class="num-txt">1</b> new module (<code>profiling/</code>, 4 files)</div>
+        <div><b>3</b> metadata sources (supplied/profiling/fused)</div>
+        <div><b>29</b> offline tests</div>
+        <div><b class="good-txt">deferred</b> accuracy A/B (gated on a key)</div>
+      </div>
+    </div></section>
+
+    <section><h2><span class="num">2</span> The pipeline — split by the determinism boundary</h2><div class="card">
+      <div class="flow">
+        <span class="box det">1 · profile (SQL stats)</span><span class="arr">→</span>
+        <span class="box det">2 · mechanical English</span><span class="arr">→</span>
+        <span class="box llm">3 · LLM summary (offline)</span><span class="arr">→</span>
+        <span class="box">profiles/&lt;db&gt;.json cache</span><span class="arr">→</span>
+        <span class="box hi">4 · selector → schema</span>
+      </div>
+      <p style="margin-bottom:0" class="note">Steps 1–2 are <b class="good-txt">deterministic, no LLM</b> — reproducible and
+      offline-testable. Step 3 is the <b class="num-txt">only</b> model-touching step, run <b>once, offline</b>, and frozen to a
+      version-controlled artifact the live pipeline only <em>reads</em>. Step 4's selector (<code>METADATA_SOURCE</code>) rides
+      the chosen descriptions into the rendered schema.</p>
+    </div></section>
+
+    <section><h2><span class="num">3</span> The profiler recovers the paper's own examples</h2><div class="card">
+      <p>The deterministic profile → mechanical English faithfully surfaces what a cryptic name hides:</p>
+      <pre class="code"><span class="c"># render_column_english(profile("CDSCode"))</span>
+Column "CDSCode" (TEXT). No NULLs across 3 rows. All 3 non-NULL values are
+distinct (unique). Values are <span class="a">exactly 14 characters long, all digits,
+always beginning with "0110017000000"</span>. Ranges from "011…01" to "011…03".
+
+<span class="c"># render_column_english(profile("AcademicYear"))</span>
+Values are <span class="a">exactly 9 characters long</span>, mixed characters …
+Ranges from "2013-2014" to "2014-2015".  <span class="c"># the 'YYYY-YYYY' shape</span></pre>
+      <p style="margin-bottom:0" class="note">Per-column stats: counts, NULL/non-NULL, distinct, uniqueness, value
+      shape (length range, character class, longest common prefix, min/max), and top-k values. The LLM step then
+      reads <em>"14 characters, all digits"</em> and writes <em>"a County-District-School identifier"</em>.</p>
+    </div></section>
+
+    <section><h2><span class="num">4</span> The metadata-source selector</h2><div class="card">
+      <table>
+        <thead><tr><th>METADATA_SOURCE</th><th>the schema render uses…</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>supplied</code> (default)</td><td>Human/SME descriptions only — the current behaviour; a db with no artifact degrades here cleanly.</td></tr>
+          <tr><td class="f"><code>profiling</code></td><td>The data-derived (profiled + LLM-summarized) description only.</td></tr>
+          <tr><td class="f"><code>fused</code></td><td>Supplied + profiling combined where they differ — the paper's best (supplied names the intent, profiling the format).</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-bottom:0" class="note">Wired into the BIRD eval's index-build (<code>eval/eval_bird_rag.py</code>) via
+      <code>resolve_column_descriptions(db_id)</code> → <code>build_schema_index(column_descriptions=…)</code>, so the env axis is
+      <b>active in a real run</b>. Descriptions ride in as comma-safe leading comments on each column.</p>
+    </div></section>
+
+    <section><h2><span class="num">5</span> Two load-bearing boundaries (both enforced structurally)</h2><div class="card">
+      <table>
+        <thead><tr><th>boundary</th><th>how it's held</th></tr></thead>
+        <tbody>
+          <tr><td><b>Descriptions are prompt content only</b></td><td>Never read by <code>guard.py</code> or <code>eval/compare.py</code> — those stay deterministic and data-independent, so scoring is untouched (CLAUDE.md §4).</td></tr>
+          <tr><td><b>Profiling is PII-aware</b> <span class="note">(review fix)</span></td><td>A redaction-policy column profiles <b>shape-only</b> (counts, distinct, length, character class) — never its raw values (no min/max/prefix/top-values), so raw PII can't reach the artifact, prompt, or a trace on the payments path (§5.3). BIRD (public, no policy) is a no-op.</td></tr>
+        </tbody>
+      </table>
+    </div></section>
+
+    <section><h2><span class="num">6</span> Two-axis review — fixes applied</h2>
+      <div class="grid">
+        <div class="group good"><h3>Standards</h3><ul>
+          <li>Prompt externalized (<code>profile_summary/v1.jinja</code>); CLAUDE.md + README + RESULTS updated together; guard/comparator untouched</li>
+          <li><b>Fix (hard):</b> PII-aware profiler — redaction-policy columns profile shape-only, no raw values persisted/rendered</li>
+        </ul></div>
+        <div class="group good"><h3>Spec</h3><ul>
+          <li>Determinism boundary honored; profiler/renderer/cache/summarizer + fake-client all inside scope; no creep</li>
+          <li><b>Fix:</b> threaded the selector into <code>eval_bird_rag._index</code> so <code>METADATA_SOURCE</code> is active end-to-end</li>
+          <li><b>Deferred:</b> live summarization precompute + the supplied/profiling/fused A/B (pass@1, bucket movement, token cost)</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2><span class="num">7</span> Files changed</h2>
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="f"><code>src/nl2sql/profiling/profiler.py</code></td><td><span class="st A">A</span></td><td>Deterministic per-column profile; PII-aware <code>redact_columns</code> (shape-only).</td></tr>
+          <tr><td class="f"><code>src/nl2sql/profiling/render.py</code></td><td><span class="st A">A</span></td><td>Mechanical profile→English (no LLM).</td></tr>
+          <tr><td class="f"><code>src/nl2sql/profiling/summarize.py</code></td><td><span class="st A">A</span></td><td>Offline LLM summary (short+long); degrades to English on a bad reply; <code>--dry-run</code> CLI.</td></tr>
+          <tr><td class="f"><code>src/nl2sql/profiling/cache.py</code></td><td><span class="st A">A</span></td><td>Versioned artifact read/write + selector + <code>METADATA_SOURCE</code> resolver.</td></tr>
+          <tr><td class="f"><code>prompts/profile_summary/v1.jinja</code></td><td><span class="st A">A</span></td><td>The externalized summarization prompt.</td></tr>
+          <tr><td class="f"><code>src/nl2sql/schema_index/__init__.py</code></td><td><span class="st M">M</span></td><td><code>ColumnMeta.description</code> → comma-safe leading comment; <code>build_schema_index(column_descriptions=)</code>.</td></tr>
+          <tr><td class="f"><code>eval/eval_bird_rag.py</code></td><td><span class="st M">M</span></td><td>Index-build resolves the metadata source — makes the selector active.</td></tr>
+          <tr><td class="f"><code>profiles/*.json</code> · <code>README.md</code></td><td><span class="st A">A</span></td><td>The version-controlled cache dir + a deterministic example artifact.</td></tr>
+          <tr><td class="f"><code>tests/test_profiling.py</code></td><td><span class="st A">A</span></td><td>29 tests: profiler, renderer, cache, selector, redaction, summarizer (fake client).</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section><h2><span class="num">8</span> Verification</h2><div class="card">
+      <div class="done">
+        <p style="margin:.2rem 0"><b>✓</b> <code>uv run pytest tests/test_profiling.py</code> → 29 passed; full suite 611 passed</p>
+        <p style="margin:.2rem 0"><b>✓</b> One pre-existing failure (<code>test_guard.py</code> needs the gitignored BIRD <code>dev.json</code>) — not this diff</p>
+        <p style="margin:.2rem 0"><b>✓</b> <code>ruff check</code> + <code>ruff format --check</code> clean; guard.py / compare.py untouched</p>
+        <p style="margin:.2rem 0"><b>✓</b> Profiler recovers the paper's examples; summarizer parses short+long JSON, degrades to English</p>
+        <p style="margin:.2rem 0"><b>✓</b> PII redaction proven: a policy column is shape-only, its English leaks no value</p>
+        <p style="margin:.2rem 0"><b>⏳</b> <b>Deferred (gated on key/spend):</b> live summarization precompute; supplied vs profiling vs fused dev A/B (pass@1, <code>diagnose_bird</code> buckets, token cost, held-out headline)</p>
+      </div>
+    </div></section>
+
+    <footer>
+      Generated for Issue #140 / PR #147 · base <code>main</code> ← <code>step-12/issue-140-profiling-metadata</code>
+    </footer>
+  </div>
+</body>
+</html>
