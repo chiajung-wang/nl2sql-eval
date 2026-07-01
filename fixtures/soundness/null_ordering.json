@@ -1,0 +1,74 @@
+{
+  "_meta": {
+    "fixture": "soundness/null_ordering",
+    "purpose": "Step 12, #139 — proves the null_ordering check in src/nl2sql/pipeline/soundness.py. A NULL sorts before all values, so an ascending-order / min(f) result over an unguarded column can be silently NULL-driven and wrong. Flagged as a correction signal (not a hard reject).",
+    "format": "(candidate SQL, expected verdict) pairs. expected_verdict is 'flag' (soundness hit → feed back) or 'pass' (clean). Cases with expected_verdict='flag' form the catch-rate set; 'pass' cases form the false-positive set (a flag on one is a false positive).",
+    "rule": "Only the OUTERMOST query is judged (the result the user receives); a scalar MIN(x) building-block subquery is a common, correct idiom and is not flagged. MAX/DESC are safe (NULLs sort last). A column already constrained by IS NOT NULL or any comparison/range/IN predicate in WHERE is not flagged."
+  },
+  "cases": [
+    {
+      "id": "min-projection-unguarded-flag",
+      "description": "min(price) with no NOT NULL guard — the minimum can be driven by a NULL semantics gap; the paper's null-ordering hazard.",
+      "sql": "SELECT MIN(price) FROM products",
+      "expected_verdict": "flag",
+      "expected_rule": "null_ordering"
+    },
+    {
+      "id": "min-projection-grouped-unguarded-flag",
+      "description": "min(price) per group, still unguarded — grouping does not neutralize the hazard on the min column.",
+      "sql": "SELECT category, MIN(price) FROM products GROUP BY category",
+      "expected_verdict": "flag",
+      "expected_rule": "null_ordering"
+    },
+    {
+      "id": "order-asc-limit1-unguarded-flag",
+      "description": "ORDER BY score ASC LIMIT 1 to take the smallest — a NULL sorts first, so the top row can be NULL-driven and wrong.",
+      "sql": "SELECT name FROM students ORDER BY score ASC LIMIT 1",
+      "expected_verdict": "flag",
+      "expected_rule": "null_ordering"
+    },
+    {
+      "id": "order-implicit-asc-limit-unguarded-flag",
+      "description": "ASC is the default when unspecified; ORDER BY created_at LIMIT 5 is the same hazard as an explicit ASC.",
+      "sql": "SELECT name FROM events ORDER BY created_at LIMIT 5",
+      "expected_verdict": "flag",
+      "expected_rule": "null_ordering"
+    },
+    {
+      "id": "min-guarded-is-not-null-pass",
+      "description": "min(price) WITH an explicit price IS NOT NULL guard — the near-miss negative; must NOT be flagged.",
+      "sql": "SELECT MIN(price) FROM products WHERE price IS NOT NULL",
+      "expected_verdict": "pass"
+    },
+    {
+      "id": "min-guarded-by-comparison-pass",
+      "description": "price > 0 already excludes NULLs via three-valued logic — the min column is guarded; not flagged.",
+      "sql": "SELECT MIN(price) FROM products WHERE price > 0",
+      "expected_verdict": "pass"
+    },
+    {
+      "id": "order-desc-limit-pass",
+      "description": "Descending order puts NULLs last, so the top row is never NULL-driven — not a hazard.",
+      "sql": "SELECT name FROM students ORDER BY score DESC LIMIT 1",
+      "expected_verdict": "pass"
+    },
+    {
+      "id": "order-asc-no-limit-pass",
+      "description": "A full ordered list (no LIMIT) returns every row — NULLs sorting first does not corrupt a result nobody truncates.",
+      "sql": "SELECT name FROM students ORDER BY score ASC",
+      "expected_verdict": "pass"
+    },
+    {
+      "id": "max-projection-pass",
+      "description": "MAX ignores NULLs and NULLs sort last, so the maximum is never NULL-driven — the check must not fire on max.",
+      "sql": "SELECT MAX(salary) FROM employees",
+      "expected_verdict": "pass"
+    },
+    {
+      "id": "min-in-scalar-subquery-pass",
+      "description": "A scalar MIN(price) building-block subquery is a common, correct idiom; only the outermost result is judged, so the nested min is not flagged.",
+      "sql": "SELECT name FROM products WHERE price = (SELECT MIN(price) FROM products WHERE price IS NOT NULL)",
+      "expected_verdict": "pass"
+    }
+  ]
+}

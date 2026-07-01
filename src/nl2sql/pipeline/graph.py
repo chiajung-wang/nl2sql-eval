@@ -42,13 +42,14 @@ from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.engine import Engine
 
 from nl2sql.obs import stage_span, trace_attributes
-from nl2sql.pipeline.correct import correct
+from nl2sql.pipeline.correct import correct, correct_soundness
 from nl2sql.pipeline.execute import execute
 from nl2sql.pipeline.generate import DEFAULT_DIALECT, DEFAULT_MODEL, generate
 from nl2sql.pipeline.guard import guard
 from nl2sql.pipeline.link import LINK_STRATEGIES, TASK_ALIGNMENT, link_tables
 from nl2sql.pipeline.redact import NO_REDACTION, RedactionPolicy, redact
 from nl2sql.pipeline.retrieve import is_not_found_error, missing_identifier, retrieve
+from nl2sql.pipeline.soundness import soundness
 from nl2sql.pipeline.state import RunState
 from nl2sql.schema_index import DEFAULT_MAX_TABLES, SchemaIndex
 
@@ -202,7 +203,7 @@ def _route_after_guard(state: _GraphState, config: RunnableConfig) -> str:
     """
     run = state["run"]
     if not run.guard_rejected:
-        return "execute"
+        return "soundness"
     c = _cfg(config)
     scope_retry = (
         run.guard_rule == "table_scope"
@@ -227,6 +228,39 @@ def _scope_re_retrieve(state: _GraphState, config: RunnableConfig) -> dict[str, 
         floor=c["max_tables"] * 2**re_retrievals,
     )
     return {"run": run, "active_schema": active_schema, "re_retrievals": re_retrievals}
+
+
+def _soundness(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """Deterministic bad-construction scan (Step 12, #139), after a guard-allow.
+
+    Same AST-check shape as the guard but a *correction* contract, not a safety
+    gate: it only records a flag on the state; the routing below decides whether the
+    budget allows a feed-back retry.
+    """
+    soundness(state["run"], dialect=_cfg(config)["dialect"])
+    return {"run": state["run"]}
+
+
+def _route_after_soundness(state: _GraphState, config: RunnableConfig) -> str:
+    """A clean (or budget-spent) candidate executes; a flagged one with budget left
+    feeds the reason back and regenerates.
+
+    A soundness heuristic must never *lose* a run (CLAUDE.md §5 — the checks are
+    recoverable signals, not hard rejects): when the retry budget is spent the
+    flagged candidate proceeds to ``execute`` anyway, so a false positive costs at
+    most a wasted retry, never a dropped answer. The budget test mirrors
+    ``_route_after_execute`` so soundness retries share the one capped budget.
+    """
+    run = state["run"]
+    if run.soundness_flag and run.attempts < _cfg(config)["budget"]:
+        return "correct_soundness"
+    return "execute"
+
+
+def _correct_soundness(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """Stage the soundness flag as feedback for the next ``generate``."""
+    correct_soundness(state["run"])
+    return {"run": state["run"]}
 
 
 def _execute(state: _GraphState, config: RunnableConfig) -> dict[str, Any]:
@@ -281,6 +315,8 @@ def _build_graph() -> CompiledStateGraph:
     g.add_node("generate", _generate)
     g.add_node("guard", _guard)
     g.add_node("scope_re_retrieve", _scope_re_retrieve)
+    g.add_node("soundness", _soundness)
+    g.add_node("correct_soundness", _correct_soundness)
     g.add_node("execute", _execute)
     g.add_node("correct", _correct)
 
@@ -290,9 +326,15 @@ def _build_graph() -> CompiledStateGraph:
     g.add_conditional_edges(
         "guard",
         _route_after_guard,
-        {"execute": "execute", "scope_re_retrieve": "scope_re_retrieve", END: END},
+        {"soundness": "soundness", "scope_re_retrieve": "scope_re_retrieve", END: END},
     )
     g.add_edge("scope_re_retrieve", "generate")
+    g.add_conditional_edges(
+        "soundness",
+        _route_after_soundness,
+        {"correct_soundness": "correct_soundness", "execute": "execute"},
+    )
+    g.add_edge("correct_soundness", "generate")
     g.add_conditional_edges(
         "execute", _route_after_execute, {"correct": "correct", END: END}
     )
@@ -333,8 +375,13 @@ def run_pipeline(
     ``state.correction``), then the deterministic guard gate *before* execution —
     a rejected candidate sets ``state.guard_rejected``, never reaches the
     database, and ends the run (the guard-feedback loop is out of Step-5 scope).
-    On a clean ``execute`` the run returns immediately. On an execution error the
-    ``correct`` stage stages the failure as feedback and the loop regenerates,
+    A guard-allowed candidate then passes the ``soundness`` scan (Step 12, #139):
+    deterministic bad-construction checks (NULL-ordering hazard, min/max-by-
+    subquery, field catenation) that, unlike the guard, are *correction signals* —
+    a flag with budget left feeds its reason back to ``generate``; a flag with the
+    budget spent proceeds to ``execute`` anyway (a soundness heuristic never loses a
+    run). On a clean ``execute`` the run returns immediately. On an execution error
+    the ``correct`` stage stages the failure as feedback and the loop regenerates,
     until the candidate succeeds or the ``max_attempts`` budget is spent.
 
     ``max_attempts=1`` (default) is the single-shot pass@1 mode — no correction.
@@ -409,10 +456,11 @@ def run_pipeline(
                 "link_strategy": link_strategy,
                 "budget": budget,
             },
-            # Each attempt costs a few supersteps; size the ceiling to the budget
-            # so a legitimate pass@k run never trips LangGraph's recursion guard,
-            # while a genuine wiring bug (an unbounded loop) still surfaces.
-            "recursion_limit": budget * 6 + 25,
+            # Each attempt costs a few supersteps (generate→guard→soundness→execute,
+            # plus a correct / correct_soundness hop on a retry); size the ceiling to
+            # the budget so a legitimate pass@k run never trips LangGraph's recursion
+            # guard, while a genuine wiring bug (an unbounded loop) still surfaces.
+            "recursion_limit": budget * 8 + 25,
         }
         result = _GRAPH.invoke({"run": state}, config=config)
         run: RunState = result["run"]

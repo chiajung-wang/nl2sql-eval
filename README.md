@@ -51,7 +51,7 @@ flowchart LR
 
 ## Features
 
-- **Instrumented NL-to-SQL pipeline** modeled as a state machine with conditional edges: retrieve → generate → guard → execute → correct → redact.
+- **Instrumented NL-to-SQL pipeline** modeled as a state machine with conditional edges: retrieve → generate → guard → soundness → execute → correct → redact (the `soundness` checks are correction signals, not a hard gate).
 - **Schema-RAG** over table/column metadata and sample values (retrieval over *schema*, not documents), loop-aware and re-triggered on not-found errors.
 - **Deterministic guardrails** (sqlglot AST, not regex/LLM): read-only enforcement, dangerous-op blocking, cost/complexity heuristic, and per-db table-scope checks.
 - **Self-correction loop** with a capped retry budget, feeding execution errors and retrieval misses back into regeneration.
@@ -220,10 +220,12 @@ nl2sql-eval/
 │   │   ├── graph.py          #   state machine (LangGraph after Step 7; hand-rolled before)
 │   │   ├── state.py          #   shared run state + terminal-state ENUM (enum only)
 │   │   ├── retrieve.py       #   schema-RAG, loop-aware
+│   │   ├── link.py           #   task-alignment schema linking (harvest tables from generated SQL, #138)
 │   │   ├── generate.py       #   LLM SQL generation
 │   │   ├── guard.py          #   deterministic sqlglot AST guardrails, heuristic-first cost
+│   │   ├── soundness.py      #   deterministic bad-construction checks → correction signal (#139)
 │   │   ├── execute.py        #   SQLAlchemy execution, multi-engine
-│   │   ├── correct.py        #   error / retrieval feedback loop (capped retries)
+│   │   ├── correct.py        #   error / retrieval / soundness feedback loop (capped retries)
 │   │   └── redact.py         #   column-aware PII masking (post-scoring)
 │   ├── schema_index/         # retrievable schema-metadata store
 │   ├── llm/                  # LiteLLM provider boundary (the LLMClient seam)
@@ -240,7 +242,8 @@ nl2sql-eval/
 │       └── payments/         #   schema.sql + seed.sql + load.py; questions.json + questions.py + verify_gold.py
 ├── fixtures/
 │   ├── golden_compare/       # (gold, candidate, expected_verdict) triples — DELIVERABLE
-│   └── redteam_guard/        # injected dangerous queries — DELIVERABLE
+│   ├── redteam_guard/        # injected dangerous queries — DELIVERABLE
+│   └── soundness/            # bad-construction (soundness) checks: catch + false-positive rate — DELIVERABLE
 ├── prompts/                  # version-controlled Jinja-style templates (CI diffs these)
 ├── apps/demo/                # thin Streamlit UI revealing the wrapper (isolated dep group)
 │   ├── runner.py             #   testable core: run_demo → DemoView (no Streamlit)
@@ -275,6 +278,7 @@ uv run pytest tests/test_compare.py tests/test_guard.py
 
 - **Comparator:** validated against `fixtures/golden_compare/` — `(gold, candidate, expected_verdict)` triples. Add a fixture case for every new comparison edge case. The committed rule set and its **per-rule audit against the official BIRD evaluator** (including the deliberate divergences and the opt-in `BIRD_RULES` for leaderboard parity) live in [`docs/eval/comparator-rule-set.md`](docs/eval/comparator-rule-set.md).
 - **Guardrails:** unit-test green plus a reported catch rate against `fixtures/redteam_guard/`. Add a fixture case for every new dangerous-query pattern.
+- **Soundness checks (#139):** the deterministic bad-construction checks (`src/nl2sql/pipeline/soundness.py`) are measured against `fixtures/soundness/` — a reported **catch rate** and **false-positive rate** over positives + near-miss negatives. Unlike the guard these are *correction signals*, not hard rejects. Add a fixture case for every new soundness pattern.
 - **Payments gold set** (`eval/datasets/payments/questions.json`) carries two distinct, independent flags:
   - `machine_verified` — the agent's claim that `gold_sql` reproduces the stored `gold_result` against the seed. Reproduce it (needs a live, seeded db):
     ```bash

@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "fixture": "soundness/minmax_subquery",
+    "purpose": "Step 12, #139 — proves the minmax_subquery check in src/nl2sql/pipeline/soundness.py. Selecting the row that owns an extreme value via an equality against a scalar MIN/MAX subquery is the shape ORDER BY x LIMIT 1 expresses more reliably; flagged as a correction signal (diagnostic-grade).",
+    "format": "(candidate SQL, expected verdict) pairs; 'flag' → soundness hit, 'pass' → clean. See null_ordering.json for the catch-rate / false-positive semantics.",
+    "rule": "Only an UNCORRELATED scalar MIN/MAX subquery (no WHERE of its own that could reference the outer row) matched by '=' is flagged. A correlated subquery genuinely needs the subquery form and is left alone; a non-equality comparison (>, <) or a non-min/max aggregate is not the antipattern."
+  },
+  "cases": [
+    {
+      "id": "eq-min-subquery-flag",
+      "description": "= (SELECT MIN(price) FROM products) selects the cheapest row by matching a scalar min subquery — ORDER BY price LIMIT 1 is idiomatic.",
+      "sql": "SELECT name FROM products WHERE price = (SELECT MIN(price) FROM products)",
+      "expected_verdict": "flag",
+      "expected_rule": "minmax_subquery"
+    },
+    {
+      "id": "eq-max-subquery-flag",
+      "description": "= (SELECT MAX(salary) FROM employees) selects the highest-paid row via a scalar max subquery — same antipattern on the max side.",
+      "sql": "SELECT name FROM employees WHERE salary = (SELECT MAX(salary) FROM employees)",
+      "expected_verdict": "flag",
+      "expected_rule": "minmax_subquery"
+    },
+    {
+      "id": "correlated-min-subquery-pass",
+      "description": "The near-miss negative: a correlated subquery (its WHERE references the outer row's category) genuinely needs the subquery form — must NOT be flagged.",
+      "sql": "SELECT name FROM products p WHERE p.price = (SELECT MIN(p2.price) FROM products p2 WHERE p2.category = p.category)",
+      "expected_verdict": "pass"
+    },
+    {
+      "id": "gt-avg-subquery-pass",
+      "description": "price > (SELECT AVG(price) ...) is a legitimate above-average filter, not a row-by-extreme match — not the antipattern.",
+      "sql": "SELECT name FROM products WHERE price > (SELECT AVG(price) FROM products)",
+      "expected_verdict": "pass"
+    },
+    {
+      "id": "plain-min-aggregate-pass",
+      "description": "A plain MIN aggregate as the answer (no equality-to-subquery) is fine here — the null_ordering check owns the unguarded-min hazard, not this one.",
+      "sql": "SELECT MIN(price) FROM products WHERE price IS NOT NULL",
+      "expected_verdict": "pass"
+    }
+  ]
+}

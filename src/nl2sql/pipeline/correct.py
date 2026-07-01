@@ -52,3 +52,31 @@ def correct(state: RunState) -> RunState:
         extra["corrected"] = True
 
     return state
+
+
+def correct_soundness(state: RunState) -> RunState:
+    """Stage a soundness flag as a correction signal, then clear it for a retry.
+
+    A soundness hit (Step 12, #139) is *not* an execution error — the candidate ran
+    (or would run) fine, it is just a likely-wrong construction. It reuses the same
+    ``state.correction`` feedback channel the next ``generate`` renders (correct.py
+    is the natural home for the paper's "flag → ask for a fix" loop), carrying the
+    check's reason so the model sees *why* to rewrite. Clears the flag so a stale
+    verdict can't survive into the next cycle. A no-op when nothing is flagged, so a
+    stray call cannot fabricate a correction.
+    """
+    with stage_span("correct", db_id=state.db_id, attempt=state.attempts) as extra:
+        if not state.soundness_flag:
+            extra["corrected"] = False
+            return state
+
+        state.correction = {
+            "sql": state.candidate_sql or "",
+            "error": state.soundness_reason or "likely-wrong SQL construction",
+        }
+        state.soundness_flag = False
+        state.soundness_reason = None
+        state.soundness_rule = None
+        extra["corrected"] = True
+
+    return state
