@@ -107,5 +107,16 @@ class RunState:
     soundness_reason: str | None = None
     soundness_rule: str | None = None
 
+    # Set by the literal_check stage (Step 12, #141) when a string literal is
+    # constrained against a column whose sampled values don't contain it, while
+    # another column does — the "right value, wrong column" class. Like the
+    # soundness flag these are *correction signals*, not terminal: with budget left
+    # the graph feeds ``literal_reason`` (the steering message naming the columns
+    # that hold the value) back to ``generate``; with the budget spent the candidate
+    # executes anyway. Reset on every scan so a re-tried candidate isn't judged by a
+    # stale flag.
+    literal_flag: bool = False
+    literal_reason: str | None = None
+
     # Free-form per-stage diagnostics; cost/latency/tokens land here later.
     meta: dict[str, Any] = field(default_factory=dict)
