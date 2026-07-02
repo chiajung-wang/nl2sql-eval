@@ -39,6 +39,23 @@ def load_dev_questions(data_dir: Path | None = None) -> list[dict[str, Any]]:
     return json.loads((data_dir / "dev.json").read_text())
 
 
+def load_minidev_questions(data_dir: Path | None = None) -> list[dict[str, Any]]:
+    """Load the BIRD **Mini-Dev** SQLite subset (same fields as
+    :func:`load_dev_questions`) from ``mini_dev_sqlite.json``.
+
+    Mini-Dev (github.com/bird-bench/mini_dev, HuggingFace ``birdsql/bird_mini_dev``)
+    is a 500-question, hand-curated, difficulty-stratified (30/50/20
+    simple/moderate/challenging) subset of this same dev pool, drawn from the same
+    11 dbs already under ``dev_databases/`` — no extra db download needed. Use this
+    loader rather than filtering ``load_dev_questions()`` by id: Mini-Dev corrects
+    the gold ``SQL`` for a minority of questions versus the original ``dev.json``
+    (community-reported fixes), so re-deriving from ``dev.json`` would silently
+    score against the stale gold on those rows.
+    """
+    data_dir = data_dir or bird_data_dir()
+    return json.loads((data_dir / "mini_dev_sqlite.json").read_text())
+
+
 def db_path(db_id: str, data_dir: Path | None = None) -> Path:
     """Filesystem path to a tagged db's SQLite file."""
     data_dir = data_dir or bird_data_dir()

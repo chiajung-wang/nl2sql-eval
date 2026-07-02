@@ -122,6 +122,9 @@ MODEL=openrouter/moonshotai/kimi-k2.7-code uv run python -m eval.eval_bird_selfc
 # Step 6 — naive-dump vs schema-RAG retrieval lift (+ retrieval recall)
 uv run python -m eval.eval_bird_rag
 
+# Mini-Dev — pass@1 (schema-RAG) on BIRD's own curated 500-q slice, same 11 dbs
+uv run python -m eval.eval_bird_minidev
+
 # Step 4 — guardrail catch rate against the red-team fixture (deterministic, no model)
 uv run python -m eval.redteam
 

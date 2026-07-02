@@ -55,14 +55,20 @@ def _schema(db_id: str) -> str:
 
 def build_bird_cases(
     slice_ids: list[int] | None = None,
+    questions: list[dict] | None = None,
 ) -> tuple[list[Case], dict[str, str]]:
     """Build a :class:`Case` per slice question (gold executed against its tagged
     db) plus the per-question evidence map. ``slice_ids`` defaults to the frozen
-    Step-3 slice; the Step-6 large-schema runner passes its own slice. Gold
-    execution is SQLite-only — no API — so this is testable offline whenever the
-    BIRD data is present."""
+    Step-3 slice; the Step-6 large-schema runner passes its own slice. ``questions``
+    defaults to the full ``dev.json`` pool; the Mini-Dev runner passes
+    ``loader.load_minidev_questions()`` instead, since Mini-Dev corrects the gold
+    ``SQL`` for a minority of question_ids versus ``dev.json`` (§ its loader
+    docstring) — filtering ``dev.json`` by id would silently score the stale gold
+    on those rows. Gold execution is SQLite-only — no API — so this is testable
+    offline whenever the BIRD data is present."""
     wanted = set(slice_ids if slice_ids is not None else load_slice_ids())
-    questions = [q for q in loader.load_dev_questions() if q["question_id"] in wanted]
+    pool = questions if questions is not None else loader.load_dev_questions()
+    questions = [q for q in pool if q["question_id"] in wanted]
     cases: list[Case] = []
     evidence: dict[str, str] = {}
     for q in questions:
