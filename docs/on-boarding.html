@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>nl2sql-eval — Onboarding</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a21;
+    --panel-2: #1d212b;
+    --border: #2a2f3a;
+    --text: #d7dce5;
+    --muted: #8b93a3;
+    --accent: #6ea8fe;
+    --accent-2: #f5b860;
+    --green: #5fd38a;
+    --red: #f47174;
+    --code-bg: #11141b;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { display: grid; grid-template-columns: 260px 1fr; max-width: 1280px; margin: 0 auto; }
+  /* Sidebar */
+  nav {
+    position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    padding: 28px 20px; border-right: 1px solid var(--border); background: var(--panel);
+  }
+  nav h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 22px 0 8px; }
+  nav h2:first-child { margin-top: 0; }
+  nav a { display: block; color: var(--text); text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 14px; }
+  nav a:hover { background: var(--panel-2); color: var(--accent); }
+  .brand { font-weight: 700; font-size: 18px; color: #fff; margin-bottom: 4px; }
+  .brand small { display:block; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 4px; }
+  /* Main */
+  main { padding: 40px 48px 120px; max-width: 920px; }
+  section { margin-bottom: 56px; scroll-margin-top: 24px; }
+  h1 { font-size: 32px; margin: 0 0 6px; color: #fff; }
+  h1 + .lede { font-size: 18px; color: var(--muted); margin-top: 0; }
+  h2.title { font-size: 24px; color: #fff; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 18px; }
+  h3 { font-size: 18px; color: #fff; margin: 28px 0 10px; }
+  p { margin: 12px 0; }
+  a { color: var(--accent); }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13.5px; color: #e6c07b; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.5; }
+  pre code { background: none; padding: 0; color: var(--text); }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .callout { border-left: 3px solid var(--accent); background: var(--panel-2); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .callout.warn { border-left-color: var(--accent-2); }
+  .callout.crit { border-left-color: var(--red); }
+  .tag { display:inline-block; font-size: 12px; padding: 1px 8px; border-radius: 20px; background: var(--panel-2); border:1px solid var(--border); color: var(--muted); margin-right:6px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; }
+  td code { white-space: nowrap; }
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  .pill { font-size: 12px; padding: 2px 10px; border-radius: 20px; font-weight: 600; }
+  .pill.good { background: rgba(95,211,138,.15); color: var(--green); }
+  .pill.bad { background: rgba(244,113,116,.15); color: var(--red); }
+  /* Flow diagram */
+  .flow { display:flex; flex-wrap: wrap; align-items:center; gap:8px; margin: 18px 0; }
+  .node { background: var(--panel-2); border:1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: ui-monospace, monospace; }
+  .node.exit { background: rgba(245,184,96,.12); border-color: var(--accent-2); color: var(--accent-2); }
+  .node.guard { border-color: var(--accent); color: var(--accent); }
+  .arrow { color: var(--muted); font-size: 18px; }
+  .legend { font-size: 13px; color: var(--muted); }
+  .kbd { font-family: ui-monospace, monospace; font-size: 12px; background:var(--code-bg); border:1px solid var(--border); padding:1px 6px; border-radius:5px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+  .footer { color: var(--muted); font-size: 13px; }
+  @media (max-width: 880px) {
+    .wrap { grid-template-columns: 1fr; }
+    nav { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    main { padding: 28px 20px 80px; }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="brand">nl2sql-eval<small>Onboarding guide</small></div>
+    <h2>Start here</h2>
+    <a href="#what">1 · What this is</a>
+    <a href="#mental-model">2 · The mental model</a>
+    <a href="#pipeline">3 · The pipeline</a>
+    <a href="#exits">4 · Two exits & scoring</a>
+    <a href="#terminal">5 · Terminal states</a>
+    <h2>The product</h2>
+    <a href="#harness">6 · The eval harness</a>
+    <a href="#guardrails">7 · Guardrails & comparator</a>
+    <a href="#fixtures">8 · Fixtures & RESULTS.md</a>
+    <h2>The codebase</h2>
+    <a href="#layout">9 · Directory layout</a>
+    <a href="#stack">10 · Tech stack</a>
+    <a href="#invariants">11 · The invariants</a>
+    <h2>Hands-on</h2>
+    <a href="#run">12 · Getting it running</a>
+    <a href="#where">13 · Where to look first</a>
+  </nav>
+
+  <main>
+    <section id="what">
+      <h1>nl2sql-eval</h1>
+      <p class="lede">A guardrailed agentic Natural-Language-to-SQL system — built as a case study in <strong>rigorously evaluating and operating an LLM system</strong>.</p>
+
+      <div class="callout">
+        <strong>The one sentence that explains everything:</strong> the NL-to-SQL agent is the <em>workload</em>; the eval harness, observability, and prompt-CI/CD wrapper around it is the <em>product</em>. Anyone can wire an LLM to a database — the point here is to <strong>prove it works, catch when it breaks, and operate it day to day</strong>.
+      </div>
+
+      <p>If you remember nothing else: <strong>the measurement apparatus is the centerpiece.</strong> <code>eval/</code> is a peer of <code>src/</code>, never subordinate. Features are not <em>claimed</em>, they are <em>measured</em> — scored against frozen benchmarks and red-team fixtures, with every reported number traceable to its exact config and commit.</p>
+    </section>
+
+    <section id="mental-model">
+      <h2 class="title">2 · The mental model</h2>
+      <p>Hold three layers in your head. They map directly onto the directory tree.</p>
+      <div class="panel">
+        <table>
+          <tr><th>Layer</th><th>What it is</th><th>Lives in</th></tr>
+          <tr><td><strong>The workload</strong></td><td>An instrumented NL→SQL pipeline (a state machine). Takes a question, returns a verified result.</td><td><code>src/nl2sql/pipeline/</code></td></tr>
+          <tr><td><strong>The product</strong></td><td>The eval harness that drives the pipeline over frozen question slices and scores it. The reason the repo exists.</td><td><code>eval/</code></td></tr>
+          <tr><td><strong>The evidence</strong></td><td>Golden + red-team fixtures, and <code>RESULTS.md</code> — every number tied to model, slice, prompt version, date, commit.</td><td><code>fixtures/</code>, <code>RESULTS.md</code></td></tr>
+        </table>
+      </div>
+      <p class="callout warn"><strong>Import-sharing is non-negotiable.</strong> Both the eval harness <em>and</em> the demo UI import the <em>same</em> compiled pipeline. The pipeline is never forked or duplicated — so there is zero drift between what is measured and what is shown to a user.</p>
+    </section>
+
+    <section id="pipeline">
+      <h2 class="title">3 · The pipeline (the system under test)</h2>
+      <p>The pipeline is a state machine with conditional edges. <strong>One stage per module</strong> under <code>src/nl2sql/pipeline/</code> — they are never collapsed into one file.</p>
+
+      <div class="flow">
+        <span class="node">retrieve</span><span class="arrow">→</span>
+        <span class="node">generate</span><span class="arrow">→</span>
+        <span class="node guard">guard</span><span class="arrow">→</span>
+        <span class="node">soundness</span><span class="arrow">→</span>
+        <span class="node">literal_check</span><span class="arrow">→</span>
+        <span class="node">execute</span><span class="arrow">→</span>
+        <span class="node">correct</span><span class="arrow">↺</span>
+        <span class="node">redact</span>
+      </div>
+
+      <table>
+        <tr><th>Stage</th><th>Module</th><th>What it does</th></tr>
+        <tr><td>retrieve</td><td><code>retrieve.py</code><br><code>link.py</code></td><td>Schema-RAG over table/column metadata + sample values (retrieval over <em>schema</em>, not documents). Loop-aware. <strong>Step 12:</strong> an alternative <em>task-alignment linker</em> (<code>link.py</code>) selectable by config — harvest the tables the <em>generated SQL</em> references rather than scoring/dropping tables.</td></tr>
+        <tr><td>generate</td><td><code>generate.py</code></td><td>LLM SQL generation, using an externalized prompt template.</td></tr>
+        <tr><td>guard</td><td><code>guard.py</code></td><td>Deterministic <strong>sqlglot AST</strong> checks, pre-execution: read-only enforcement, dangerous-op blocking, cost/complexity heuristic, per-db table-scope. No regex, no LLM. A hit is a <strong>terminal reject</strong> (safety gate).</td></tr>
+        <tr><td>soundness<br>literal_check</td><td><code>soundness.py</code><br><code>literal_check.py</code></td><td><strong>Step 12.</strong> Same AST-check shape as the guard, opposite contract: a hit is a <strong>correction signal</strong>, not a reject. <code>soundness</code> flags bad-construction patterns (NULL-ordering hazard, min/max-by-subquery, field catenation); <code>literal_check</code> flags a literal bound to the wrong column (via a sampled value index). With budget they feed back to <code>generate</code>; with the budget spent the candidate executes anyway — a false positive costs a wasted retry, never a dropped run.</td></tr>
+        <tr><td>execute</td><td><code>execute.py</code></td><td>SQLAlchemy execution, multi-engine (SQLite for BIRD, Postgres for payments).</td></tr>
+        <tr><td>correct</td><td><code>correct.py</code></td><td>Feeds execution errors / retrieval misses / soundness / literal signals back into regeneration — within a <strong>capped retry budget</strong>.</td></tr>
+        <tr><td>redact</td><td><code>redact.py</code></td><td>Column-aware, deterministic, schema-driven PII masking. Runs <em>after</em> scoring.</td></tr>
+      </table>
+
+      <p>Shared run state and the terminal-state <em>enum</em> live in <code>state.py</code>. The graph wiring lives in <code>graph.py</code> (a LangGraph graph). The smallest possible loop is runnable as a smoke check:</p>
+      <pre><code>uv run python -m nl2sql.pipeline.graph "How many users are based in the US?"</code></pre>
+    </section>
+
+    <section id="exits">
+      <h2 class="title">4 · Two exits — and why scoring happens before redaction</h2>
+      <p>This is the crux of the whole design. The pipeline has <strong>two distinct exits</strong>:</p>
+      <div class="grid2">
+        <div class="panel">
+          <span class="tag">EXIT 1</span>
+          <h3 style="margin-top:6px;">Raw verified result</h3>
+          <p>The unredacted result. <strong>This is what the harness scores</strong> against gold — <em>upstream of redaction</em>. Scoring is canonicalized result-set comparison, never SQL string-match (two different queries can be equally correct).</p>
+        </div>
+        <div class="panel">
+          <span class="tag">EXIT 2</span>
+          <h3 style="margin-top:6px;">Presented result</h3>
+          <p>Post-redaction. The <strong>only</strong> thing ever shown to a user or written to a log, trace, or span. Raw PII never reaches a log line.</p>
+        </div>
+      </div>
+      <p class="callout crit"><strong>Why the order matters:</strong> if redaction ran before scoring, masked PII would corrupt the comparison and silently invalidate every reported number. So: <strong>score the raw result, then redact for presentation.</strong> Redaction must never touch the scoring path.</p>
+    </section>
+
+    <section id="terminal">
+      <h2 class="title">5 · Terminal states</h2>
+      <p>Every run buckets into <strong>exactly one</strong> terminal state. This is how failures are categorized in the eval.</p>
+      <table>
+        <tr><th>State</th><th>Meaning</th></tr>
+        <tr><td><span class="pill good">success</span></td><td>Result matches gold.</td></tr>
+        <tr><td><span class="pill bad">wrong_answer</span></td><td>Executed cleanly but the result-set doesn't match gold (a <em>semantic</em> miss).</td></tr>
+        <tr><td><span class="pill bad">retry_exhausted</span></td><td>Burned the retry budget without recovering.</td></tr>
+        <tr><td><span class="pill bad">execution_error_final</span></td><td>SQL still errors after correction attempts.</td></tr>
+        <tr><td><span class="pill bad">guardrail_rejected</span></td><td>Guard blocked the query pre-execution.</td></tr>
+        <tr><td><span class="pill bad">retrieval_empty</span></td><td>Retrieval returned nothing usable.</td></tr>
+      </table>
+      <p class="callout warn"><strong>Critical boundary:</strong> the <em>enum</em> lives in <code>state.py</code>; the <em>classifier</em> that assigns the state lives in the <strong>harness</strong> — never in <code>state.py</code>. The pipeline carries state; the harness interprets it.</p>
+    </section>
+
+    <section id="harness">
+      <h2 class="title">6 · The eval harness (the product)</h2>
+      <p><code>eval/harness.py</code> is the batch runner: it drives the import-shared pipeline per question over a <strong>frozen</strong> slice, scores against gold, buckets the terminal state, and records cost/latency/attempts. The thin <code>eval/eval_*.py</code> entrypoints are each a different experiment over that one runner.</p>
+      <table>
+        <tr><th>Entry point</th><th>What it measures</th></tr>
+        <tr><td><code>eval_bird.py</code></td><td>pass@1 baseline on the frozen BIRD slice (naive schema dump).</td></tr>
+        <tr><td><code>eval_bird_twin.py</code></td><td>The twin metric: <strong>pass@1 vs pass@k</strong> — what self-correction is worth, and the cost the gap buys.</td></tr>
+        <tr><td><code>eval_bird_selfcorrect.py</code></td><td>The twin on a large-schema slice, with a selectable generator (<code>MODEL</code> env var).</td></tr>
+        <tr><td><code>eval_bird_rag.py</code></td><td>Naive-dump vs schema-RAG <strong>retrieval lift</strong>, plus retrieval recall. Also the A/B host for the Step-12 env axes (<code>LINK_STRATEGY</code>, <code>METADATA_SOURCE</code>, <code>LITERAL_STEER</code>, <code>SOUNDNESS</code>, <code>RETRY_BUDGET</code>).</td></tr>
+        <tr><td><code>eval_bird_vote.py</code></td><td><strong>Step 12:</strong> the majority-voting twin — attempt-1 vs pass@k-majority over <code>k</code> field-order-shuffled candidates, plus the vote-agreement distribution. Reuses the comparator as a candidate selector.</td></tr>
+        <tr><td><code>eval_bird_minidev.py</code></td><td>pass@1 (schema-RAG) over BIRD's own curated, difficulty-stratified <strong>500-question Mini-Dev</strong> slice (<code>slice_minidev.py</code>) — same 11 dbs as the rest of BIRD, adopted whole rather than resampled, with its community-corrected gold SQL. Every run auto-triages its non-success cases (reusing <code>diagnose_bird</code>'s deterministic sqlglot-AST taxonomy) into a gold-vs-candidate failure report — no separate diagnose pass needed.</td></tr>
+        <tr><td><code>diagnose_bird.py</code></td><td>Failure analysis: for every wrong answer, a <strong>deterministic, sqlglot-AST-derived tag</strong> for the likely root cause (table/join mismatch, missing GROUP BY, aggregate mismatch, …) — a taxonomy, not just a pass/fail count. No regex/LLM for the tagging.</td></tr>
+        <tr><td><code>eval_cross_provider.py</code></td><td>Cross-provider table: accuracy × cost × latency per model (via LiteLLM).</td></tr>
+        <tr><td><code>redteam.py</code></td><td>Guardrail catch rate against the red-team fixture — deterministic, no model needed.</td></tr>
+        <tr><td><code>eval_payments.py</code></td><td>The same machinery against the Postgres payments demo set.</td></tr>
+      </table>
+      <p>Twin reporting (<code>pass@1</code> AND <code>pass@k</code>) is mandatory — the gap quantifies what self-correction is worth. Retrieval runs additionally report <strong>retrieval recall</strong> against the gold query's actual tables.</p>
+      <p>Each step also ships a self-contained <strong>proof</strong> that runs offline where possible: <code>prove_step1.py</code> (one seed question → result vs gold), <code>prove_step8.py</code> (renders an example trace), <code>prove_step9.py</code> (replays the prompt-CI regression delta).</p>
+    </section>
+
+    <section id="guardrails">
+      <h2 class="title">7 · Guardrails & the comparator (the deterministic cores)</h2>
+      <p>Two pieces of the system are <strong>deterministic by law</strong> — no LLM calls, no regex for SQL semantics, sqlglot ASTs only. They are the most heavily tested code in the repo because a bug in either silently corrupts results.</p>
+      <div class="grid2">
+        <div class="panel">
+          <h3 style="margin-top:0;">The comparator — <code>eval/compare.py</code></h3>
+          <p>Canonicalizes result sets and compares them. This is <em>how a run is scored</em>. Must pass its <strong>entire</strong> golden fixture of <code>(gold, candidate, expected_verdict)</code> triples. Its rule set is audited against the official BIRD evaluator (see <code>docs/eval/comparator-rule-set.md</code>).</p>
+        </div>
+        <div class="panel">
+          <h3 style="margin-top:0;">The guard — <code>src/nl2sql/pipeline/guard.py</code></h3>
+          <p>Four deterministic AST checks, pre-execution: read-only enforcement (block writes/DDL), dangerous-op blocking, cost/complexity (heuristic-first), and per-db table-scope. On fail it either rejects or feeds back as a correction signal. Measured against the red-team fixture (reported catch rate).</p>
+        </div>
+      </div>
+      <p class="callout"><strong>Test discipline:</strong> add a golden-fixture case for every new comparison edge case; add a red-team case for every new dangerous-query pattern. Run them with <code>uv run pytest tests/test_compare.py tests/test_guard.py</code>.</p>
+    </section>
+
+    <section id="fixtures">
+      <h2 class="title">8 · Fixtures & the results log</h2>
+      <h3>Fixtures are deliverables, not test scaffolding</h3>
+      <ul>
+        <li><code>fixtures/golden_compare/</code> — <code>(gold, candidate, expected_verdict)</code> triples that <em>prove the comparator</em>.</li>
+        <li><code>fixtures/redteam_guard/</code> — injected dangerous queries (read-only, dangerous-op, cost, table-scope, prompt-injection) that <em>measure the guard</em>.</li>
+      </ul>
+      <h3><code>RESULTS.md</code> — the running results log</h3>
+      <p class="callout crit"><strong>A step is not done until its number is appended to <code>RESULTS.md</code></strong> with the exact config: model, slice ID, prompt version, date, the number, and the commit. Never report an eval number without a corresponding entry. Every number must be traceable to the config and commit that produced it.</p>
+    </section>
+
+    <section id="layout">
+      <h2 class="title">9 · Directory layout</h2>
+      <pre><code>nl2sql-eval/
+├── src/nl2sql/
+│   ├── pipeline/          # the system-under-test (import-shared by harness + demo)
+│   │   ├── graph.py       #   state machine wiring (LangGraph)
+│   │   ├── state.py       #   shared run state + terminal-state ENUM (enum only!)
+│   │   ├── retrieve.py    #   schema-RAG, loop-aware
+│   │   ├── generate.py    #   LLM SQL generation
+│   │   ├── link.py        #   task-alignment schema linking (Step 12; alt to retrieve)
+│   │   ├── guard.py       #   deterministic sqlglot AST guardrails (terminal reject)
+│   │   ├── soundness.py   #   bad-construction checks → correction signal (Step 12)
+│   │   ├── literal_check.py #  literal→field steering → correction signal (Step 12)
+│   │   ├── execute.py     #   SQLAlchemy execution, multi-engine
+│   │   ├── correct.py     #   error/retrieval/soundness/literal feedback (capped retries)
+│   │   └── redact.py      #   column-aware PII masking (post-scoring)
+│   ├── schema_index/      # retrievable schema-metadata store
+│   ├── value_index.py     # sampled value→column index for literal steering (Step 12)
+│   ├── profiling/         # data profiler + mechanical English + offline LLM summary cache (Step 12)
+│   ├── llm/               # LiteLLM provider boundary (the LLMClient seam)
+│   ├── obs/               # Langfuse instrumentation helpers
+│   └── prompts.py         # pins the active prompt version
+│
+├── eval/                  # ★ CENTERPIECE — peer of src/, imports the pipeline
+│   ├── harness.py         #   batch runner; pass@1 + pass@k; terminal-state classifier
+│   ├── compare.py         #   canonicalization + result-set comparison (heavily tested)
+│   ├── metrics.py         #   twin report, cost/latency aggregation
+│   ├── cost.py            #   token→USD price table; pass@k cost accounting
+│   ├── voting.py          #   result-set majority voting: the comparator as a selector (Step 12)
+│   ├── candidate_diversity.py # seeded schema-field-order shuffle for voting (Step 12)
+│   ├── prompt_ci.py       #   prompt-CI: run frozen slice, render pass@1/pass@k delta
+│   ├── eval_*.py          #   thin experiment entrypoints over harness.py
+│   ├── prove_step*.py     #   offline proofs (no API key where possible)
+│   └── datasets/
+│       ├── bird/          #   benchmark backbone; frozen slice ID lists (incl. slice_ci.json)
+│       └── payments/      #   schema.sql + seed.sql + load.py; questions.json + verify_gold.py
+│
+├── fixtures/
+│   ├── golden_compare/    # comparator proof — DELIVERABLE
+│   ├── redteam_guard/     # guard measurement — DELIVERABLE
+│   └── soundness/         # bad-construction catch/false-positive rate — DELIVERABLE (Step 12)
+│
+├── profiles/              # version-controlled field-description cache, per db (Step 12)
+├── prompts/               # version-controlled Jinja templates (CI diffs these)
+├── apps/demo/             # thin Streamlit UI revealing the wrapper (isolated dep group)
+│   ├── runner.py          #   testable core: run_demo → DemoView (no Streamlit)
+│   └── app.py             #   thin Streamlit shell over runner.py
+├── tests/                 # esp. test_compare.py & test_guard.py — the deterministic cores
+├── docs/
+│   ├── prd.md             # the product requirements document everything derives from
+│   ├── blogs/             # the step-by-step narrative (step-1 … step-12 + capstone)
+│   ├── plans/step-N/      # per-step plan + per-issue HTML summaries
+│   └── eval/comparator-rule-set.md  # comparator rules vs official BIRD evaluator
+├── RESULTS.md             # ★ the running results log (every number → config + commit)
+├── README.md              # the portfolio front door
+└── CLAUDE.md              # behavioral rules for AI agents working here</code></pre>
+    </section>
+
+    <section id="stack">
+      <h2 class="title">10 · Tech stack</h2>
+      <table>
+        <tr><th>Concern</th><th>Choice</th><th>Note</th></tr>
+        <tr><td>Language / tooling</td><td>Python 3.11+, <code>uv</code></td><td>Add deps via <code>uv add</code> — never hand-edit lockfiles.</td></tr>
+        <tr><td>SQL parsing/validation</td><td><strong>sqlglot</strong> (AST)</td><td>Never <code>sqlparse</code> (tokenize-only). All guard & comparator semantics are AST-based.</td></tr>
+        <tr><td>SQL execution</td><td>SQLAlchemy</td><td>Multi-engine: SQLite (BIRD) + Postgres (payments demo).</td></tr>
+        <tr><td>LLM providers</td><td>LiteLLM</td><td>Model chosen by provider-prefixed id (<code>anthropic/…</code>, <code>openrouter/…</code>); the id <em>is</em> the selector.</td></tr>
+        <tr><td>Graph / state machine</td><td>LangGraph</td><td>Compiles the pipeline graph shared by harness + demo.</td></tr>
+        <tr><td>Observability</td><td>Langfuse</td><td>One trace per run, one span per stage. Offline → pure structured logging (no keys, no network).</td></tr>
+        <tr><td>Demo UI</td><td>Streamlit</td><td>Isolated dep group (<code>uv sync --group demo</code>). Reveals the wrapper, not a chatbot.</td></tr>
+        <tr><td>Prompt CI/CD</td><td>GitHub Actions</td><td>Prompt change → runs frozen slice → posts pass@1/pass@k deltas to the PR.</td></tr>
+      </table>
+      <p>Default to the latest capable Claude models (Opus 4.x / Sonnet 4.x) when invoking Claude; the pinned default generator is <code>anthropic/claude-sonnet-4-6</code>.</p>
+    </section>
+
+    <section id="invariants">
+      <h2 class="title">11 · The invariants (what you must never break)</h2>
+      <p>These are the rules that keep the apparatus honest. They live in <code>CLAUDE.md</code> / the PRD; internalize them before editing.</p>
+      <ul>
+        <li><strong>Execution accuracy via canonicalized result-set comparison</strong> — never SQL string-match.</li>
+        <li><strong>Score upstream of redaction</strong> — redaction runs afterward and must never corrupt scoring.</li>
+        <li><strong>Raw PII never reaches logs/traces/presented output</strong> — only the redacted result is ever shown or logged.</li>
+        <li><strong>Guardrails & comparator are deterministic</strong> — sqlglot ASTs only; no regex for SQL semantics, no LLM-as-judge as the primary scorer.</li>
+        <li><strong>One pipeline stage per module</strong>; the pipeline is import-shared by harness and demo — never forked.</li>
+        <li><strong>Terminal-state classifier lives in the harness</strong>, the enum in <code>state.py</code>.</li>
+        <li><strong>Step-12 boundaries:</strong> profiling-derived field descriptions are <em>generate-prompt content only</em> — never read by the guard or comparator, and PII columns are profiled shape-only (no raw values). Majority voting <em>reuses</em> <code>eval/compare.py</code> read-only — no second equivalence implementation. Soundness / literal checks are correction signals, never terminal rejects.</li>
+        <li><strong>Prompts are externalized</strong> in <code>prompts/</code> as templates — never inlined in Python (CI diffs that directory).</li>
+        <li><strong>Self-correction is capped</strong> by a retry budget.</li>
+        <li><strong>Report twin metrics</strong> (pass@1 AND pass@k) and retrieval lift/recall — not just overall accuracy.</li>
+        <li><strong>Every reported number → a <code>RESULTS.md</code> entry</strong> with model, slice, prompt version, date, number, commit.</li>
+        <li><strong>Eval slices are frozen, seeded, stratified</strong> — repeatability is a feature.</li>
+        <li><strong>Out of scope:</strong> cross-db routing, open-ended generation eval, LLM-as-judge-as-primary-scorer.</li>
+        <li><strong>Never add Claude / Claude Code as author or co-author</strong> on commits or PRs.</li>
+      </ul>
+    </section>
+
+    <section id="run">
+      <h2 class="title">12 · Getting it running</h2>
+      <pre><code># 1. Install deps (uv reads pyproject.toml, creates the virtualenv)
+uv sync
+
+# 2. Configure
+cp .env.example .env       # edit with provider key + DB URLs
+
+# 3. Verify the deterministic cores pass FIRST (no API key needed)
+uv run pytest tests/test_compare.py tests/test_guard.py
+
+# 4. Guardrail catch rate — deterministic, no model
+uv run python -m eval.redteam
+
+# 5. Offline proof — one seed question end-to-end
+uv run python -m eval.prove_step1
+
+# --- live runs below need a provider key ---
+
+# pass@1 baseline on the frozen BIRD slice
+uv run python -m eval.eval_bird
+
+# pass@1 on the 500-question Mini-Dev slice (schema-RAG), auto-triaged
+MODEL= RUN_CONFIG=accuracy uv run python -m eval.eval_bird_minidev
+
+# the demo UI (isolated dep group)
+uv sync --group demo
+uv run streamlit run apps/demo/app.py</code></pre>
+      <p>Configuration is via environment variables (an <code>.env</code> file): <code>ANTHROPIC_API_KEY</code> / <code>OPENROUTER_API_KEY</code> for generation, <code>PAYMENTS_DB_URL</code> for the demo, <code>BIRD_DATA_DIR</code> for BIRD runs, the two <code>LANGFUSE_*</code> keys for tracing, plus optional <code>MODEL</code>, <code>MAX_TOKENS</code>, <code>RUN_CONFIG</code>, <code>SLICE</code>, <code>RETRY_BUDGET</code>. The Step-12 levers are A/B axes, each off/baseline by default so a clean run is unchanged: <code>LINK_STRATEGY</code> (task-alignment linking), <code>METADATA_SOURCE</code> (supplied / profiling / fused), <code>LITERAL_STEER</code>, <code>SOUNDNESS</code>, <code>VOTE_K</code>. Live model runs can be deferred — much of the system proves itself offline.</p>
+    </section>
+
+    <section id="where">
+      <h2 class="title">13 · Where to look first</h2>
+      <p>A reading order for a new contributor:</p>
+      <ol>
+        <li><a href="prd.md"><code>docs/prd.md</code></a> — the product requirements everything derives from.</li>
+        <li><code>../README.md</code> — the front door, with the headline findings and full config reference.</li>
+        <li><code>src/nl2sql/pipeline/state.py</code> then <code>graph.py</code> — see the run state and how the stages are wired.</li>
+        <li><code>eval/harness.py</code> — the batch runner and terminal-state classifier (the product's heart).</li>
+        <li><code>eval/compare.py</code> + <code>tests/test_compare.py</code> — how scoring actually works.</li>
+        <li><code>src/nl2sql/pipeline/guard.py</code> + <code>tests/test_guard.py</code> — the deterministic guard.</li>
+        <li><a href="."><code>docs/plans/step-N/</code></a> and <a href="blogs/"><code>docs/blogs/</code></a> — the narrated build, step by step, if you want the rationale behind each piece.</li>
+        <li><code>../RESULTS.md</code> — every committed number and the config that produced it.</li>
+      </ol>
+      <hr>
+      <p class="footer">Onboarding guide for <strong>nl2sql-eval</strong>. The authoritative rules live in <code>CLAUDE.md</code> and <code>docs/prd.md</code> — when this page and those disagree, defer to them.</p>
+    </section>
+  </main>
+</div>
+</body>
+</html>

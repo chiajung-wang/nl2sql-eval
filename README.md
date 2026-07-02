@@ -271,6 +271,7 @@ The project was built **measurement-first** (the eval before the feature) across
 - [`docs/plans/step-N/`](docs/plans/) — per-step plan plus its broken-down, independently-grabbable issues, each with a self-contained HTML summary of what shipped.
 - [`RESULTS.md`](RESULTS.md) — the running results log; every reported number links to its model, slice, prompt version, date, and commit.
 - [`docs/blogs/`](docs/blogs/) — the step-by-step narrative, capped by the [capstone](docs/blogs/the-wrapper-is-the-product.md).
+- [`docs/on-boarding.html`](docs/on-boarding.html) — a new-contributor walkthrough: the mental model, the pipeline, the two exits, the deterministic cores, and where to look first.
 
 **Status:** Steps 1–10 complete. The one deliberately deferred item is the optional BigQuery cloud-warehouse executor (the guard already recognizes the `bigquery` dialect; transpiling verified SQL via sqlglot is the remaining step).
 
