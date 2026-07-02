@@ -6,19 +6,18 @@ The natural-language-to-SQL agent is the *workload*; the eval harness, observabi
 
 ## Headline findings
 
-Each row links to its committed entry in [`RESULTS.md`](RESULTS.md), where the exact model, slice, prompt version, date, and commit are recorded. The findings are deliberately *honest* — several are null or negative results, which is the point: the apparatus tells you the truth, not the headline you hoped for.
+The best numbers the system reaches, each traceable to a committed entry in [`RESULTS.md`](RESULTS.md) (exact model, slice, prompt version, date, commit).
 
-Each "Source" cell links to the committed [`RESULTS.md`](RESULTS.md) log and names the exact commit that produced the number.
+| Metric | Best result | Config |
+|---|---|---|
+| **Execution accuracy** (pass@1) | **0.568 strict / 0.598 BIRD** on the 500-q Mini-Dev slice · 0.520/0.580 on the 50-q slice · 0.536/0.564 on the 250-q wide slice | `gemini-3.5-flash` accuracy config · [RESULTS.md](RESULTS.md#log) |
+| **Guardrail catch rate** (red-team) | **1.000** — 29/29 dangerous queries blocked, 43/43 verdicts correct | deterministic sqlglot-AST gate |
+| **Soundness-check catch / false-positive** | **1.000 / 0.000** — 9/9 caught, 0/12 false positives | Step-12 bad-construction fixture |
+| **Retrieval recall** (vs the gold query's tables) | **0.958** (task-alignment linking) · 0.942 (schema-RAG) | large-schema slice |
+| **Comparator** (the scoring oracle) | passes its **entire** golden fixture; per-rule audited vs the official BIRD evaluator | `eval/compare.py` |
+| **Framework-swap parity** | **0.420 → 0.420** — a provable no-op | LangGraph + LiteLLM refactor |
 
-| Finding | Number | What it means | Source (commit) |
-|---|---|---|---|
-| **First real BIRD number** (pass@1) | 0.420 (21/50) | The naive schema-dump baseline on a frozen, stratified 50-question slice | [Step 3](RESULTS.md#log) · `5d9d8ae` |
-| **Guardrail catch rate** (red-team) | 1.000 (29/29) | Every dangerous query in the red-team fixture blocked pre-execution; 43/43 verdicts correct | [Step 4](RESULTS.md#log) · `e56fbcd` |
-| **What self-correction is worth** (pass@1→pass@k) | strong model **+0.000**; weak model **+0.050** | The loop can only recover *execution errors*. A strong model makes ~none (its failures are semantic) so the gap is **0** even on 14-table schemas; a weaker generator produces them and the loop recovers some. The value tracks **generator weakness**, not budget — the twin reports the lift with its retry price | [Step 5](RESULTS.md#log) · `7ae5bb5` + [follow-up](RESULTS.md#log) · `fc99e7c` |
-| **What retrieval is worth** (naive→schema-RAG lift) | 0.700 → 0.575, lift **−0.125**, recall 0.942 | Where the whole schema *fits* the context, RAG can only lose information by dropping a needed table; recall diagnoses the loss directly | [Step 6](RESULTS.md#log) · `ff342d7` |
-| **Cross-provider** (accuracy × cost × latency) | best pass@1 **0.540** (`gemini-3-flash`) | One import-shared pipeline, many providers via LiteLLM; cheapest model ~70× less than priciest | [Step 7](RESULTS.md#log) · `26328de` |
-| **Framework-swap parity** (pass@1) | 0.420 → 0.420 | LangGraph + LiteLLM refactor was behavior-preserving — the harness proves the swap changed *exactly nothing* | [Step 7](RESULTS.md#log) · `2040ef9` |
-| **Prompt-CI catches a regression** (pass@1/pass@k) | 0.417 → **0.000**, Δ **−0.417** | A reasonable-looking prompt edit, caught before merge by the CI delta | [Step 9](RESULTS.md#log) · `157fe6b` |
+> The apparatus is built to report reality, not the headline you hoped for — so the full [`RESULTS.md`](RESULTS.md) log also records the **honest nulls**: self-correction is worth **+0.000** on a strong model (its failures are semantic, not execution errors), schema-RAG is a **−0.125** liability where the schema already fits the context, and five techniques imported from a #1 BIRD submission (Step 12) each **failed to beat baseline** on our slice — with data-profiled metadata even *diverging* from the source paper. Knowing what a lever *doesn't* buy is the deliverable.
 
 ## Architecture
 
