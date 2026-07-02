@@ -119,7 +119,13 @@ def run_query(
                 lambda: 1 if time.monotonic() > deadline else 0, 10_000
             )
         try:
-            result = conn.execute(text(sql))
+            # exec_driver_sql, not execute(text(...)): this SQL is always a fully
+            # literal statement with no external bind parameters, and SQLAlchemy's
+            # ``:name`` bind-parameter scan can misfire on a plain string literal
+            # that happens to contain a colon (e.g. a LIKE pattern matching a time
+            # value like '_:%?.___') — exec_driver_sql sends the SQL to the DBAPI
+            # unparsed, sidestepping that scan entirely.
+            result = conn.exec_driver_sql(sql)
             columns = list(result.keys())
             rows = [tuple(row) for row in result.fetchall()]
         finally:

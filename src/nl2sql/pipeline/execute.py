@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -46,7 +46,14 @@ def execute(state: RunState, engine: Engine) -> RunState:
 
         try:
             with engine.connect() as conn:
-                result = conn.execute(text(state.candidate_sql))
+                # exec_driver_sql, not execute(text(...)): candidate SQL is always
+                # a fully literal statement with no external bind parameters, and
+                # SQLAlchemy's ``:name`` bind-parameter scan can misfire on a plain
+                # string literal that happens to contain a colon (e.g. a time
+                # value like '1:23.456') — exec_driver_sql sends the SQL to the
+                # DBAPI unparsed, sidestepping that scan (and the false
+                # execution_error it would otherwise produce) entirely.
+                result = conn.exec_driver_sql(state.candidate_sql)
                 state.result_columns = list(result.keys())
                 state.result_rows = [tuple(row) for row in result.fetchall()]
             # Only the shape is logged — never the rows (they may carry PII).
