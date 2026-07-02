@@ -23,19 +23,27 @@ from __future__ import annotations
 import json
 import logging
 import sys
+from collections import Counter
 from datetime import date
+from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 
 from eval.datasets.bird import loader
 from eval.datasets.bird.slice_minidev import SLICE_FILE, load_minidev_slice_ids
+from eval.diagnose_bird import _failure_records, rescore_under_bird
 from eval.eval_bird import RESULTS_PATH, _git_commit, append_results, build_bird_cases
 from eval.eval_bird_rag import make_rag_run_one
-from eval.harness import batch_session_id, run_batch
+from eval.harness import Case, batch_session_id, run_batch
 from eval.metrics import BatchReport, summary_lines
 from eval.model_select import model_id
 from nl2sql import obs
 from nl2sql.prompts import PROMPT_VERSION
+
+FAILURE_REPORT_PATH = (
+    Path(__file__).resolve().parents[1] / "docs/plans/step-12/minidev-failures.md"
+)
 
 
 def slice_minidev_id() -> str:
@@ -52,6 +60,96 @@ def results_row(
     return (
         f"| {date.today().isoformat()} | minidev | pass@1 (schema-RAG) | {number} | "
         f"{model} | {slice_minidev_id()} | {prompt_version} | {commit} |"
+    )
+
+
+def _triage(
+    report: BatchReport, cases: list[Case]
+) -> tuple[list[dict[str, Any]], Counter]:
+    """Tag every non-``success`` case with its likely root cause.
+
+    Reuses ``diagnose_bird``'s deterministic sqlglot-AST diffing (no regex/LLM for
+    SQL semantics, CLAUDE.md §4) and its BIRD-set-semantics rescore — the same
+    taxonomy the Step-3 baseline report uses, so a tag means the same thing here as
+    there. Offline once ``report`` exists: no extra model calls."""
+    by_id = {c.id: c for c in cases}
+    records = _failure_records(report, by_id)
+    rescore_under_bird(records)
+    genuine = [r for r in records if not r.get("bird_correct")]
+    tax = Counter(t for rec in genuine for t in rec["tags"])
+    return records, tax
+
+
+def _render_failure_report(
+    report: BatchReport, records: list[dict[str, Any]], *, model: str
+) -> str:
+    """Markdown: taxonomy counts, then each failure's gold vs candidate SQL."""
+    scorer_artifacts = [r for r in records if r.get("bird_correct")]
+    genuine = [r for r in records if not r.get("bird_correct")]
+    bird_correct = report.n_correct + len(scorer_artifacts)
+    tax = Counter(t for rec in genuine for t in rec["tags"])
+    terminal = report.terminal_counts()
+
+    lines = [
+        "# Mini-Dev — failure analysis",
+        "",
+        f"**pass@1 {report.pass_at_1:.3f} ({report.n_correct}/{report.total})** "
+        f"(strict multiset default) · model `{model}` · prompt `{PROMPT_VERSION}` · "
+        f"schema-RAG, single-shot, slice `{slice_minidev_id()}`.",
+        "",
+        f"pass@1 under BIRD set-semantics: **{bird_correct / report.total:.3f} "
+        f"({bird_correct}/{report.total})** — `+{len(scorer_artifacts)}` scorer-"
+        f"strictness false-negatives vs `{len(genuine)}` genuine model errors.",
+        "",
+        "## Genuine-error taxonomy",
+        "",
+        "Deterministic sqlglot-AST diffs of gold vs candidate (a failure may carry "
+        "several tags).",
+        "",
+        "| root-cause tag | genuine failures |",
+        "| --- | --- |",
+    ]
+    lines += [f"| {tag} | {n} |" for tag, n in tax.most_common()]
+    lines += ["", "## terminal states", "", "| state | count |", "| --- | --- |"]
+    lines += [f"| {s.value} | {c} |" for s, c in terminal.items() if c]
+    lines += ["", "## Failures (gold vs candidate)", ""]
+    for rec in records:
+        flag = " · **BIRD-ok (scorer artifact)**" if rec.get("bird_correct") else ""
+        lines += [
+            f"### `{rec['id']}` · {rec['db_id']} · {rec['difficulty']} · "
+            f"_{rec['terminal_state']}_ · tags: {', '.join(rec['tags'])}{flag}",
+            "",
+            f"**Q:** {rec['question']}",
+            "",
+            "```sql",
+            "-- gold",
+            rec["gold_sql"],
+            "-- candidate",
+            (rec["candidate_sql"] or "(no SQL)"),
+            "```",
+            f"comparator: {rec['comparator_reason'] or '—'}",
+            "",
+        ]
+    return "\n".join(lines) + "\n"
+
+
+def _triage_note(
+    report: BatchReport, records: list[dict[str, Any]], tax: Counter
+) -> str:
+    """The prose paragraph appended to RESULTS.md alongside the pass@1 row."""
+    scorer_artifacts = len(records) - sum(
+        1 for r in records if not r.get("bird_correct")
+    )
+    genuine = len(records) - scorer_artifacts
+    top = ", ".join(f"**{tag}** ({n})" for tag, n in tax.most_common(5))
+    return (
+        f"\n**Mini-Dev — failure triage.** Of the {len(records)} non-success cases "
+        f"on `{slice_minidev_id()}`, **{scorer_artifacts}** are scorer-strictness "
+        f"false-negatives (BIRD set-semantics would accept them) and **{genuine}** "
+        f"are genuine model errors. Deterministic sqlglot-AST tagging (reusing "
+        f"`diagnose_bird`'s taxonomy, CLAUDE.md §4) of the genuine errors, biggest "
+        f"first: {top}. Full per-question gold-vs-candidate detail: "
+        f"`docs/plans/step-12/{FAILURE_REPORT_PATH.name}`.\n"
     )
 
 
@@ -82,13 +180,26 @@ def main(argv: list[str] | None = None) -> int:
     )
     print("\n" + "\n".join(summary_lines(report)))
 
+    records, tax = _triage(report, cases)
+    print(f"\n{len(records)} non-success cases — genuine-error taxonomy:")
+    print(dict(tax.most_common()))
+
     row = results_row(
         report, model=model, prompt_version=PROMPT_VERSION, commit=_git_commit()
     )
     print("\nRESULTS.md row:\n" + row)
     if write and limit is None:
         append_results(row)
-        print(f"\nappended to {RESULTS_PATH.name}")
+        FAILURE_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        FAILURE_REPORT_PATH.write_text(
+            _render_failure_report(report, records, model=model)
+        )
+        RESULTS_PATH.write_text(
+            RESULTS_PATH.read_text().rstrip()
+            + "\n"
+            + _triage_note(report, records, tax)
+        )
+        print(f"\nappended to {RESULTS_PATH.name}; wrote {FAILURE_REPORT_PATH}")
     elif limit is not None:
         print("\n(--limit run: not writing RESULTS.md)")
     # Short-lived job: export buffered Langfuse spans before exit. A no-op offline
