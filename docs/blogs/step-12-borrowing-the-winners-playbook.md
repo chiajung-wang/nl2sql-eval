@@ -236,18 +236,21 @@ cleared the noise floor** (per-question SE ≈ 0.077):
   With all 613 columns of the slice's databases profiled and LLM-summarized live, the three-way
   came out **supplied 0.675 → fused 0.625 → profiling-only 0.575** — a monotonic *decline* with
   more injected profiling content, the opposite of the paper's *profiling > supplied* (61.2 > 59.6
-  on GPT-4o/MiniDev). The descriptions are correct and useful (`budget.category` summarized to its
-  exact five-value enum — the paper's enum-exposure thesis, live), but on a strong model the
-  verbose long descriptions *distract and dilute* rather than clarify — the same mechanism Step 11's
-  #112 found when sample-row enrichment hurt. Within ~1 SE, so suggestive not conclusive, but
-  directionally clean and mechanistically plausible.
+  on GPT-4o/MiniDev). The descriptions themselves are correct and useful — the summarizer parsed
+  cleanly on **46 of 48** columns for the first db (`budget.category` summarized to its exact
+  five-value enum — the paper's enum-exposure thesis, live — with 2 columns degrading to the
+  deterministic English), so this is a *content-quality* win that still *lost* on accuracy. On a
+  strong model the verbose long descriptions *distract and dilute* rather than clarify — the same
+  mechanism Step 11's #112 found when sample-row enrichment hurt. Within ~1 SE, so suggestive not
+  conclusive, but directionally clean and mechanistically plausible.
 
-The weak generator (`kimi-k2.7-code`) didn't rescue any of them: voting stayed **+0.000** (more
-diverse — 25 unanimous vs the strong model's 32 — but its *majority wasn't reliably the correct
-answer*), and soundness went slightly negative (the retries regenerated as many right answers into
-wrong ones as the reverse). Even kimi wrote zero execution errors on this slice, so self-correction
-was inert here too — the malformed-SQL rate the correction loop feeds on is slice-dependent, and
-this large-schema slice doesn't produce it.
+The weak generator (`kimi-k2.7-code`) didn't rescue any of them: voting stayed **+0.000** (0.550 →
+0.550; more diverse — 25 unanimous vs the strong model's 32 — but its *majority wasn't reliably the
+correct answer*), and soundness went slightly *negative* — **0.475 with the checks on versus 0.525
+for the self-correct-only control** (3 flags, 2 retries that regenerated as many right answers into
+wrong ones as the reverse; within the noise floor, but pointing the wrong way). Even kimi wrote zero
+execution errors on this slice, so self-correction was inert here too — the malformed-SQL rate the
+correction loop feeds on is slice-dependent, and this large-schema slice doesn't produce it.
 
 The synthesis is the same one Step 11 reached, now stress-tested against a *#1 submission's*
 playbook: this slice's residual failures are a **table/join-selection model-capability frontier**,
